@@ -15,6 +15,7 @@ import {
   type InvoiceListResponse,
   type ServerActionResult,
 } from '@/types/invoice';
+import { PAYMENT_STATUS } from '@/types/payment';
 import {
   invoiceFormSchema,
   holdInvoiceSchema,
@@ -118,6 +119,9 @@ export async function getInvoices(
     });
 
     // Build where clause
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     const where: any = {
       is_hidden: false, // Always exclude hidden invoices by default
     };
@@ -142,7 +146,20 @@ export async function getInvoices(
     }
 
     if (validated.status) {
-      where.status = validated.status;
+      if (validated.status === INVOICE_STATUS.OVERDUE) {
+        where.status = {
+          in: [
+            INVOICE_STATUS.UNPAID,
+            INVOICE_STATUS.PARTIAL,
+            INVOICE_STATUS.OVERDUE,
+          ],
+        };
+        where.due_date = {
+          lt: today,
+        };
+      } else {
+        where.status = validated.status;
+      }
     }
 
     if (validated.vendor_id) {
@@ -171,10 +188,69 @@ export async function getInvoices(
       take: validated.per_page,
     });
 
+    // Compute payment aggregates for invoices in the current page
+    const invoiceIds = invoices.map((invoice) => invoice.id);
+    let paymentsByInvoice = new Map<number, number>();
+
+    if (invoiceIds.length > 0) {
+      const paymentAggregates = await db.payment.groupBy({
+        by: ['invoice_id'],
+        where: {
+          invoice_id: {
+            in: invoiceIds,
+          },
+          status: PAYMENT_STATUS.APPROVED,
+        },
+        _sum: {
+          amount_paid: true,
+        },
+      });
+
+      paymentsByInvoice = new Map(
+        paymentAggregates.map((aggregate) => [
+          aggregate.invoice_id,
+          aggregate._sum.amount_paid ?? 0,
+        ])
+      );
+    }
+
+    const enrichedInvoices = invoices.map((invoice) => {
+      const totalPaid = paymentsByInvoice.get(invoice.id) ?? 0;
+      const remainingBalance = Math.max(
+        0,
+        invoice.invoice_amount - totalPaid
+      );
+
+      const dueDate = invoice.due_date
+        ? new Date(invoice.due_date)
+        : null;
+      if (dueDate) {
+        dueDate.setHours(0, 0, 0, 0);
+      }
+
+      const isOutstandingStatus =
+        invoice.status === INVOICE_STATUS.UNPAID ||
+        invoice.status === INVOICE_STATUS.PARTIAL ||
+        invoice.status === INVOICE_STATUS.OVERDUE;
+
+      const isOverdue =
+        !!dueDate &&
+        dueDate.getTime() < today.getTime() &&
+        remainingBalance > 0 &&
+        isOutstandingStatus;
+
+      return {
+        ...invoice,
+        totalPaid,
+        remainingBalance,
+        isOverdue,
+      };
+    }) as InvoiceWithRelations[];
+
     return {
       success: true,
       data: {
-        invoices: invoices as InvoiceWithRelations[],
+        invoices: enrichedInvoices,
         pagination: {
           page: validated.page,
           per_page: validated.per_page,
@@ -224,9 +300,46 @@ export async function getInvoiceById(
       };
     }
 
+    const paymentAggregate = await db.payment.aggregate({
+      where: {
+        invoice_id: id,
+        status: PAYMENT_STATUS.APPROVED,
+      },
+      _sum: {
+        amount_paid: true,
+      },
+    });
+
+    const totalPaid = paymentAggregate._sum.amount_paid ?? 0;
+    const remainingBalance = Math.max(0, invoice.invoice_amount - totalPaid);
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const dueDate = invoice.due_date ? new Date(invoice.due_date) : null;
+    if (dueDate) {
+      dueDate.setHours(0, 0, 0, 0);
+    }
+
+    const isOutstandingStatus =
+      invoice.status === INVOICE_STATUS.UNPAID ||
+      invoice.status === INVOICE_STATUS.PARTIAL ||
+      invoice.status === INVOICE_STATUS.OVERDUE;
+
+    const isOverdue =
+      !!dueDate &&
+      dueDate.getTime() < today.getTime() &&
+      remainingBalance > 0 &&
+      isOutstandingStatus;
+
     return {
       success: true,
-      data: invoice as InvoiceWithRelations,
+      data: {
+        ...invoice,
+        totalPaid,
+        remainingBalance,
+        isOverdue,
+      } as InvoiceWithRelations,
     };
   } catch (error) {
     console.error('getInvoiceById error:', error);

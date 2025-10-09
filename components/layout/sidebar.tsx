@@ -1,45 +1,115 @@
 'use client';
 
+import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import {
+  LayoutDashboard,
+  FileText,
+  BarChart3,
+  Settings,
+  Shield,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Logo } from '@/components/ui/logo';
 import { cn } from '@/lib/utils';
 
-const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: '📊' },
-  { name: 'Invoices', href: '/invoices', icon: '📄' },
-  { name: 'Reports', href: '/reports', icon: '📈' },
-  { name: 'Settings', href: '/settings', icon: '⚙️' },
-  { name: 'Admin', href: '/admin', icon: '👤' },
+interface SidebarItem {
+  name: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
+
+const navigation: SidebarItem[] = [
+  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Invoices', href: '/invoices', icon: FileText },
+  { name: 'Reports', href: '/reports', icon: BarChart3 },
+  { name: 'Settings', href: '/settings', icon: Settings },
+  { name: 'Admin', href: '/admin', icon: Shield },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  collapsed: boolean;
+  onToggle: () => void;
+}
+
+export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
 
   return (
-    <div className="flex w-64 flex-col border-r bg-card">
-      <div className="flex h-16 items-center border-b px-6">
-        <h1 className="text-xl font-bold">PayLog</h1>
+    <aside
+      className={cn(
+        'relative flex h-full shrink-0 flex-col bg-sidebar/95 text-sidebar-foreground backdrop-blur-sm transition-all duration-300',
+        collapsed ? 'w-[88px]' : 'w-72'
+      )}
+    >
+      <div className="flex items-center justify-between gap-2 border-b border-sidebar-border px-4 py-4">
+        <Logo collapsed={collapsed} className="shrink-0" />
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onToggle}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          className="h-9 w-9 rounded-lg border border-transparent bg-sidebar-muted/40 text-sidebar-foreground transition-colors hover:border-sidebar-border"
+        >
+          {collapsed ? (
+            <ChevronRight className="h-4 w-4" />
+          ) : (
+            <ChevronLeft className="h-4 w-4" />
+          )}
+        </Button>
       </div>
-      <nav className="flex-1 space-y-1 p-4">
+
+      <nav className="flex-1 space-y-1 px-3 py-4">
         {navigation.map((item) => {
           const isActive = pathname === item.href;
+          const Icon = item.icon;
+
           return (
             <Link
               key={item.name}
               href={item.href}
               className={cn(
-                'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                'group flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors',
+                collapsed && 'justify-center',
                 isActive
-                  ? 'bg-primary text-primary-foreground'
+                  ? 'bg-primary text-primary-foreground shadow-sm'
                   : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
               )}
             >
-              <span>{item.icon}</span>
-              <span>{item.name}</span>
+              <Icon
+                className={cn(
+                  'h-5 w-5 transition-colors',
+                  isActive ? 'text-primary-foreground' : 'text-sidebar-foreground/70'
+                )}
+              />
+              {!collapsed && <span>{item.name}</span>}
             </Link>
           );
         })}
       </nav>
-    </div>
+
+      <div className="border-t border-sidebar-border px-4 py-4">
+        <div
+          className={cn(
+            'rounded-xl border border-dashed border-sidebar-border/70 bg-sidebar/70 p-3 text-xs text-muted-foreground',
+            collapsed && 'text-center'
+          )}
+        >
+          {!collapsed ? (
+            <>
+              <p className="font-semibold text-foreground">PayLog</p>
+              <p className="mt-1 text-muted-foreground">
+                Streamline approvals and payments with confidence.
+              </p>
+            </>
+          ) : (
+            <p className="font-semibold text-foreground">PayLog</p>
+          )}
+        </div>
+      </div>
+    </aside>
   );
 }

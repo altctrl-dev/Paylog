@@ -48,11 +48,11 @@ export const INVOICE_STATUS_CONFIG: Record<
   },
   [INVOICE_STATUS.PARTIAL]: {
     label: 'Partially Paid',
-    variant: 'default',
+    variant: 'info',
   },
   [INVOICE_STATUS.PAID]: {
     label: 'Paid',
-    variant: 'default',
+    variant: 'success',
   },
   [INVOICE_STATUS.OVERDUE]: {
     label: 'Overdue',
@@ -137,6 +137,12 @@ export interface InvoiceWithRelations extends Invoice {
     id: number;
     full_name: string;
   } | null;
+  /**
+   * Computed fields provided by server actions (optional)
+   */
+  totalPaid?: number;
+  remainingBalance?: number;
+  isOverdue?: boolean;
 }
 
 // ============================================================================
