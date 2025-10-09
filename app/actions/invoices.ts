@@ -18,6 +18,7 @@ import {
 import {
   invoiceFormSchema,
   holdInvoiceSchema,
+  rejectInvoiceSchema,
   invoiceFiltersSchema,
 } from '@/lib/validations/invoice';
 import { revalidatePath } from 'next/cache';
@@ -80,6 +81,12 @@ const invoiceInclude = {
     },
   },
   holder: {
+    select: {
+      id: true,
+      full_name: true,
+    },
+  },
+  rejector: {
     select: {
       id: true,
       full_name: true,
@@ -594,6 +601,156 @@ export async function putInvoiceOnHold(
       success: false,
       error:
         error instanceof Error ? error.message : 'Failed to put invoice on hold',
+    };
+  }
+}
+
+/**
+ * Approve invoice (admin/super_admin only)
+ *
+ * @param id - Invoice ID
+ * @returns Updated invoice with unpaid status
+ */
+export async function approveInvoice(
+  id: number
+): Promise<ServerActionResult<InvoiceWithRelations>> {
+  try {
+    const user = await getCurrentUser();
+
+    // Check user role (admin or super_admin only)
+    if (user.role !== 'admin' && user.role !== 'super_admin') {
+      return {
+        success: false,
+        error: 'You must be an admin to approve invoices',
+      };
+    }
+
+    const existing = await db.invoice.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      return {
+        success: false,
+        error: 'Invoice not found',
+      };
+    }
+
+    if (existing.is_hidden) {
+      return {
+        success: false,
+        error: 'Cannot approve hidden invoice',
+      };
+    }
+
+    if (existing.status !== INVOICE_STATUS.PENDING_APPROVAL) {
+      return {
+        success: false,
+        error: 'Invoice is not pending approval',
+      };
+    }
+
+    // Update invoice to unpaid status
+    const invoice = await db.invoice.update({
+      where: { id },
+      data: {
+        status: INVOICE_STATUS.UNPAID,
+      },
+      include: invoiceInclude,
+    });
+
+    revalidatePath('/invoices');
+    revalidatePath('/invoices/pending');
+    revalidatePath(`/invoices/${id}`);
+
+    return {
+      success: true,
+      data: invoice as InvoiceWithRelations,
+    };
+  } catch (error) {
+    console.error('approveInvoice error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to approve invoice',
+    };
+  }
+}
+
+/**
+ * Reject invoice with reason (admin/super_admin only)
+ *
+ * @param id - Invoice ID
+ * @param rejectionReason - Reason for rejection (validated)
+ * @returns Updated invoice with rejected status
+ */
+export async function rejectInvoice(
+  id: number,
+  rejectionReason: string
+): Promise<ServerActionResult<InvoiceWithRelations>> {
+  try {
+    const user = await getCurrentUser();
+
+    // Check user role (admin or super_admin only)
+    if (user.role !== 'admin' && user.role !== 'super_admin') {
+      return {
+        success: false,
+        error: 'You must be an admin to reject invoices',
+      };
+    }
+
+    // Validate rejection reason
+    const validated = rejectInvoiceSchema.parse({ rejection_reason: rejectionReason });
+
+    const existing = await db.invoice.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      return {
+        success: false,
+        error: 'Invoice not found',
+      };
+    }
+
+    if (existing.is_hidden) {
+      return {
+        success: false,
+        error: 'Cannot reject hidden invoice',
+      };
+    }
+
+    if (existing.status !== INVOICE_STATUS.PENDING_APPROVAL) {
+      return {
+        success: false,
+        error: 'Invoice is not pending approval',
+      };
+    }
+
+    // Update invoice to rejected status
+    const invoice = await db.invoice.update({
+      where: { id },
+      data: {
+        status: INVOICE_STATUS.REJECTED,
+        rejection_reason: validated.rejection_reason,
+        rejected_by: user.id,
+        rejected_at: new Date(),
+      },
+      include: invoiceInclude,
+    });
+
+    revalidatePath('/invoices');
+    revalidatePath('/invoices/pending');
+    revalidatePath(`/invoices/${id}`);
+
+    return {
+      success: true,
+      data: invoice as InvoiceWithRelations,
+    };
+  } catch (error) {
+    console.error('rejectInvoice error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to reject invoice',
     };
   }
 }

@@ -12,6 +12,7 @@ import { usePanelStack } from '@/hooks/use-panel-stack';
 import { InvoiceDetailPanel } from './invoice-detail-panel';
 import { InvoiceFormPanel } from './invoice-form-panel';
 import { InvoiceHoldPanel } from './invoice-hold-panel';
+import { InvoiceRejectPanel } from './invoice-reject-panel';
 import { PaymentFormPanel } from '@/components/payments/payment-form-panel';
 
 interface InvoicePanelRendererProps {
@@ -29,6 +30,7 @@ interface InvoicePanelRendererProps {
  * - invoice-create: Create new invoice (Level 2)
  * - invoice-edit: Edit existing invoice (Level 2)
  * - invoice-hold: Put invoice on hold confirmation (Level 3)
+ * - invoice-reject: Reject invoice confirmation (Level 3)
  * - payment-record: Record payment for invoice (Level 3)
  */
 export function InvoicePanelRenderer({
@@ -76,6 +78,16 @@ export function InvoicePanelRenderer({
           config={config}
           onClose={onClose}
           invoiceId={props.invoiceId as number}
+        />
+      );
+
+    case 'invoice-reject':
+      return (
+        <InvoiceRejectPanel
+          config={config}
+          onClose={onClose}
+          invoiceId={props.invoiceId as number}
+          invoiceNumber={props.invoiceNumber as string}
         />
       );
 

@@ -21,6 +21,7 @@ export const INVOICE_STATUS = {
   PARTIAL: 'partial',
   PAID: 'paid',
   OVERDUE: 'overdue',
+  REJECTED: 'rejected',
 } as const;
 
 export type InvoiceStatus =
@@ -55,6 +56,10 @@ export const INVOICE_STATUS_CONFIG: Record<
   },
   [INVOICE_STATUS.OVERDUE]: {
     label: 'Overdue',
+    variant: 'destructive',
+  },
+  [INVOICE_STATUS.REJECTED]: {
+    label: 'Rejected',
     variant: 'destructive',
   },
 };
@@ -128,6 +133,10 @@ export interface InvoiceWithRelations extends Invoice {
     id: number;
     full_name: string;
   } | null;
+  rejector?: {
+    id: number;
+    full_name: string;
+  } | null;
 }
 
 // ============================================================================
@@ -165,6 +174,15 @@ export interface InvoiceFormData {
  */
 export interface HoldInvoiceData {
   hold_reason: string;
+}
+
+/**
+ * Reject invoice data type
+ *
+ * NOTE: Zod validation schema moved to lib/validations/invoice.ts
+ */
+export interface RejectInvoiceData {
+  rejection_reason: string;
 }
 
 /**

@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { PanelLevel } from '@/components/panels/panel-level';
 import { usePanel } from '@/hooks/use-panel';
-import { useInvoice } from '@/hooks/use-invoices';
+import { useInvoice, useApproveInvoice, useRejectInvoice } from '@/hooks/use-invoices';
 import { usePaymentSummary } from '@/hooks/use-payments';
 import { InvoiceStatusBadge } from './invoice-status-badge';
 import { PaymentHistoryList } from '@/components/payments/payment-history-list';
@@ -56,6 +56,8 @@ export function InvoiceDetailPanel({
   const { openPanel } = usePanel();
   const { data: invoice, isLoading, error } = useInvoice(invoiceId);
   const { data: paymentSummary } = usePaymentSummary(invoiceId);
+  const approveMutation = useApproveInvoice();
+  const rejectMutation = useRejectInvoice();
 
   // Get current session to check user role
   const [session, setSession] = React.useState<{user?: {role?: string}} | null>(null);
@@ -108,6 +110,20 @@ export function InvoiceDetailPanel({
     );
   }, [openPanel, invoiceId, invoice, paymentSummary]);
 
+  const handleOpenReject = React.useCallback(() => {
+    console.log('[InvoiceDetailPanel] Opening reject panel for invoice', invoiceId);
+    if (!invoice) {
+      console.error('[InvoiceDetailPanel] Cannot open reject panel: invoice is null');
+      return;
+    }
+    openPanel('invoice-reject', { invoiceId, invoiceNumber: invoice.invoice_number }, { width: 500 });
+  }, [openPanel, invoiceId, invoice]);
+
+  const handleApprove = React.useCallback(() => {
+    console.log('[InvoiceDetailPanel] Approving invoice', invoiceId);
+    approveMutation.mutate(invoiceId);
+  }, [approveMutation, invoiceId]);
+
   if (isLoading) {
     return (
       <PanelLevel
@@ -157,6 +173,10 @@ export function InvoiceDetailPanel({
     invoice.status !== INVOICE_STATUS.ON_HOLD &&
     invoice.status !== INVOICE_STATUS.PAID;
 
+  // Only admins can approve/reject invoices in pending_approval status
+  const canApproveReject =
+    isAdmin && invoice.status === INVOICE_STATUS.PENDING_APPROVAL;
+
   // Payment can only be recorded for unpaid, partial, or overdue invoices
   const isFullyPaid = paymentSummary?.is_fully_paid ?? false;
   const canRecordPayment =
@@ -181,6 +201,23 @@ export function InvoiceDetailPanel({
             <Button variant="outline" onClick={handleOpenHold}>
               Put On Hold
             </Button>
+          )}
+          {canApproveReject && (
+            <>
+              <Button
+                variant="destructive"
+                onClick={handleOpenReject}
+                disabled={approveMutation.isPending || rejectMutation.isPending}
+              >
+                Reject
+              </Button>
+              <Button
+                onClick={handleApprove}
+                disabled={approveMutation.isPending || rejectMutation.isPending}
+              >
+                {approveMutation.isPending ? 'Approving...' : 'Approve'}
+              </Button>
+            </>
           )}
           {canRecordPayment && (
             <Button onClick={handleOpenPayment}>
@@ -325,6 +362,33 @@ export function InvoiceDetailPanel({
                 <span className="text-muted-foreground">Hold Date:</span>
                 <span className="font-medium">
                   {formatDate(invoice.hold_at)}
+                </span>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {/* Rejection Information (if applicable) */}
+        {invoice.status === INVOICE_STATUS.REJECTED && invoice.rejection_reason && (
+          <Card className="border-destructive p-4">
+            <h3 className="mb-2 font-semibold text-destructive">Rejection Details</h3>
+            <div className="space-y-2 text-sm">
+              <div>
+                <span className="text-muted-foreground">Reason:</span>
+                <p className="mt-1 text-foreground">{invoice.rejection_reason}</p>
+              </div>
+              {invoice.rejector && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Rejected By:</span>
+                  <span className="font-medium">
+                    {invoice.rejector.full_name}
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Rejected At:</span>
+                <span className="font-medium">
+                  {formatDate(invoice.rejected_at)}
                 </span>
               </div>
             </div>

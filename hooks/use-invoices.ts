@@ -14,6 +14,8 @@ import {
   updateInvoice,
   deleteInvoice,
   putInvoiceOnHold,
+  approveInvoice,
+  rejectInvoice,
   getInvoiceFormOptions,
 } from '@/app/actions/invoices';
 import type {
@@ -418,6 +420,166 @@ export function usePutInvoiceOnHold() {
       toast({
         title: 'Success',
         description: `Invoice ${data.invoice_number} put on hold`,
+      });
+    },
+    onSettled: (_data, _error, variables) => {
+      // Invalidate queries
+      queryClient.invalidateQueries({
+        queryKey: invoiceKeys.detail(variables.id),
+      });
+      queryClient.invalidateQueries({ queryKey: invoiceKeys.lists() });
+    },
+  });
+}
+
+/**
+ * Approve invoice (admin only) with optimistic update
+ *
+ * @returns Mutation hook with approve function
+ *
+ * @example
+ * ```tsx
+ * const approveMutation = useApproveInvoice();
+ *
+ * const handleApprove = async (id: number) => {
+ *   await approveMutation.mutateAsync(id);
+ * };
+ * ```
+ */
+export function useApproveInvoice() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const result = await approveInvoice(id);
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      return result.data;
+    },
+    onMutate: async (id) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: invoiceKeys.detail(id) });
+
+      // Snapshot previous value
+      const previousInvoice =
+        queryClient.getQueryData<InvoiceWithRelations>(
+          invoiceKeys.detail(id)
+        );
+
+      // Optimistically update status
+      if (previousInvoice) {
+        queryClient.setQueryData<InvoiceWithRelations>(
+          invoiceKeys.detail(id),
+          {
+            ...previousInvoice,
+            status: 'unpaid',
+          }
+        );
+      }
+
+      return { previousInvoice, id };
+    },
+    onError: (error, _variables, context) => {
+      // Rollback on error
+      if (context?.previousInvoice) {
+        queryClient.setQueryData(
+          invoiceKeys.detail(context.id),
+          context.previousInvoice
+        );
+      }
+
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to approve invoice',
+        variant: 'destructive',
+      });
+    },
+    onSuccess: (data) => {
+      toast({
+        title: 'Success',
+        description: `Invoice ${data.invoice_number} approved successfully`,
+      });
+    },
+    onSettled: (_data, _error, id) => {
+      // Invalidate queries
+      queryClient.invalidateQueries({
+        queryKey: invoiceKeys.detail(id),
+      });
+      queryClient.invalidateQueries({ queryKey: invoiceKeys.lists() });
+    },
+  });
+}
+
+/**
+ * Reject invoice with reason (admin only) with optimistic update
+ *
+ * @returns Mutation hook with reject function
+ *
+ * @example
+ * ```tsx
+ * const rejectMutation = useRejectInvoice();
+ *
+ * const handleReject = async (id: number, reason: string) => {
+ *   await rejectMutation.mutateAsync({ id, reason });
+ * };
+ * ```
+ */
+export function useRejectInvoice() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, reason }: { id: number; reason: string }) => {
+      const result = await rejectInvoice(id, reason);
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      return result.data;
+    },
+    onMutate: async ({ id }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: invoiceKeys.detail(id) });
+
+      // Snapshot previous value
+      const previousInvoice =
+        queryClient.getQueryData<InvoiceWithRelations>(
+          invoiceKeys.detail(id)
+        );
+
+      // Optimistically update status
+      if (previousInvoice) {
+        queryClient.setQueryData<InvoiceWithRelations>(
+          invoiceKeys.detail(id),
+          {
+            ...previousInvoice,
+            status: 'rejected',
+          }
+        );
+      }
+
+      return { previousInvoice, id };
+    },
+    onError: (error, _variables, context) => {
+      // Rollback on error
+      if (context?.previousInvoice) {
+        queryClient.setQueryData(
+          invoiceKeys.detail(context.id),
+          context.previousInvoice
+        );
+      }
+
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to reject invoice',
+        variant: 'destructive',
+      });
+    },
+    onSuccess: (data) => {
+      toast({
+        title: 'Success',
+        description: `Invoice ${data.invoice_number} rejected`,
       });
     },
     onSettled: (_data, _error, variables) => {

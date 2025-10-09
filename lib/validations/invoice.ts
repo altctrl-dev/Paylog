@@ -116,6 +116,18 @@ export const holdInvoiceSchema = z.object({
 
 export type HoldInvoiceData = z.infer<typeof holdInvoiceSchema>;
 
+/**
+ * Reject invoice validation schema
+ */
+export const rejectInvoiceSchema = z.object({
+  rejection_reason: z
+    .string()
+    .min(10, 'Rejection reason must be at least 10 characters')
+    .max(500, 'Rejection reason too long'),
+});
+
+export type RejectInvoiceData = z.infer<typeof rejectInvoiceSchema>;
+
 // ============================================================================
 // INVOICE LIST FILTERS
 // ============================================================================
@@ -133,6 +145,7 @@ export const invoiceFiltersSchema = z.object({
       INVOICE_STATUS.PARTIAL,
       INVOICE_STATUS.PAID,
       INVOICE_STATUS.OVERDUE,
+      INVOICE_STATUS.REJECTED,
     ])
     .optional(),
   vendor_id: z.number().int().positive().optional(),
