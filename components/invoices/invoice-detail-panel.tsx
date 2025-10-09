@@ -10,6 +10,7 @@
 import * as React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { PanelLevel } from '@/components/panels/panel-level';
 import { usePanel } from '@/hooks/use-panel';
 import { useInvoice, useApproveInvoice, useRejectInvoice } from '@/hooks/use-invoices';
@@ -232,7 +233,12 @@ export function InvoiceDetailPanel({
         <Card className="p-4">
           <div className="mb-2 flex items-center justify-between">
             <h3 className="font-semibold">Status</h3>
-            <InvoiceStatusBadge status={invoice.status} />
+            <div className="flex flex-wrap items-center gap-2">
+              <InvoiceStatusBadge status={invoice.status} />
+              {invoice.isOverdue && (
+                <Badge variant="destructive">Overdue</Badge>
+              )}
+            </div>
           </div>
         </Card>
 

@@ -8,6 +8,7 @@
 
 import * as React from 'react';
 import { InvoiceStatusBadge } from './invoice-status-badge';
+import { Badge } from '@/components/ui/badge';
 import type { InvoiceWithRelations } from '@/types/invoice';
 
 interface InvoiceListTableProps {
@@ -84,7 +85,12 @@ export function InvoiceListTable({
                 {formatCurrency(invoice.invoice_amount)}
               </td>
               <td className="p-3 text-sm">
-                <InvoiceStatusBadge status={invoice.status} />
+                <div className="flex flex-wrap items-center gap-2">
+                  <InvoiceStatusBadge status={invoice.status} />
+                  {invoice.isOverdue && (
+                    <Badge variant="destructive">Overdue</Badge>
+                  )}
+                </div>
               </td>
               <td className="p-3 text-sm text-muted-foreground">
                 {formatDate(invoice.invoice_date)}
