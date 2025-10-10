@@ -143,6 +143,12 @@ export interface InvoiceWithRelations extends Invoice {
   totalPaid?: number;
   remainingBalance?: number;
   isOverdue?: boolean;
+  dueLabel?: string | null;
+  daysOverdue?: number;
+  daysUntilDue?: number;
+  isDueSoon?: boolean;
+  priorityRank?: number;
+  dueStatusVariant?: 'destructive' | 'warning' | 'muted';
 }
 
 // ============================================================================

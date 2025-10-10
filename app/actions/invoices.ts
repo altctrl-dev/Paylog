@@ -95,6 +95,94 @@ const invoiceInclude = {
   },
 };
 
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+const DUE_SOON_THRESHOLD_DAYS = 3;
+
+function formatDays(count: number): string {
+  return `${count} day${count === 1 ? '' : 's'}`;
+}
+
+type DueState = {
+  dueLabel: string | null;
+  daysOverdue: number;
+  daysUntilDue: number;
+  isDueSoon: boolean;
+  variant: 'destructive' | 'warning' | 'muted' | null;
+};
+
+function computeDueState(options: {
+  status: string;
+  dueDate: Date | null;
+  remainingBalance: number;
+  today: Date;
+}): DueState {
+  const { status, dueDate, remainingBalance, today } = options;
+  const result: DueState = {
+    dueLabel: null,
+    daysOverdue: 0,
+    daysUntilDue: 0,
+    isDueSoon: false,
+    variant: null,
+  };
+
+  const isOutstandingStatus =
+    status === INVOICE_STATUS.UNPAID || status === INVOICE_STATUS.PARTIAL;
+
+  if (!isOutstandingStatus || remainingBalance <= 0 || !dueDate) {
+    return result;
+  }
+
+  const normalizedDueDate = new Date(dueDate);
+  normalizedDueDate.setHours(0, 0, 0, 0);
+
+  const diffDays = Math.floor(
+    (normalizedDueDate.getTime() - today.getTime()) / MS_PER_DAY
+  );
+
+  if (diffDays < 0) {
+    const daysOverdue = Math.abs(diffDays);
+    result.daysOverdue = daysOverdue;
+    result.dueLabel = `Overdue by ${formatDays(daysOverdue)}`;
+    result.variant = 'destructive';
+    return result;
+  }
+
+  if (diffDays === 0) {
+    result.dueLabel = 'Due today';
+    result.variant = 'warning';
+    return result;
+  }
+
+  result.daysUntilDue = diffDays;
+  result.dueLabel = `Due in ${formatDays(diffDays)}`;
+  result.isDueSoon = diffDays <= DUE_SOON_THRESHOLD_DAYS;
+  result.variant = result.isDueSoon ? 'warning' : 'muted';
+  return result;
+}
+
+function computePriorityRank(status: string, dueState: DueState): number {
+  switch (status) {
+    case INVOICE_STATUS.PENDING_APPROVAL:
+      return 0;
+    case INVOICE_STATUS.UNPAID:
+    case INVOICE_STATUS.PARTIAL: {
+      if (dueState.daysOverdue > 0) {
+        return 1;
+      }
+      if (dueState.isDueSoon) {
+        return 2;
+      }
+      return 3;
+    }
+    case INVOICE_STATUS.ON_HOLD:
+      return 4;
+    case INVOICE_STATUS.PAID:
+      return 5;
+    default:
+      return 6;
+  }
+}
+
 // ============================================================================
 // READ OPERATIONS
 // ============================================================================
@@ -131,14 +219,12 @@ export async function getInvoices(
         {
           invoice_number: {
             contains: validated.search,
-            mode: 'insensitive' as const,
           },
         },
         {
           vendor: {
             name: {
               contains: validated.search,
-              mode: 'insensitive' as const,
             },
           },
         },
@@ -174,18 +260,13 @@ export async function getInvoices(
       where.profile_id = validated.profile_id;
     }
 
-    // Get total count
-    const total = await db.invoice.count({ where });
-
-    // Get paginated results
+    // Get matching invoices (ordering handled after enrichment to support priority sort)
     const invoices = await db.invoice.findMany({
       where,
       include: invoiceInclude,
       orderBy: {
         created_at: 'desc',
       },
-      skip: (validated.page - 1) * validated.per_page,
-      take: validated.per_page,
     });
 
     // Compute payment aggregates for invoices in the current page
@@ -220,37 +301,60 @@ export async function getInvoices(
         0,
         invoice.invoice_amount - totalPaid
       );
+      const dueState = computeDueState({
+        status: invoice.status,
+        dueDate: invoice.due_date,
+        remainingBalance,
+        today,
+      });
 
-      const dueDate = invoice.due_date
-        ? new Date(invoice.due_date)
-        : null;
-      if (dueDate) {
-        dueDate.setHours(0, 0, 0, 0);
-      }
-
-      const isOutstandingStatus =
-        invoice.status === INVOICE_STATUS.UNPAID ||
-        invoice.status === INVOICE_STATUS.PARTIAL ||
-        invoice.status === INVOICE_STATUS.OVERDUE;
-
-      const isOverdue =
-        !!dueDate &&
-        dueDate.getTime() < today.getTime() &&
-        remainingBalance > 0 &&
-        isOutstandingStatus;
+      const priorityRank = computePriorityRank(invoice.status, dueState);
 
       return {
         ...invoice,
         totalPaid,
         remainingBalance,
-        isOverdue,
+        isOverdue: dueState.daysOverdue > 0,
+        dueLabel: dueState.dueLabel,
+        daysOverdue: dueState.daysOverdue,
+        daysUntilDue: dueState.daysUntilDue,
+        isDueSoon: dueState.isDueSoon,
+        priorityRank,
+        dueStatusVariant: dueState.variant,
       };
     }) as InvoiceWithRelations[];
+
+    const sortedInvoices = enrichedInvoices.sort((a, b) => {
+      const rankDiff = (a.priorityRank ?? 99) - (b.priorityRank ?? 99);
+      if (rankDiff !== 0) {
+        return rankDiff;
+      }
+
+      const rank = a.priorityRank ?? 99;
+
+      if (rank === 1) {
+        return (b.daysOverdue ?? 0) - (a.daysOverdue ?? 0);
+      }
+
+      if (rank === 2) {
+        return (a.daysUntilDue ?? Number.MAX_SAFE_INTEGER) -
+          (b.daysUntilDue ?? Number.MAX_SAFE_INTEGER);
+      }
+
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+
+    const total = sortedInvoices.length;
+    const startIndex = (validated.page - 1) * validated.per_page;
+    const paginatedInvoices = sortedInvoices.slice(
+      startIndex,
+      startIndex + validated.per_page
+    );
 
     return {
       success: true,
       data: {
-        invoices: enrichedInvoices,
+        invoices: paginatedInvoices,
         pagination: {
           page: validated.page,
           per_page: validated.per_page,
@@ -316,21 +420,14 @@ export async function getInvoiceById(
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const dueDate = invoice.due_date ? new Date(invoice.due_date) : null;
-    if (dueDate) {
-      dueDate.setHours(0, 0, 0, 0);
-    }
+    const dueState = computeDueState({
+      status: invoice.status,
+      dueDate: invoice.due_date,
+      remainingBalance,
+      today,
+    });
 
-    const isOutstandingStatus =
-      invoice.status === INVOICE_STATUS.UNPAID ||
-      invoice.status === INVOICE_STATUS.PARTIAL ||
-      invoice.status === INVOICE_STATUS.OVERDUE;
-
-    const isOverdue =
-      !!dueDate &&
-      dueDate.getTime() < today.getTime() &&
-      remainingBalance > 0 &&
-      isOutstandingStatus;
+    const priorityRank = computePriorityRank(invoice.status, dueState);
 
     return {
       success: true,
@@ -338,7 +435,13 @@ export async function getInvoiceById(
         ...invoice,
         totalPaid,
         remainingBalance,
-        isOverdue,
+        isOverdue: dueState.daysOverdue > 0,
+        dueLabel: dueState.dueLabel,
+        daysOverdue: dueState.daysOverdue,
+        daysUntilDue: dueState.daysUntilDue,
+        isDueSoon: dueState.isDueSoon,
+        priorityRank,
+        dueStatusVariant: dueState.variant,
       } as InvoiceWithRelations,
     };
   } catch (error) {

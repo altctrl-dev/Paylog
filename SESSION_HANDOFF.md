@@ -83,6 +83,233 @@ Both features are fully implemented, manually tested, and committed to GitHub. N
 
 ## 🚀 Recent Implementations
 
+### 0. Invoice Due Date System & UI Overhaul (Post-Session Work)
+
+**Status**: ✅ Production Ready
+**Documentation**: Captured in `/Users/althaf/Projects/paylog-3/docs/To my Claude001.md` through `Claude016.md`
+**Date**: October 9, 2025
+
+**Major Changes Summary**:
+
+#### A. Due Date Intelligence System (Claude001, Claude013-015)
+
+**Problem**: Invoices had an "Overdue" status filter that never returned results because status was never set to `overdue`. The overdue state is actually a derivative of due date and payment status, not a persisted field.
+
+**Solution**: Computed Due State System
+
+**Key Components**:
+- **`computeDueState()` helper** in `app/actions/invoices.ts` (lines 113-161)
+  - Calculates due state based on: status, due date, remaining balance, today's date
+  - Returns structured data: `dueLabel`, `daysOverdue`, `daysUntilDue`, `isDueSoon`, `dueStatusVariant`
+
+**Due State Logic**:
+```typescript
+// Only applies to unpaid/partial invoices with outstanding balance
+if (status === 'unpaid' || status === 'partial') {
+  if (dueDate < today) {
+    return { dueLabel: 'Overdue by X days', variant: 'destructive' }
+  } else if (dueDate === today) {
+    return { dueLabel: 'Due today', variant: 'warning' }
+  } else if (daysUntil <= 3) {
+    return { dueLabel: 'Due in X days', variant: 'warning', isDueSoon: true }
+  } else {
+    return { dueLabel: 'Due in X days', variant: 'muted' }
+  }
+}
+```
+
+**Constants**:
+- `DUE_SOON_THRESHOLD_DAYS = 3` - Warning threshold for upcoming due dates
+- `MS_PER_DAY = 1000 * 60 * 60 * 24` - Milliseconds per day for date calculations
+
+**Badge Variants**:
+- `destructive` (red) - Overdue invoices
+- `warning` (amber) - Due today or due within 3 days
+- `muted` (grey) - Due date > 3 days away
+
+**New Computed Fields** (added to `InvoiceWithRelations`):
+```typescript
+dueLabel?: string | null;           // "Overdue by 5 days" | "Due in 2 days"
+daysOverdue?: number;                // Absolute days past due date
+daysUntilDue?: number;               // Days until due date
+isDueSoon?: boolean;                 // True if due within 3 days
+priorityRank?: number;               // 0-6, for sorting (see below)
+dueStatusVariant?: 'destructive' | 'warning' | 'muted'; // Badge color
+```
+
+#### B. Priority-Based Sorting System (Claude013)
+
+**Problem**: Invoices were only sorted by creation date, not by urgency.
+
+**Solution**: Priority Ranking + Smart Sorting
+
+**Priority Levels** (lower = more urgent):
+```typescript
+0 - Pending Approval (requires admin action)
+1 - Overdue (past due date, unpaid/partial)
+2 - Due Soon (within 3 days, unpaid/partial)
+3 - Other Unpaid (future due date > 3 days)
+4 - On Hold
+5 - Paid
+6 - Other statuses
+```
+
+**Sorting Algorithm** (`app/actions/invoices.ts` lines 327-345):
+1. Sort by priority rank (ascending)
+2. Within same rank:
+   - Rank 1 (Overdue): Sort by most overdue first (descending daysOverdue)
+   - Rank 2 (Due Soon): Sort by soonest due date first (ascending daysUntilDue)
+   - All others: Sort by creation date (newest first)
+
+**Pagination**: Now happens AFTER sorting (in-memory), ensuring priority order is maintained across pages.
+
+**Trade-off**: For large datasets (>1000 invoices), consider moving sort logic to database with `ORDER BY CASE` statement. Current approach loads all matching invoices, sorts, then paginates.
+
+#### C. Status Badge Simplification (Claude013)
+
+**Before**:
+- Showed payment status badge for all invoices
+- Showed separate "Overdue" pill when applicable
+- Displayed "Due Date" column in table
+
+**After**:
+- **Unpaid invoices**: Only show due state badge (e.g., "Overdue by 5 days")
+- **Partial invoices**: Show both "Partially Paid" (blue) + due state badge
+- **Paid/On Hold/Pending**: Show standard status badge only
+- **Removed "Due Date" column** - Information now in badge
+
+**Rationale**: Due state is more actionable than raw payment status for unpaid invoices.
+
+#### D. UI/UX Overhaul (Claude002-012)
+
+**Theme System** (Claude002, Claude003, Claude005):
+- **Primary Color**: Orange (`hsl(25 95% 53%)`) - Brand accent for CTAs
+- **Dark Mode**: Charcoal/black palette (X.ai-inspired), high contrast text
+- **Light Mode**: Clean white/grey with orange accents
+- **New Tokens**:
+  - `--warning` (amber) for due soon indicators
+  - `--info` (blue) for partially paid status
+  - `--success` (green) for paid status
+  - `--sidebar-hover`, `--sidebar-active` (grey) for nav highlights
+  - `--navbar-alpha` (CSS variable) for header transparency control
+
+**Collapsible Sidebar** (Claude002, Claude008-012):
+- **Expanded**: 240px (`w-60`) with labels + icons
+- **Collapsed**: 88px with icon-only layout
+- **Animation**: Smooth width transition (CSS)
+- **Toggle**: Top-left button or hamburger menu (mobile)
+- **Active State**: Grey highlight (not orange, to differentiate from CTAs)
+
+**Translucent Navbar** (Claude002, Claude004, Claude006-007):
+- **Style**: Blurred background (`backdrop-blur`) + subtle drop shadow
+- **Opacity**: Controlled via `--navbar-alpha` CSS variable (0.0-1.0)
+- **Layout**: Full-width, sidebar sits below (eliminates border seam)
+- **Theme Toggle**: Quick access in navbar
+
+**Layout Refinements** (Claude004, Claude008-010):
+- **Header**: Spans full width, sits above sidebar/content
+- **Content**: Right edge stays fixed when sidebar collapses (right gutter preserved)
+- **Max Width**: `max-w-6xl` for expanded sidebar, `max-w-none` when collapsed
+- **Spacing**: Original left/right gutters maintained during transitions
+
+**Search Fix** (Claude007):
+- **Bug**: Invoice search threw Prisma error (`Unknown argument 'mode'`)
+- **Cause**: SQLite doesn't support `mode: 'insensitive'` on `contains` filters
+- **Fix**: Removed unsupported flag from search queries in `app/actions/invoices.ts`
+
+#### E. Files Modified
+
+**Server Actions**:
+- `app/actions/invoices.ts` - Added due state computation, priority sorting, manual pagination
+
+**Types**:
+- `types/invoice.ts` - Extended `InvoiceWithRelations` with computed fields
+
+**Components**:
+- `components/invoices/invoice-list-table.tsx` - Updated badge rendering, removed due date column
+- `components/invoices/invoice-detail-panel.tsx` - Updated status card badges
+- `components/ui/badge.tsx` - Added `warning` and `muted` variants
+
+**Layout**:
+- `components/layout/sidebar.tsx` - Collapsible sidebar with animations
+- `components/layout/header.tsx` - Translucent navbar with drop shadow
+- `components/layout/dashboard-shell.tsx` - Coordinated layout with conditional spacing
+- `app/(dashboard)/layout.tsx` - Integrated `DashboardShell`
+- `app/layout.tsx` - Added `ThemeProvider`
+
+**Styling**:
+- `app/globals.css` - New color tokens, CSS variables for transparency
+- `tailwind.config.ts` - Exposed new colors to Tailwind utilities
+
+**New Dependencies**:
+- `next-themes` - Light/dark mode support
+- `lucide-react` - Icon library for sidebar
+
+#### F. Testing & Validation
+
+**Manual Testing**:
+- ✅ Due state computation (overdue, due soon, future dates)
+- ✅ Priority sorting (pending → overdue → due soon → unpaid → paid)
+- ✅ Badge color variants (red, amber, grey)
+- ✅ Sidebar collapse/expand animations
+- ✅ Theme toggle (light/dark)
+- ✅ Invoice search (vendor name, invoice number)
+
+**Automated Testing**:
+- ❌ No tests written yet (add to backlog)
+
+#### G. Key Gotchas & Design Decisions
+
+**1. In-Memory Sorting**
+- **Decision**: Sort all matching invoices in memory, then paginate
+- **Reason**: Allows priority-based sorting without complex SQL `CASE` statements
+- **Risk**: May be slow for >1000 invoice datasets
+- **Mitigation**: Monitor performance; refactor to DB-level sorting if needed
+
+**2. Due State Calculation**
+- **Decision**: Compute on every fetch, not persisted
+- **Reason**: Always reflects current date/time without background jobs
+- **Trade-off**: Slightly more computation per request (minimal impact)
+
+**3. Badge Variants**
+- **Decision**: Use Shadcn badge variants (`destructive`, `warning`, `muted`) instead of custom classes
+- **Reason**: Maintains design system consistency, theme-aware colors
+- **Extension**: Easy to add more variants (e.g., `info`, `success`) for other use cases
+
+**4. Sidebar Collapse Behavior**
+- **Decision**: Right edge stays fixed, content expands leftward
+- **User Feedback**: Initially requested left edge fixed, then changed to right edge fixed
+- **Final Implementation**: Conditional layout classes (`mx-auto` expanded, `ml-auto` collapsed)
+
+**5. Navbar Transparency**
+- **Decision**: CSS variable (`--navbar-alpha`) instead of Tailwind opacity utilities
+- **Reason**: Tailwind utilities (`/80`, `/60`) had no visible effect due to HSL color format
+- **Benefit**: Single source of truth, easy to tweak per-theme
+
+#### H. Documentation Trail
+
+All UI/UX changes are fully documented in:
+- `/Users/althaf/Projects/paylog-3/docs/To my Claude001.md` - Overdue handling alignment
+- `/Users/althaf/Projects/paylog-3/docs/To my Claude002.md` - Shell refresh (sidebar, navbar, theming)
+- `/Users/althaf/Projects/paylog-3/docs/To my Claude003.md` - Dark theme refinements
+- `/Users/althaf/Projects/paylog-3/docs/To my Claude004.md` - Layout alignment
+- `/Users/althaf/Projects/paylog-3/docs/To my Claude005.md` - Header depth + status colors
+- `/Users/althaf/Projects/paylog-3/docs/To my Claude006.md` - UI polish confirmation
+- `/Users/althaf/Projects/paylog-3/docs/To my Claude007.md` - Invoice search fix + navbar transparency
+- `/Users/althaf/Projects/paylog-3/docs/To my Claude008.md` - Sidebar spacing (left gutter)
+- `/Users/althaf/Projects/paylog-3/docs/To my Claude009.md` - Sidebar spacing (right gutter)
+- `/Users/althaf/Projects/paylog-3/docs/To my Claude010.md` - Conditional layout classes
+- `/Users/althaf/Projects/paylog-3/docs/To my Claude011.md` - Sidebar width + active state
+- `/Users/althaf/Projects/paylog-3/docs/To my Claude012.md` - Grey highlight for nav
+- `/Users/althaf/Projects/paylog-3/docs/To my Claude013.md` - Due state badges + priority
+- `/Users/althaf/Projects/paylog-3/docs/To my Claude014.md` - Due state color coding
+- `/Users/althaf/Projects/paylog-3/docs/To my Claude015.md` - Badge variants implementation
+- `/Users/althaf/Projects/paylog-3/docs/To my Claude016.md` - Documentation confirmation
+
+**Pro Tip**: Read Claude001, Claude013, and Claude015 for quick understanding of due date system changes.
+
+---
+
 ### 1. Payment Recording Feature (Commit: abde244)
 
 **Status**: ✅ Production Ready
@@ -219,6 +446,44 @@ if (type.startsWith('invoice-') || type.startsWith('payment-')) {
 - **Header**: Metadata actions (Edit Invoice) - small outline buttons
 - **Footer**: Workflow actions (Record Payment, Approve, Reject) - primary buttons
 - **Benefit**: Cleaner hierarchy, prevents button overflow
+
+---
+
+### Theme System (Light/Dark Mode)
+
+**Architecture**:
+```
+ThemeProvider (next-themes)
+  └─ App Layout
+       ├─ CSS Variables (app/globals.css)
+       │    ├─ Light theme tokens
+       │    └─ Dark theme tokens
+       └─ Components use CSS var() references
+```
+
+**Theme Tokens** (see `app/globals.css`):
+- **Colors**: `--primary`, `--secondary`, `--success`, `--info`, `--warning`, `--destructive`, `--muted`
+- **Layout**: `--navbar`, `--navbar-alpha`, `--sidebar`, `--sidebar-hover`, `--sidebar-active`
+- **Surface**: `--background`, `--foreground`, `--card`, `--border`
+
+**Theme Toggle**:
+- Located in navbar header (`components/layout/header.tsx`)
+- Uses `useTheme()` hook from `next-themes`
+- Persists preference in localStorage
+- Supports system theme detection
+
+**Color Philosophy**:
+- **Orange Primary** (`hsl(25 95% 53%)`): Brand accent for CTAs, active states
+- **Dark Mode**: Charcoal/black base (`hsl(0 0% 8%)`) with high-contrast text
+- **Light Mode**: White base with soft grey accents
+- **Semantic Colors**: Red (destructive), Amber (warning), Blue (info), Green (success)
+
+**Theming Components**:
+- Use `className="bg-[hsl(var(--token))]"` pattern for Tailwind
+- Badge variants automatically theme-aware
+- Sidebar/navbar use dedicated tokens to avoid CTA color overlap
+
+**Pro Tip**: To adjust navbar transparency, edit `--navbar-alpha` in `app/globals.css` (not Tailwind utilities).
 
 ---
 
@@ -514,6 +779,27 @@ export const PAYMENT_STATUS = {
 
 When starting next session, **read these files first** for full context:
 
+### 0. Recent Session Documentation (MUST READ)
+- **`/Users/althaf/Projects/paylog-3/docs/To my Claude001.md`**
+  - Overdue status handling fix
+  - Explains why overdue is computed, not persisted
+  - **Essential** for understanding due date system
+
+- **`/Users/althaf/Projects/paylog-3/docs/To my Claude013.md`**
+  - Due state badges + priority sorting implementation
+  - Complete logic for `computeDueState()` and `computePriorityRank()`
+  - **Essential** for understanding invoice ordering
+
+- **`/Users/althaf/Projects/paylog-3/docs/To my Claude015.md`**
+  - Badge variant color system (red/amber/grey)
+  - Final implementation of due status colors
+  - **Essential** for understanding badge rendering
+
+**Quick Skim** (optional, for UI context):
+- Claude002 (sidebar/navbar overhaul)
+- Claude003 (dark theme)
+- Claude007 (search fix + navbar transparency)
+
 ### 1. Feature Documentation
 - **`/Users/althaf/Projects/paylog-3/PAYMENT_RECORDING_IMPLEMENTATION.md`**
   - Complete payment feature docs (466 lines)
@@ -595,30 +881,38 @@ When starting next session, **read these files first** for full context:
 
 ### Medium Priority Issues
 
-**4. No Bulk Operations**
+**4. In-Memory Invoice Sorting Performance**
+- **Impact**: May be slow for large datasets (>1000 invoices)
+- **Current**: `getInvoices()` loads all matching invoices, computes due states, sorts by priority in memory, then paginates
+- **Reason**: Priority sorting requires computed fields (daysOverdue, isDueSoon) that can't be calculated in SQL easily
+- **Alternative**: Refactor to database-level `ORDER BY CASE` statement if performance degrades
+- **Estimate**: 1-2 days (profile performance, optimize if needed)
+- **Mitigation**: Monitor query performance; consider caching or background job for priority calculation
+
+**5. No Bulk Operations**
 - **Impact**: Tedious to approve/reject multiple invoices
 - **Recommendation**: Add checkbox selection, bulk approve/reject
 - **Estimate**: 1 day
 
-**5. No Payment Edit/Delete**
+**6. No Payment Edit/Delete**
 - **Impact**: Mistakes require database edits
 - **Recommendation**: Add edit/delete payment functionality (admin only)
 - **Estimate**: 1 day
 
-**6. No Error Logging**
+**7. No Error Logging**
 - **Impact**: Hard to debug production issues
 - **Recommendation**: Setup Sentry/LogRocket
 - **Estimate**: 0.5 days
 
 ### Low Priority Issues
 
-**7. No Pagination in Payment History**
+**8. No Pagination in Payment History**
 - **Impact**: Large invoice payment lists could be slow
 - **Current**: Loads all payments at once
 - **Recommendation**: Add pagination/virtual scrolling
 - **Estimate**: 0.5 days
 
-**8. No Rejection Reason Display in List View**
+**9. No Rejection Reason Display in List View**
 - **Impact**: Can't see rejection reason without opening detail panel
 - **Recommendation**: Add tooltip/popover in invoice list
 - **Estimate**: 0.25 days
@@ -994,6 +1288,7 @@ if (!['admin', 'super_admin'].includes(session?.user?.role)) {
 
 ## 📊 Session Metrics
 
+### Previous Session (October 9, 2025)
 **Token Usage**: ~131k / 200k (65.5%)
 **Features Implemented**: 1 (Admin Approve/Reject Invoice)
 **Files Created**: 1 (invoice-reject-panel.tsx)
@@ -1010,6 +1305,19 @@ if (!['admin', 'super_admin'].includes(session?.user?.role)) {
 **Time Estimate**: ~4-6 hours of work
 **Bugs Fixed**: 0 (no bugs encountered)
 **Quality**: Production-ready (TypeScript, ESLint, build all passed)
+
+### Post-Session Work (October 9, 2025 - continued)
+**Features Implemented**: 2 major systems
+1. **Due Date Intelligence System** - Computed due states with priority sorting
+2. **UI/UX Overhaul** - Theme system, collapsible sidebar, translucent navbar
+
+**Files Created**: ~10+ (layout components, theme components)
+**Files Modified**: ~15+ (see Section 0.E for complete list)
+**Documentation Created**: 16 Claude context docs (Claude001-016)
+**Lines Added**: ~1000+ (estimated)
+**Commits**: Not yet committed (user working directly)
+**Bugs Fixed**: 1 (invoice search Prisma error)
+**Quality**: Lint passes, manual testing complete, no automated tests yet
 
 ---
 

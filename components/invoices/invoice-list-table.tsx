@@ -9,7 +9,7 @@
 import * as React from 'react';
 import { InvoiceStatusBadge } from './invoice-status-badge';
 import { Badge } from '@/components/ui/badge';
-import type { InvoiceWithRelations } from '@/types/invoice';
+import { INVOICE_STATUS, type InvoiceWithRelations } from '@/types/invoice';
 
 interface InvoiceListTableProps {
   invoices: InvoiceWithRelations[];
@@ -65,7 +65,6 @@ export function InvoiceListTable({
             <th className="p-3 text-left text-sm font-semibold">
               Invoice Date
             </th>
-            <th className="p-3 text-left text-sm font-semibold">Due Date</th>
           </tr>
         </thead>
         <tbody>
@@ -86,17 +85,18 @@ export function InvoiceListTable({
               </td>
               <td className="p-3 text-sm">
                 <div className="flex flex-wrap items-center gap-2">
-                  <InvoiceStatusBadge status={invoice.status} />
-                  {invoice.isOverdue && (
-                    <Badge variant="destructive">Overdue</Badge>
+                  {invoice.status !== INVOICE_STATUS.UNPAID && (
+                    <InvoiceStatusBadge status={invoice.status} />
+                  )}
+                  {invoice.dueLabel && (
+                    <Badge variant={invoice.dueStatusVariant ?? 'outline'}>
+                      {invoice.dueLabel}
+                    </Badge>
                   )}
                 </div>
               </td>
               <td className="p-3 text-sm text-muted-foreground">
                 {formatDate(invoice.invoice_date)}
-              </td>
-              <td className="p-3 text-sm text-muted-foreground">
-                {formatDate(invoice.due_date)}
               </td>
             </tr>
           ))}

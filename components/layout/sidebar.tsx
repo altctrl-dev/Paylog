@@ -42,7 +42,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     <aside
       className={cn(
         'relative flex h-full shrink-0 flex-col bg-sidebar/95 text-sidebar-foreground backdrop-blur-sm transition-all duration-300',
-        collapsed ? 'w-[88px]' : 'w-72'
+        collapsed ? 'w-[88px]' : 'w-60'
       )}
     >
       <div className="flex items-center justify-between gap-2 border-b border-sidebar-border px-4 py-4">
@@ -72,17 +72,21 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
               key={item.name}
               href={item.href}
               className={cn(
-                'group flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors',
-                collapsed && 'justify-center',
+                'group flex items-center gap-3 rounded-lg py-2 text-sm font-medium transition-colors',
+                collapsed
+                  ? 'justify-center px-0'
+                  : 'ml-0 pl-2.5 pr-3 mr-1.5',
                 isActive
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                  ? 'bg-[hsl(var(--sidebar-active))] text-[hsl(var(--sidebar-active-foreground))] shadow-sm'
+                  : 'text-sidebar-foreground/70 hover:bg-[hsl(var(--sidebar-hover))] hover:text-[hsl(var(--sidebar-hover-foreground))]'
               )}
             >
               <Icon
                 className={cn(
                   'h-5 w-5 transition-colors',
-                  isActive ? 'text-primary-foreground' : 'text-sidebar-foreground/70'
+                  isActive
+                    ? 'text-[hsl(var(--sidebar-active-foreground))]'
+                    : 'text-sidebar-foreground/65'
                 )}
               />
               {!collapsed && <span>{item.name}</span>}

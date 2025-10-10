@@ -234,9 +234,13 @@ export function InvoiceDetailPanel({
           <div className="mb-2 flex items-center justify-between">
             <h3 className="font-semibold">Status</h3>
             <div className="flex flex-wrap items-center gap-2">
-              <InvoiceStatusBadge status={invoice.status} />
-              {invoice.isOverdue && (
-                <Badge variant="destructive">Overdue</Badge>
+              {invoice.status !== INVOICE_STATUS.UNPAID && (
+                <InvoiceStatusBadge status={invoice.status} />
+              )}
+              {invoice.dueLabel && (
+                <Badge variant={invoice.dueStatusVariant ?? 'outline'}>
+                  {invoice.dueLabel}
+                </Badge>
               )}
             </div>
           </div>
