@@ -17,6 +17,7 @@
 
 'use client';
 
+import { useEffect, useState } from 'react';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { useUrlFilters } from '@/hooks/use-url-filters';
 import { INVOICE_STATUS, INVOICE_STATUS_CONFIG } from '@/types/invoice';
@@ -27,6 +28,25 @@ export default function TestFiltersPage() {
   const { filters, setFilter, clearFilters } = useUrlFilters({
     defaultFilters: { page: 1, per_page: 20 },
   });
+
+  // Track current URL for display
+  const [currentUrl, setCurrentUrl] = useState('');
+
+  useEffect(() => {
+    // Update URL display on mount and whenever it changes
+    const updateUrl = () => {
+      setCurrentUrl(`${window.location.pathname}${window.location.search}`);
+    };
+
+    updateUrl();
+
+    // Listen for URL changes
+    window.addEventListener('popstate', updateUrl);
+
+    return () => {
+      window.removeEventListener('popstate', updateUrl);
+    };
+  }, [filters]); // Re-run when filters change
 
   // Status options from INVOICE_STATUS constant
   const statusOptions = Object.entries(INVOICE_STATUS).map(([key, value]) => ({
@@ -136,9 +156,7 @@ export default function TestFiltersPage() {
           <div>
             <h3 className="mb-2 text-sm font-medium">Current URL:</h3>
             <pre className="overflow-x-auto rounded-md bg-muted p-4 text-sm">
-              {typeof window !== 'undefined'
-                ? `${window.location.pathname}${window.location.search || ''}`
-                : 'Loading...'}
+              {currentUrl || '/test-filters'}
             </pre>
           </div>
         </div>
