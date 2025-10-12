@@ -136,7 +136,9 @@ export default function TestFiltersPage() {
           <div>
             <h3 className="mb-2 text-sm font-medium">Current URL:</h3>
             <pre className="overflow-x-auto rounded-md bg-muted p-4 text-sm">
-              {typeof window !== 'undefined' ? window.location.href : 'N/A'}
+              {typeof window !== 'undefined'
+                ? `${window.location.pathname}${window.location.search || ''}`
+                : 'Loading...'}
             </pre>
           </div>
         </div>

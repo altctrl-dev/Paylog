@@ -20,7 +20,7 @@
 
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { InvoiceFilters } from '@/types/invoice';
 
@@ -145,7 +145,7 @@ export function useUrlFilters(
   );
 
   // Debounce timeout ref
-  const debounceTimeoutRef = useState<NodeJS.Timeout | null>(null)[0];
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Update URL from filters
   const updateUrl = useCallback(
@@ -228,14 +228,12 @@ export function useUrlFilters(
         }
 
         // Debounce URL update (100ms)
-        if (debounceTimeoutRef) {
-          clearTimeout(debounceTimeoutRef);
+        if (debounceTimeoutRef.current) {
+          clearTimeout(debounceTimeoutRef.current);
         }
-        const timeoutId = setTimeout(() => {
+        debounceTimeoutRef.current = setTimeout(() => {
           updateUrl(newFilters);
         }, 100);
-        // @ts-ignore - Can't assign to readonly ref
-        debounceTimeoutRef.current = timeoutId;
 
         return newFilters;
       });
@@ -269,11 +267,11 @@ export function useUrlFilters(
   // Cleanup debounce timeout on unmount
   useEffect(() => {
     return () => {
-      if (debounceTimeoutRef) {
-        clearTimeout(debounceTimeoutRef);
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
       }
     };
-  }, [debounceTimeoutRef]);
+  }, []);
 
   return {
     filters,
