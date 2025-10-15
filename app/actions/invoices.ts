@@ -260,13 +260,48 @@ export async function getInvoices(
       where.profile_id = validated.profile_id;
     }
 
-    // Get matching invoices (ordering handled after enrichment to support priority sort)
+    // Date range filter for invoice_date
+    if (validated.start_date || validated.end_date) {
+      where.invoice_date = {};
+
+      if (validated.start_date) {
+        // Set start of day for start_date
+        const startDate = new Date(validated.start_date);
+        startDate.setHours(0, 0, 0, 0);
+        where.invoice_date.gte = startDate;
+      }
+
+      if (validated.end_date) {
+        // Set end of day for end_date
+        const endDate = new Date(validated.end_date);
+        endDate.setHours(23, 59, 59, 999);
+        where.invoice_date.lte = endDate;
+      }
+    }
+
+    // Determine ordering strategy
+    // If explicit sort requested, use database ordering and skip priority sort
+    // Otherwise, fetch all and apply priority sorting in-memory
+    let orderBy: any;
+    const useExplicitSort = Boolean(validated.sort_by);
+
+    if (useExplicitSort) {
+      // Map sort_by to database field
+      orderBy = {
+        [validated.sort_by!]: validated.sort_order,
+      };
+    } else {
+      // Default ordering for priority sort (will be re-sorted after enrichment)
+      orderBy = {
+        created_at: 'desc',
+      };
+    }
+
+    // Get matching invoices
     const invoices = await db.invoice.findMany({
       where,
       include: invoiceInclude,
-      orderBy: {
-        created_at: 'desc',
-      },
+      orderBy,
     });
 
     // Compute payment aggregates for invoices in the current page
@@ -324,29 +359,39 @@ export async function getInvoices(
       };
     }) as InvoiceWithRelations[];
 
-    const sortedInvoices = enrichedInvoices.sort((a, b) => {
-      const rankDiff = (a.priorityRank ?? 99) - (b.priorityRank ?? 99);
-      if (rankDiff !== 0) {
-        return rankDiff;
-      }
+    // Apply priority sorting only if no explicit sort was requested
+    // Otherwise, database ordering (already applied) takes precedence
+    let finalInvoices: InvoiceWithRelations[];
 
-      const rank = a.priorityRank ?? 99;
+    if (useExplicitSort) {
+      // Use database ordering (already sorted)
+      finalInvoices = enrichedInvoices;
+    } else {
+      // Apply priority-based sorting in-memory
+      finalInvoices = enrichedInvoices.sort((a, b) => {
+        const rankDiff = (a.priorityRank ?? 99) - (b.priorityRank ?? 99);
+        if (rankDiff !== 0) {
+          return rankDiff;
+        }
 
-      if (rank === 1) {
-        return (b.daysOverdue ?? 0) - (a.daysOverdue ?? 0);
-      }
+        const rank = a.priorityRank ?? 99;
 
-      if (rank === 2) {
-        return (a.daysUntilDue ?? Number.MAX_SAFE_INTEGER) -
-          (b.daysUntilDue ?? Number.MAX_SAFE_INTEGER);
-      }
+        if (rank === 1) {
+          return (b.daysOverdue ?? 0) - (a.daysOverdue ?? 0);
+        }
 
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    });
+        if (rank === 2) {
+          return (a.daysUntilDue ?? Number.MAX_SAFE_INTEGER) -
+            (b.daysUntilDue ?? Number.MAX_SAFE_INTEGER);
+        }
 
-    const total = sortedInvoices.length;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+    }
+
+    const total = finalInvoices.length;
     const startIndex = (validated.page - 1) * validated.per_page;
-    const paginatedInvoices = sortedInvoices.slice(
+    const paginatedInvoices = finalInvoices.slice(
       startIndex,
       startIndex + validated.per_page
     );

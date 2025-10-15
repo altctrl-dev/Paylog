@@ -11,10 +11,11 @@ import {
   Shield,
   ChevronLeft,
   ChevronRight,
+  LogOut,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Logo } from '@/components/ui/logo';
 import { cn } from '@/lib/utils';
+import { signOut } from 'next-auth/react';
 
 interface SidebarItem {
   name: string;
@@ -33,10 +34,31 @@ const navigation: SidebarItem[] = [
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
+  user: {
+    name?: string | null;
+    email?: string | null;
+    role?: string | null;
+  };
 }
 
-export function Sidebar({ collapsed, onToggle }: SidebarProps) {
+function getInitials(label: string): string {
+  const parts = label.split(' ').filter(Boolean);
+  if (parts.length === 0) return '?';
+  const first = parts[0]?.[0] ?? '';
+  const last = parts.length > 1 ? parts[parts.length - 1][0] : '';
+  return `${first}${last}`.toUpperCase();
+}
+
+function formatRole(role?: string | null): string | null {
+  if (!role) return null;
+  return role.replace(/_/g, ' ');
+}
+
+export function Sidebar({ collapsed, onToggle, user }: SidebarProps) {
   const pathname = usePathname();
+  const displayName = user.name || user.email || 'User';
+  const initials = getInitials(displayName);
+  const formattedRole = formatRole(user.role);
 
   return (
     <aside
@@ -45,8 +67,12 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         collapsed ? 'w-[88px]' : 'w-60'
       )}
     >
-      <div className="flex items-center justify-between gap-2 border-b border-sidebar-border px-4 py-4">
-        <Logo collapsed={collapsed} className="shrink-0" />
+      <div className="flex items-center justify-between border-b border-sidebar-border px-4 py-4">
+        {!collapsed && (
+          <span className="text-[11px] font-semibold uppercase tracking-[0.32em] text-muted-foreground">
+            Navigation
+          </span>
+        )}
         <Button
           variant="ghost"
           size="icon"
@@ -62,7 +88,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         </Button>
       </div>
 
-      <nav className="flex-1 space-y-1 px-3 py-4">
+      <nav className="flex-1 space-y-1 px-3 pt-5 pb-4">
         {navigation.map((item) => {
           const isActive = pathname === item.href;
           const Icon = item.icon;
@@ -98,20 +124,35 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       <div className="border-t border-sidebar-border px-4 py-4">
         <div
           className={cn(
-            'rounded-xl border border-dashed border-sidebar-border/70 bg-sidebar/70 p-3 text-xs text-muted-foreground',
-            collapsed && 'text-center'
+            'flex items-center gap-3 rounded-xl border border-sidebar-border/60 bg-sidebar/80 px-3 py-3 text-sm transition-colors',
+            collapsed && 'justify-center'
           )}
         >
-          {!collapsed ? (
-            <>
-              <p className="font-semibold text-foreground">PayLog</p>
-              <p className="mt-1 text-muted-foreground">
-                Streamline approvals and payments with confidence.
-              </p>
-            </>
-          ) : (
-            <p className="font-semibold text-foreground">PayLog</p>
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sidebar-hover/70 text-sm font-semibold text-sidebar-foreground">
+            {initials}
+          </div>
+          {!collapsed && (
+            <div className="flex flex-1 flex-col leading-tight">
+              <span className="font-semibold text-foreground">{displayName}</span>
+              {formattedRole && (
+                <span className="text-xs uppercase tracking-wide text-muted-foreground">
+                  {formattedRole}
+                </span>
+              )}
+            </div>
           )}
+          <Button
+            variant="ghost"
+            size={collapsed ? 'icon' : 'sm'}
+            onClick={() => signOut({ callbackUrl: '/login' })}
+            className={cn(
+              'text-muted-foreground hover:text-destructive',
+              collapsed ? 'h-9 w-9' : ''
+            )}
+            aria-label="Sign out"
+          >
+            {collapsed ? <LogOut className="h-4 w-4" /> : 'Sign Out'}
+          </Button>
         </div>
       </div>
     </aside>

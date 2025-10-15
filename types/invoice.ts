@@ -32,7 +32,7 @@ export type InvoiceStatus =
  */
 export const INVOICE_STATUS_CONFIG: Record<
   InvoiceStatus,
-  { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }
+  { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' | 'success' | 'info' | 'warning' | 'muted' }
 > = {
   [INVOICE_STATUS.PENDING_APPROVAL]: {
     label: 'Pending Approval',

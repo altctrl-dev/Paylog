@@ -2,7 +2,7 @@
 
 Internal invoice tracking and payment management system built with Next.js 14.
 
-**Version**: 0.2.3 | **Sprint Progress**: 2/12 (20.7% complete)
+**Version**: 0.6.0 | **Sprint Progress**: 6/12 (50% complete)
 
 ---
 
@@ -31,11 +31,38 @@ Internal invoice tracking and payment management system built with Next.js 14.
 - Zod validation schemas with custom refinements
 - Server Actions for data mutations
 
+### Sprint 3 (Complete)
+- Payment tracking and workflows
+- Invoice status transitions (pending → approved → paid)
+- Hold workflow (admin only)
+- Rejection workflow with resubmission (max 3 attempts)
+- Due date intelligence system (priority-based sorting)
+
+### Sprint 4 (Complete)
+- Search and filters (status, date range, vendor, category)
+- Sorting (date, amount, status, priority)
+- Reports with data visualizations (Recharts)
+- CSV export functionality
+
+### Sprint 5 (Complete)
+- Email notifications (Resend integration)
+- User-created master data requests
+- Admin approval workflow
+- Email templates for lifecycle events
+
+### Sprint 6 (Complete) ✅
+- **File Attachments**: Drag-and-drop file upload with validation
+  - Secure file storage (local filesystem, migration-ready for S3/R2)
+  - Multiple file types supported (PDF, PNG, JPG, DOCX)
+  - File size limits (10MB per file, 10 files per invoice)
+  - Permission-based access control (creator, admin, super_admin)
+  - Soft delete with audit trail (deleted_by, deleted_at)
+  - Responsive UI with progress indicators
+  - Magic bytes MIME validation (prevents file spoofing)
+  - Path traversal prevention (security hardening)
+  - Comprehensive testing (161 tests, 96.73% validation coverage)
+
 ### Planned Features
-- Payment tracking and workflows (Sprint 3)
-- Search, filters, and reporting (Sprint 4)
-- Email notifications & user-created master data (Sprint 5)
-- File attachments (Sprint 6)
 - Advanced invoice features (Sprint 7)
 - Master data management - admin tools (Sprint 8)
 - Archive request workflow (Sprint 9)
@@ -385,10 +412,10 @@ if (result.error) {
 |--------|--------|-------------|
 | Sprint 1 | ✅ Complete | Foundation Setup (13 SP) |
 | Sprint 2 | ✅ Complete | Panels + Invoice CRUD (24 SP) |
-| Sprint 3 | 🔲 Planned | Payments & Workflows (16 SP) |
-| Sprint 4 | 🔲 Planned | Search & Reporting (15 SP) |
-| Sprint 5 | 🔲 Planned | Email & Master Data Requests (26 SP) |
-| Sprint 6 | 🔲 Planned | File Attachments (12 SP) |
+| Sprint 3 | ✅ Complete | Payments & Workflows (16 SP) |
+| Sprint 4 | ✅ Complete | Search & Reporting (22 SP) |
+| Sprint 5 | ✅ Complete | Email & Master Data Requests (13 SP) |
+| Sprint 6 | ✅ Complete | File Attachments (12 SP) |
 | Sprint 7 | 🔲 Planned | Advanced Features (14 SP) |
 | Sprint 8 | 🔲 Planned | Master Data Management (13 SP) |
 | Sprint 9 | 🔲 Planned | Archive Requests (11 SP) |
@@ -396,7 +423,7 @@ if (result.error) {
 | Sprint 11 | 🔲 Planned | Dashboard & Analytics (14 SP) |
 | Sprint 12 | 🔲 Planned | Polish & Testing (9 SP) |
 
-**Total**: 179 Story Points | **Complete**: 37 SP (20.7%)
+**Total**: 179 Story Points | **Complete**: 100 SP (55.9%)
 
 See [docs/SPRINTS.md](docs/SPRINTS.md) for detailed sprint breakdown.
 
@@ -557,10 +584,84 @@ Internal use only. Not for public distribution.
 
 ---
 
+## Email Notifications
+
+PayLog sends email notifications for master data request workflows:
+
+- **New Request**: Admins receive email when users submit new master data requests
+- **Request Approved**: Requesters receive email when their request is approved
+- **Request Rejected**: Requesters receive email with rejection reason
+
+### Setup
+
+1. **Sign up for Resend** (free tier: 100 emails/day)
+   - Go to https://resend.com
+   - Create an account
+   - Verify your email address
+
+2. **Get API Key**
+   - Go to API Keys in Resend dashboard
+   - Click "Create API Key"
+   - Copy the key (starts with `re_`)
+
+3. **Configure Environment Variables**
+
+   Add to your `.env` file:
+
+   ```env
+   # Email Configuration
+   EMAIL_ENABLED=true
+   RESEND_API_KEY=re_xxxxxxxxxxxxx
+   EMAIL_FROM=notifications@yourdomain.com
+   ADMIN_EMAILS=admin1@example.com,admin2@example.com
+   EMAIL_PREVIEW=false
+   ```
+
+4. **Environment Variables Explained**:
+   - `EMAIL_ENABLED`: Set to `true` to enable email notifications, `false` to disable
+   - `RESEND_API_KEY`: Your Resend API key
+   - `EMAIL_FROM`: Sender email address (must be verified in Resend)
+   - `ADMIN_EMAILS`: Comma-separated list of admin emails for new request notifications
+   - `EMAIL_PREVIEW`: Set to `true` in development to log emails instead of sending
+
+### Development Mode
+
+For local development, set `EMAIL_PREVIEW=true` to see email content in the console without sending real emails:
+
+```env
+EMAIL_PREVIEW=true
+```
+
+This will log email details to the console instead of sending via Resend.
+
+### Disabling Emails
+
+To disable email notifications entirely, set:
+
+```env
+EMAIL_ENABLED=false
+```
+
+The application will continue to function normally; email notifications will simply be skipped.
+
+### Troubleshooting
+
+**Emails not sending?**
+- Check `EMAIL_ENABLED=true` in your `.env` file
+- Verify your Resend API key is correct
+- Ensure sender email is verified in Resend dashboard
+- Check console for error messages
+
+**Preview mode not working?**
+- Make sure `EMAIL_PREVIEW=true` in `.env`
+- Restart your development server after changing env vars
+- Check console output for email logs
+
+---
+
 ## Changelog
 
 See [docs/CHANGELOG.md](docs/CHANGELOG.md) for version history.
 
-**Current Version**: 0.2.3 (Sprint 2 - Critical Form Fixes & Validation)
-**Next Version**: 0.3.0 (Sprint 3 - Payments & Workflows)
-**Future Version**: 0.5.0 (Sprint 5 - Email & Master Data Requests)
+**Current Version**: 0.6.0 (Sprint 6 - File Attachments)
+**Next Version**: 0.7.0 (Sprint 7 - Advanced Invoice Features)

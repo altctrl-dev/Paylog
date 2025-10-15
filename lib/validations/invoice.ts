@@ -135,24 +135,46 @@ export type RejectInvoiceData = z.infer<typeof rejectInvoiceSchema>;
 /**
  * Invoice list filters
  */
-export const invoiceFiltersSchema = z.object({
-  search: z.string().optional(),
-  status: z
-    .enum([
-      INVOICE_STATUS.PENDING_APPROVAL,
-      INVOICE_STATUS.ON_HOLD,
-      INVOICE_STATUS.UNPAID,
-      INVOICE_STATUS.PARTIAL,
-      INVOICE_STATUS.PAID,
-      INVOICE_STATUS.OVERDUE,
-      INVOICE_STATUS.REJECTED,
-    ])
-    .optional(),
-  vendor_id: z.number().int().positive().optional(),
-  category_id: z.number().int().positive().optional(),
-  profile_id: z.number().int().positive().optional(),
-  page: z.number().int().positive().default(1),
-  per_page: z.number().int().positive().default(20),
-});
+export const invoiceFiltersSchema = z
+  .object({
+    search: z.string().optional(),
+    status: z
+      .enum([
+        INVOICE_STATUS.PENDING_APPROVAL,
+        INVOICE_STATUS.ON_HOLD,
+        INVOICE_STATUS.UNPAID,
+        INVOICE_STATUS.PARTIAL,
+        INVOICE_STATUS.PAID,
+        INVOICE_STATUS.OVERDUE,
+        INVOICE_STATUS.REJECTED,
+      ])
+      .optional(),
+    vendor_id: z.number().int().positive().optional(),
+    category_id: z.number().int().positive().optional(),
+    profile_id: z.number().int().positive().optional(),
+    // Date range filters for invoice_date
+    start_date: z.date().optional(),
+    end_date: z.date().optional(),
+    // Sorting parameters
+    sort_by: z
+      .enum(['invoice_date', 'due_date', 'invoice_amount', 'status', 'created_at'])
+      .optional(),
+    sort_order: z.enum(['asc', 'desc']).default('desc'),
+    page: z.number().int().positive().default(1),
+    per_page: z.number().int().positive().default(20),
+  })
+  .refine(
+    (data) => {
+      // Validation: if both dates provided, end_date must be >= start_date
+      if (data.start_date && data.end_date) {
+        return data.end_date >= data.start_date;
+      }
+      return true;
+    },
+    {
+      message: 'End date must be after or equal to start date',
+      path: ['end_date'],
+    }
+  );
 
 export type InvoiceFilters = z.infer<typeof invoiceFiltersSchema>;

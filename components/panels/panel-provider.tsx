@@ -10,6 +10,8 @@
 import { PanelContainer } from './panel-container';
 import { ExamplePanelRenderer } from './example-panel';
 import { InvoicePanelRenderer } from '@/components/invoices/invoice-panel-renderer';
+import { MasterDataRequestPanelRenderer } from '@/components/master-data/master-data-request-panel-renderer';
+import { AdminRequestPanelRenderer } from '@/components/master-data/admin-request-panel-renderer';
 
 /**
  * Panel Provider with routing
@@ -41,6 +43,30 @@ export function PanelProvider() {
         if (type.startsWith('invoice-') || type.startsWith('payment-')) {
           return (
             <InvoicePanelRenderer
+              id={id}
+              type={type}
+              props={props}
+              onClose={onClose}
+            />
+          );
+        }
+
+        // Admin panels (master data approval)
+        if (type.startsWith('admin-')) {
+          return (
+            <AdminRequestPanelRenderer
+              id={id}
+              type={type}
+              props={props}
+              onClose={onClose}
+            />
+          );
+        }
+
+        // Master Data Request panels (user-facing)
+        if (type.startsWith('master-data-')) {
+          return (
+            <MasterDataRequestPanelRenderer
               id={id}
               type={type}
               props={props}

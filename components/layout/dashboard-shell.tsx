@@ -42,7 +42,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
         onToggleSidebar={toggleSidebar}
       />
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar collapsed={collapsed} onToggle={toggleSidebar} />
+        <Sidebar collapsed={collapsed} onToggle={toggleSidebar} user={user} />
         <main className="flex-1 overflow-y-auto border-l border-sidebar-border bg-surface/85 px-6 pb-10 pt-12 md:pt-12">
           <div
             className={cn(
