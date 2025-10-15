@@ -23,6 +23,8 @@ import {
   invoiceFiltersSchema,
 } from '@/lib/validations/invoice';
 import { revalidatePath } from 'next/cache';
+import { createActivityLog } from '@/app/actions/activity-log';
+import { ACTIVITY_ACTION } from '@/docs/SPRINT7_ACTIVITY_ACTIONS';
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -589,6 +591,19 @@ export async function createInvoice(
       include: invoiceInclude,
     });
 
+    // Log activity (non-blocking)
+    await createActivityLog({
+      invoice_id: invoice.id,
+      user_id: user.id,
+      action: ACTIVITY_ACTION.INVOICE_CREATED,
+      new_data: {
+        invoice_number: invoice.invoice_number,
+        vendor_id: invoice.vendor_id,
+        invoice_amount: invoice.invoice_amount,
+        status: invoice.status,
+      },
+    });
+
     revalidatePath('/invoices');
 
     return {
@@ -620,7 +635,7 @@ export async function updateInvoice(
   data: unknown
 ): Promise<ServerActionResult<InvoiceWithRelations>> {
   try {
-    await getCurrentUser();
+    const user = await getCurrentUser();
 
     // Validate input
     const validated = invoiceFormSchema.parse(data);
@@ -715,6 +730,27 @@ export async function updateInvoice(
       include: invoiceInclude,
     });
 
+    // Log activity with old and new data (non-blocking)
+    await createActivityLog({
+      invoice_id: id,
+      user_id: user.id,
+      action: ACTIVITY_ACTION.INVOICE_UPDATED,
+      old_data: {
+        invoice_number: existing.invoice_number,
+        vendor_id: existing.vendor_id,
+        invoice_amount: existing.invoice_amount,
+        invoice_date: existing.invoice_date,
+        due_date: existing.due_date,
+      },
+      new_data: {
+        invoice_number: validated.invoice_number,
+        vendor_id: validated.vendor_id,
+        invoice_amount: validated.invoice_amount,
+        invoice_date: validated.invoice_date,
+        due_date: validated.due_date,
+      },
+    });
+
     revalidatePath('/invoices');
     revalidatePath(`/invoices/${id}`);
 
@@ -773,6 +809,17 @@ export async function deleteInvoice(
         hidden_by: user.id,
         hidden_at: new Date(),
         hidden_reason: 'Deleted by user',
+      },
+    });
+
+    // Log activity (non-blocking)
+    await createActivityLog({
+      invoice_id: id,
+      user_id: user.id,
+      action: ACTIVITY_ACTION.INVOICE_HIDDEN,
+      old_data: {
+        invoice_number: existing.invoice_number,
+        status: existing.status,
       },
     });
 
@@ -849,6 +896,20 @@ export async function putInvoiceOnHold(
       include: invoiceInclude,
     });
 
+    // Log activity (non-blocking)
+    await createActivityLog({
+      invoice_id: id,
+      user_id: user.id,
+      action: ACTIVITY_ACTION.INVOICE_HOLD_PLACED,
+      old_data: {
+        status: existing.status,
+      },
+      new_data: {
+        status: INVOICE_STATUS.ON_HOLD,
+        hold_reason: validated.hold_reason,
+      },
+    });
+
     revalidatePath('/invoices');
     revalidatePath(`/invoices/${id}`);
 
@@ -918,6 +979,19 @@ export async function approveInvoice(
         status: INVOICE_STATUS.UNPAID,
       },
       include: invoiceInclude,
+    });
+
+    // Log activity (non-blocking)
+    await createActivityLog({
+      invoice_id: id,
+      user_id: user.id,
+      action: ACTIVITY_ACTION.INVOICE_APPROVED,
+      old_data: {
+        status: existing.status,
+      },
+      new_data: {
+        status: INVOICE_STATUS.UNPAID,
+      },
     });
 
     revalidatePath('/invoices');
@@ -997,6 +1071,20 @@ export async function rejectInvoice(
         rejected_at: new Date(),
       },
       include: invoiceInclude,
+    });
+
+    // Log activity (non-blocking)
+    await createActivityLog({
+      invoice_id: id,
+      user_id: user.id,
+      action: ACTIVITY_ACTION.INVOICE_REJECTED,
+      old_data: {
+        status: existing.status,
+      },
+      new_data: {
+        status: INVOICE_STATUS.REJECTED,
+        rejection_reason: validated.rejection_reason,
+      },
     });
 
     revalidatePath('/invoices');
