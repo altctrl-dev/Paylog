@@ -39,6 +39,11 @@ model User {
   reviewed_requests        ArchiveRequest[]        @relation("ArchiveReviewer")
   created_requests         MasterDataRequest[]     @relation("RequestRequester")
   reviewed_master_requests MasterDataRequest[]     @relation("RequestReviewer")
+  uploaded_attachments     InvoiceAttachment[]     @relation("AttachmentUploader")
+  deleted_attachments      InvoiceAttachment[]     @relation("AttachmentDeleter")
+  comments                 InvoiceComment[]        @relation("CommentAuthor")
+  deleted_comments         InvoiceComment[]        @relation("CommentDeleter")
+  activity_logs            ActivityLog[]           @relation("ActivityLogger")
 
   @@index([role, is_active], map: "idx_users_role_active")
   @@index([role], map: "idx_users_super_admin")
@@ -224,6 +229,9 @@ model Invoice {
   hider      User?           @relation("InvoiceHider", fields: [hidden_by], references: [id], onDelete: Restrict)
   rejector   User?           @relation("InvoiceRejector", fields: [rejected_by], references: [id], onDelete: Restrict)
   payments   Payment[]
+  attachments InvoiceAttachment[]
+  comments    InvoiceComment[]
+  activity_logs ActivityLog[]
 
   @@index([status], map: "idx_invoices_status")
   @@index([status], map: "idx_invoices_on_hold")
@@ -334,6 +342,88 @@ model MasterDataRequest {
   @@index([status], name: "idx_master_data_requests_status")
   @@index([created_at], name: "idx_master_data_requests_created_at")
   @@map("master_data_requests")
+}
+
+// ============================================================================
+// INVOICE ATTACHMENTS (Sprint 6)
+// ============================================================================
+
+model InvoiceAttachment {
+  id           String    @id @default(cuid())
+  invoice_id   Int
+  file_name    String
+  original_name String
+  file_size    Int
+  mime_type    String
+  storage_path String
+  uploaded_by  Int
+  uploaded_at  DateTime  @default(now())
+  deleted_at   DateTime?
+  deleted_by   Int?
+  scan_status  String?   // 'pending', 'clean', 'infected', 'error'
+  scan_result  String?   // JSON string with scan details
+
+  // Relations
+  invoice  Invoice @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
+  uploader User    @relation("AttachmentUploader", fields: [uploaded_by], references: [id], onDelete: Restrict)
+  deleter  User?   @relation("AttachmentDeleter", fields: [deleted_by], references: [id], onDelete: Restrict)
+
+  @@index([invoice_id, deleted_at], name: "idx_attachments_invoice_active")
+  @@index([uploaded_by], name: "idx_attachments_uploader")
+  @@index([uploaded_at], name: "idx_attachments_time")
+  @@map("invoice_attachments")
+}
+
+// ============================================================================
+// INVOICE COMMENTS (Sprint 7)
+// ============================================================================
+
+model InvoiceComment {
+  id         String    @id @default(cuid())
+  invoice_id Int
+  user_id    Int
+  content    String    // Max 5000 chars validated at app level
+  is_edited  Boolean   @default(false)
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  deleted_at DateTime?
+  deleted_by Int?
+
+  // Relations
+  invoice Invoice @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
+  author  User    @relation("CommentAuthor", fields: [user_id], references: [id], onDelete: Restrict)
+  deleter User?   @relation("CommentDeleter", fields: [deleted_by], references: [id], onDelete: Restrict)
+
+  @@index([invoice_id, deleted_at], name: "idx_comments_invoice_active")
+  @@index([user_id], name: "idx_comments_author")
+  @@index([created_at], name: "idx_comments_time")
+  @@map("invoice_comments")
+}
+
+// ============================================================================
+// ACTIVITY LOG (Sprint 7)
+// ============================================================================
+
+model ActivityLog {
+  id         String   @id @default(cuid())
+  invoice_id Int
+  user_id    Int?     // Nullable for system-generated activities
+  action     String   // 'created', 'updated', 'status_changed', 'commented', etc.
+  old_data   String?  // JSON string of previous state
+  new_data   String?  // JSON string of new state
+  ip_address String?
+  user_agent String?
+  created_at DateTime @default(now())
+
+  // Relations
+  invoice Invoice @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
+  user    User?   @relation("ActivityLogger", fields: [user_id], references: [id], onDelete: SetNull)
+
+  @@index([invoice_id, created_at], name: "idx_activity_invoice_time")
+  @@index([user_id], name: "idx_activity_user")
+  @@index([action], name: "idx_activity_action")
+  @@index([created_at], name: "idx_activity_time")
+  @@map("activity_logs")
 }
 
 // ============================================================================
