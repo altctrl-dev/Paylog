@@ -1,0 +1,228 @@
+// ============================================================================
+// Prisma Schema: Sprint 7 - Comments & Activity Log (DRAFT)
+// Generated: 2025-10-16
+// Database: SQLite (Development)
+// Migration: 20251016_sprint7_comments_activity
+// ============================================================================
+
+// This is a DRAFT schema showing ONLY the new additions for Sprint 7.
+// This file is NOT used by Prisma - it's for documentation and review.
+// The actual migration will be applied to /Users/althaf/Projects/paylog-3/schema.prisma
+
+// ============================================================================
+// NEW MODEL: InvoiceComment (Sprint 7)
+// ============================================================================
+
+model InvoiceComment {
+  id         Int       @id @default(autoincrement())
+  invoice_id Int
+  user_id    Int
+  content    String    // Markdown content, max 5000 chars (enforced in app layer)
+  is_edited  Boolean   @default(false)
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  deleted_at DateTime? // Soft delete timestamp
+  deleted_by Int?      // User who deleted (nullable)
+
+  // Relations
+  invoice Invoice @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
+  author  User    @relation("CommentAuthor", fields: [user_id], references: [id], onDelete: Restrict)
+  deleter User?   @relation("CommentDeleter", fields: [deleted_by], references: [id], onDelete: Restrict)
+
+  // Performance indexes
+  @@index([invoice_id, deleted_at], name: "idx_comments_invoice_active")
+  @@index([user_id], name: "idx_comments_author")
+  @@index([created_at], name: "idx_comments_time")
+  @@map("invoice_comments")
+}
+
+// ============================================================================
+// NEW MODEL: ActivityLog (Sprint 7)
+// ============================================================================
+
+model ActivityLog {
+  id         Int      @id @default(autoincrement())
+  invoice_id Int
+  user_id    Int?     // Nullable for system-generated events
+  action     String   // Action type enum stored as String (SQLite has no native enum)
+  old_data   String?  // JSON snapshot of fields before change (stored as TEXT)
+  new_data   String?  // JSON snapshot of fields after change (stored as TEXT)
+  ip_address String?  // User's IP address (optional, for security audit)
+  user_agent String?  // Browser user agent (optional)
+  created_at DateTime @default(now())
+
+  // Relations
+  invoice Invoice @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
+  user    User?   @relation("ActivityLogger", fields: [user_id], references: [id], onDelete: SetNull)
+
+  // Performance indexes (optimized for common queries)
+  @@index([invoice_id, created_at], name: "idx_activity_invoice_time")
+  @@index([user_id], name: "idx_activity_user")
+  @@index([action], name: "idx_activity_action")
+  @@index([created_at], name: "idx_activity_time")
+  @@map("activity_logs")
+}
+
+// ============================================================================
+// UPDATED MODEL: User (Add new relations)
+// ============================================================================
+
+// Add these relations to existing User model:
+model User {
+  // ... existing fields (not shown) ...
+
+  // EXISTING RELATIONS (no changes):
+  // created_invoices, held_invoices, hidden_invoices, rejected_invoices,
+  // profile_visibilities, granted_visibilities, archive_requests,
+  // reviewed_requests, created_requests, reviewed_master_requests,
+  // uploaded_attachments, deleted_attachments
+
+  // NEW RELATIONS (Sprint 7):
+  comments         InvoiceComment[] @relation("CommentAuthor")
+  deleted_comments InvoiceComment[] @relation("CommentDeleter")
+  activity_logs    ActivityLog[]    @relation("ActivityLogger")
+
+  // ... rest of model (indexes, @@map) ...
+}
+
+// ============================================================================
+// UPDATED MODEL: Invoice (Add new relations)
+// ============================================================================
+
+// Add these relations to existing Invoice model:
+model Invoice {
+  // ... existing fields (not shown) ...
+
+  // EXISTING RELATIONS (no changes):
+  // vendor, category, profile, sub_entity, creator, holder, hider, rejector,
+  // payments, attachments
+
+  // NEW RELATIONS (Sprint 7):
+  comments      InvoiceComment[]
+  activity_logs ActivityLog[]
+
+  // ... rest of model (indexes, @@map) ...
+}
+
+// ============================================================================
+// MIGRATION NOTES
+// ============================================================================
+
+// 1. BACKWARD COMPATIBILITY
+//    - No changes to existing tables (additive only)
+//    - Existing queries will continue to work unchanged
+//    - New relations are optional (no NOT NULL fields on existing tables)
+
+// 2. PERFORMANCE IMPACT
+//    - Index overhead on Invoice table: ~200 KB per 10,000 invoices (negligible)
+//    - Index overhead on User table: ~100 KB per 10,000 users (negligible)
+//    - Query performance expected to remain unchanged
+
+// 3. STORAGE IMPACT
+//    - InvoiceComment: ~500 bytes per comment
+//    - ActivityLog: ~300 bytes per entry
+//    - Expected growth: ~50 MB per 100,000 invoices (including comments and activity)
+
+// 4. ROLLBACK SAFETY
+//    - Rollback is safe: Drop tables, no impact on existing data
+//    - Foreign key constraints prevent orphaned records
+//    - Soft delete on comments preserves audit trail
+
+// 5. TESTING REQUIREMENTS
+//    - Test comment CRUD operations (create, read, update, soft delete)
+//    - Test activity log auto-creation on invoice updates
+//    - Test cascade delete (delete invoice → comments and logs deleted)
+//    - Test soft delete (comment deleted_at timestamp)
+//    - Test query performance with 10k+ comments and 100k+ activity entries
+
+// 6. SECURITY CONSIDERATIONS
+//    - Comment content MUST be sanitized before storage (XSS prevention)
+//    - Activity log immutable (no UPDATE or DELETE operations)
+//    - IP address and user agent logged for security audit
+//    - Soft delete preserves audit trail (deleted_by, deleted_at)
+
+// 7. DATA INTEGRITY
+//    - Foreign key constraints enforce referential integrity
+//    - onDelete behaviors:
+//      * Invoice deleted → Comments and ActivityLogs cascade deleted
+//      * User deleted → Comments preserved (Restrict), ActivityLogs nullify user (SetNull)
+//      * Comment author deleted → Restrict (show "[Deleted User]" in UI)
+//      * Comment deleter deleted → Restrict (preserve audit trail)
+
+// 8. ACTIVITY ACTION ENUM (Application Layer)
+//    SQLite has no native enum support. Define as TypeScript const:
+//
+//    export const ACTIVITY_ACTION = {
+//      INVOICE_CREATED: 'invoice_created',
+//      INVOICE_UPDATED: 'invoice_updated',
+//      INVOICE_APPROVED: 'invoice_approved',
+//      INVOICE_REJECTED: 'invoice_rejected',
+//      INVOICE_HOLD_PLACED: 'invoice_hold_placed',
+//      INVOICE_HOLD_RELEASED: 'invoice_hold_released',
+//      INVOICE_HIDDEN: 'invoice_hidden',
+//      INVOICE_UNHIDDEN: 'invoice_unhidden',
+//      INVOICE_DUPLICATED: 'invoice_duplicated',
+//      INVOICE_DELETED: 'invoice_deleted',
+//      PAYMENT_ADDED: 'payment_added',
+//      PAYMENT_UPDATED: 'payment_updated',
+//      PAYMENT_DELETED: 'payment_deleted',
+//      COMMENT_ADDED: 'comment_added',
+//      COMMENT_EDITED: 'comment_edited',
+//      COMMENT_DELETED: 'comment_deleted',
+//      ATTACHMENT_UPLOADED: 'attachment_uploaded',
+//      ATTACHMENT_DELETED: 'attachment_deleted',
+//      BULK_APPROVE: 'bulk_approve',
+//      BULK_REJECT: 'bulk_reject',
+//      BULK_EXPORT: 'bulk_export',
+//      BULK_DELETE: 'bulk_delete',
+//    } as const;
+
+// 9. QUERY EXAMPLES
+//
+//    // Get active comments for invoice (excludes soft-deleted)
+//    const comments = await prisma.invoiceComment.findMany({
+//      where: {
+//        invoice_id: invoiceId,
+//        deleted_at: null
+//      },
+//      include: {
+//        author: { select: { full_name: true } }
+//      },
+//      orderBy: { created_at: 'asc' }
+//    });
+//
+//    // Get activity log for invoice (sorted newest first)
+//    const activityLog = await prisma.activityLog.findMany({
+//      where: { invoice_id: invoiceId },
+//      include: {
+//        user: { select: { full_name: true } }
+//      },
+//      orderBy: { created_at: 'desc' },
+//      take: 50 // Pagination: 50 per page
+//    });
+//
+//    // Soft delete comment
+//    await prisma.invoiceComment.update({
+//      where: { id: commentId },
+//      data: {
+//        deleted_at: new Date(),
+//        deleted_by: userId
+//      }
+//    });
+//
+//    // Create activity log entry
+//    await prisma.activityLog.create({
+//      data: {
+//        invoice_id: invoiceId,
+//        user_id: userId,
+//        action: 'invoice_approved',
+//        old_data: JSON.stringify({ status: 'pending_approval' }),
+//        new_data: JSON.stringify({ status: 'unpaid' }),
+//        ip_address: req.ip,
+//        user_agent: req.headers['user-agent']
+//      }
+//    });
+
+// ============================================================================
+// END OF SPRINT 7 SCHEMA DRAFT
+// ============================================================================

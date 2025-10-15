@@ -17,6 +17,7 @@ import { useInvoice, useApproveInvoice, useRejectInvoice } from '@/hooks/use-inv
 import { usePaymentSummary } from '@/hooks/use-payments';
 import { InvoiceStatusBadge } from './invoice-status-badge';
 import { PaymentHistoryList } from '@/components/payments/payment-history-list';
+import { CommentList } from '@/components/comments/comment-list';
 import type { PanelConfig } from '@/types/panel';
 import { INVOICE_STATUS } from '@/types/invoice';
 
@@ -60,8 +61,8 @@ export function InvoiceDetailPanel({
   const approveMutation = useApproveInvoice();
   const rejectMutation = useRejectInvoice();
 
-  // Get current session to check user role
-  const [session, setSession] = React.useState<{user?: {role?: string}} | null>(null);
+  // Get current session to check user role and ID
+  const [session, setSession] = React.useState<{user?: {id?: string; role?: string}} | null>(null);
   React.useEffect(() => {
     fetch('/api/auth/session')
       .then(res => res.json())
@@ -437,6 +438,18 @@ export function InvoiceDetailPanel({
           <h3 className="mb-3 font-semibold text-lg">Payment History</h3>
           <PaymentHistoryList invoiceId={invoiceId} />
         </div>
+
+        {/* Comments Section */}
+        {session?.user?.id && (
+          <div>
+            <h3 className="mb-3 font-semibold text-lg">Discussion</h3>
+            <CommentList
+              invoiceId={invoiceId}
+              currentUserId={parseInt(session.user.id)}
+              currentUserRole={session.user.role || 'user'}
+            />
+          </div>
+        )}
 
         {/* Keyboard Shortcuts */}
         <div className="rounded-md border border-border bg-muted p-3 text-xs">

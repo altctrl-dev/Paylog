@@ -1,8 +1,8 @@
-# Compaction Summary — 2025-10-16 02:36:34 IST
+# Compaction Summary — 2025-10-16 03:03:50 IST
 
 ## Executive Summary
 - Agents active: Main Agent (Direct Work)
-- Files modified: 11
+- Files modified: 20
 - Contracts affected: 0
 - Open questions: 0
 
@@ -13,16 +13,16 @@
 - n/a
 
 ## Critical Paths (for JIT retrieval)
-- `chema.prisma`
-- `__tests__/`
-- `app/actions/admin/`
-- `app/actions/attachments.ts`
-- `app/actions/master-data-requests.ts`
-- `app/actions/reports.ts`
-- `app/api/attachments/`
-- `components/attachments/`
-- `components/master-data/`
-- `components/ui/alert-dialog.tsx`
+- `.env.example`
+- `.gitignore`
+- `README.md`
+- `app/(dashboard)/admin/page.tsx`
+- `app/(dashboard)/invoices/page.tsx`
+- `app/(dashboard)/reports/page.tsx`
+- `app/(dashboard)/settings/page.tsx`
+- `app/actions/invoices.ts`
+- `components/invoices/invoice-form-panel.tsx`
+- `components/layout/dashboard-shell.tsx`
 
 ## Contracts Touched (verify stability)
 - n/a
