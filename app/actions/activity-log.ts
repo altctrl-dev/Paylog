@@ -303,11 +303,11 @@ export async function exportActivityLog(
 
     // 5. Generate CSV
     const headers = ['Timestamp', 'User', 'Action', 'Invoice Number', 'Old Data', 'New Data'];
-    const rows = entries.map((entry) => [
+    const rows = entries.map((entry): string[] => [
       entry.created_at.toISOString(),
       entry.user?.full_name || 'System',
       getActivityActionLabel(entry.action as ActivityAction),
-      entry.invoice.invoice_number,
+      entry.invoice?.invoice_number ?? '—',
       entry.old_data || '',
       entry.new_data || '',
     ]);
