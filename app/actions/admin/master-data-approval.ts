@@ -6,6 +6,7 @@
 
 'use server';
 
+import { Prisma } from '@prisma/client';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { emailService, sendEmailAsync } from '@/lib/email';
@@ -15,6 +16,24 @@ import type {
   ServerActionResult,
   RequestData,
 } from '../master-data-requests';
+type RawMasterDataRequest = Prisma.MasterDataRequestGetPayload<{
+  include: {
+    requester: {
+      select: {
+        id: true;
+        full_name: true;
+        email: true;
+      };
+    };
+    reviewer: {
+      select: {
+        id: true;
+        full_name: true;
+        email: true;
+      };
+    };
+  };
+}>;
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -86,15 +105,34 @@ export async function getAdminRequests(
       },
     });
 
-    return {
-      success: true,
-      data: requests.map((request) => ({
-        ...request,
+    const formatted = requests.map(
+      (request: RawMasterDataRequest): MasterDataRequestWithDetails => ({
+        id: request.id,
         entity_type: request.entity_type as MasterDataEntityType,
         status: request.status as MasterDataRequestWithDetails['status'],
-        request_data: JSON.parse(request.request_data),
-        admin_edits: request.admin_edits ? JSON.parse(request.admin_edits) : null,
-      })),
+        requester_id: request.requester_id,
+        request_data: JSON.parse(request.request_data) as RequestData,
+        reviewer_id: request.reviewer_id,
+        reviewed_at: request.reviewed_at,
+        rejection_reason: request.rejection_reason,
+        admin_edits: request.admin_edits
+          ? (JSON.parse(request.admin_edits) as Record<string, unknown>)
+          : null,
+        admin_notes: request.admin_notes,
+        resubmission_count: request.resubmission_count,
+        previous_attempt_id: request.previous_attempt_id,
+        superseded_by_id: request.superseded_by_id,
+        created_entity_id: request.created_entity_id,
+        created_at: request.created_at,
+        updated_at: request.updated_at,
+        requester: request.requester,
+        reviewer: request.reviewer,
+      })
+    );
+
+    return {
+      success: true,
+      data: formatted,
     };
   } catch (error) {
     console.error('getAdminRequests error:', error);
