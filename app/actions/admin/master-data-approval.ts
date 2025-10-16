@@ -6,7 +6,6 @@
 
 'use server';
 
-import type { MasterDataRequest } from '@prisma/client';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { emailService, sendEmailAsync } from '@/lib/email';
@@ -16,18 +15,6 @@ import type {
   ServerActionResult,
   RequestData,
 } from '../master-data-requests';
-type RawMasterDataRequest = MasterDataRequest & {
-  requester: {
-    id: number;
-    full_name: string;
-    email: string;
-  };
-  reviewer: {
-    id: number;
-    full_name: string;
-    email: string;
-  } | null;
-};
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -99,8 +86,8 @@ export async function getAdminRequests(
       },
     });
 
-    const formatted = requests.map(
-      (request: RawMasterDataRequest): MasterDataRequestWithDetails => ({
+    const formatted: MasterDataRequestWithDetails[] = requests.map((request) => {
+      const mapped: MasterDataRequestWithDetails = {
         id: request.id,
         entity_type: request.entity_type as MasterDataEntityType,
         status: request.status as MasterDataRequestWithDetails['status'],
@@ -119,10 +106,12 @@ export async function getAdminRequests(
         created_entity_id: request.created_entity_id,
         created_at: request.created_at,
         updated_at: request.updated_at,
-        requester: request.requester,
-        reviewer: request.reviewer,
-      })
-    );
+        requester: request.requester!,
+        reviewer: request.reviewer ?? null,
+      };
+
+      return mapped;
+    });
 
     return {
       success: true,
