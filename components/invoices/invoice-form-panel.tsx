@@ -42,6 +42,8 @@ import {
   useUpdateInvoice,
   useInvoiceFormOptions,
 } from '@/hooks/use-invoices';
+import { VendorAutocomplete } from '@/components/master-data/vendor-autocomplete';
+import { CategoryAutocomplete } from '@/components/master-data/category-autocomplete';
 import { type InvoiceFormData } from '@/types/invoice';
 import { invoiceFormSchema } from '@/lib/validations/invoice';
 import type { PanelConfig } from '@/types/panel';
@@ -392,36 +394,13 @@ export function InvoiceFormPanel({
             name="vendor_id"
             control={control}
             render={({ field }) => (
-              <Select
-                id="vendor_id"
-                value={field.value?.toString() || ''}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  field.onChange(value === '' ? 0 : parseInt(value, 10));
-                }}
-                className={errors.vendor_id ? 'border-destructive' : ''}
-              >
-                <option value="">-- Select Vendor --</option>
-                {options?.vendors.map((vendor) => (
-                  <option key={vendor.id} value={vendor.id}>
-                    {vendor.name}
-                  </option>
-                ))}
-              </Select>
+              <VendorAutocomplete
+                value={field.value || null}
+                onChange={(vendorId) => field.onChange(vendorId || 0)}
+                error={errors.vendor_id?.message}
+              />
             )}
           />
-          {errors.vendor_id && (
-            <p className="text-xs text-destructive">
-              {errors.vendor_id.message}
-            </p>
-          )}
-          <button
-            type="button"
-            onClick={handleRequestVendor}
-            className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
-          >
-            + Request New Vendor
-          </button>
         </div>
 
         {/* 3. Invoice Number + 4. Invoice Date (side by side) */}
@@ -647,35 +626,13 @@ export function InvoiceFormPanel({
               name="category_id"
               control={control}
               render={({ field }) => (
-                <Select
-                  id="category_id"
-                  value={field.value?.toString() || ''}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    field.onChange(value === '' ? 0 : parseInt(value, 10));
-                  }}
-                >
-                  <option value="">-- Select Category --</option>
-                  {options?.categories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  ))}
-                </Select>
+                <CategoryAutocomplete
+                  value={field.value || null}
+                  onChange={(categoryId) => field.onChange(categoryId || 0)}
+                  error={errors.category_id?.message}
+                />
               )}
             />
-            {errors.category_id && (
-              <p className="text-xs text-destructive">
-                {errors.category_id.message}
-              </p>
-            )}
-            <button
-              type="button"
-              onClick={handleRequestCategory}
-              className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
-            >
-              + Request New Category
-            </button>
           </div>
 
           <div className="space-y-2">

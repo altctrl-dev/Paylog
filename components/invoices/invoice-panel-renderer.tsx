@@ -14,6 +14,8 @@ import { InvoiceFormPanel } from './invoice-form-panel';
 import { InvoiceHoldPanel } from './invoice-hold-panel';
 import { InvoiceRejectPanel } from './invoice-reject-panel';
 import { PaymentFormPanel } from '@/components/payments/payment-form-panel';
+import { VendorFormPanel } from '@/components/master-data/vendor-form-panel';
+import { CategoryFormPanel } from '@/components/master-data/category-form-panel';
 
 interface InvoicePanelRendererProps {
   id: string;
@@ -100,6 +102,24 @@ export function InvoicePanelRenderer({
           invoiceNumber={props.invoiceNumber as string}
           invoiceAmount={props.invoiceAmount as number}
           remainingBalance={props.remainingBalance as number}
+        />
+      );
+
+    case 'vendor-form':
+      return (
+        <VendorFormPanel
+          config={config}
+          onClose={onClose}
+          vendor={props.vendor as { id: number; name: string } | undefined}
+        />
+      );
+
+    case 'category-form':
+      return (
+        <CategoryFormPanel
+          config={config}
+          onClose={onClose}
+          category={props.category as { id: number; name: string } | undefined}
         />
       );
 

@@ -39,8 +39,13 @@ export function PanelProvider() {
       renderPanel={({ id, type, props, onClose }) => {
         // Route panel types to their respective components
 
-        // Invoice and Payment panels (payments are handled by InvoicePanelRenderer)
-        if (type.startsWith('invoice-') || type.startsWith('payment-')) {
+        // Invoice, Payment, Vendor, and Category panels
+        if (
+          type.startsWith('invoice-') ||
+          type.startsWith('payment-') ||
+          type === 'vendor-form' ||
+          type === 'category-form'
+        ) {
           return (
             <InvoicePanelRenderer
               id={id}
