@@ -149,7 +149,7 @@ export async function bulkApproveInvoices(
     const errors: Record<number, string> = {};
 
     for (const id of invoiceIds) {
-      const invoice = invoices.find((inv) => inv.id === id);
+      const invoice = invoices.find((inv: (typeof invoices)[number]) => inv.id === id);
 
       if (!invoice) {
         errors[id] = 'Invoice not found';
@@ -264,7 +264,7 @@ export async function bulkRejectInvoices(
     const errors: Record<number, string> = {};
 
     for (const id of invoiceIds) {
-      const invoice = invoices.find((inv) => inv.id === id);
+      const invoice = invoices.find((inv: (typeof invoices)[number]) => inv.id === id);
 
       if (!invoice) {
         errors[id] = 'Invoice not found';
