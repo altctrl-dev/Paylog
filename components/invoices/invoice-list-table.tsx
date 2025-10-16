@@ -9,11 +9,14 @@
 import * as React from 'react';
 import { InvoiceStatusBadge } from './invoice-status-badge';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { INVOICE_STATUS, type InvoiceWithRelations } from '@/types/invoice';
 
 interface InvoiceListTableProps {
   invoices: InvoiceWithRelations[];
   onRowClick: (invoice: InvoiceWithRelations) => void;
+  selectedInvoiceIds?: number[];
+  onSelectionChange?: (ids: number[]) => void;
 }
 
 /**
@@ -42,7 +45,41 @@ function formatDate(date: Date | null | undefined): string {
 export function InvoiceListTable({
   invoices,
   onRowClick,
+  selectedInvoiceIds = [],
+  onSelectionChange,
 }: InvoiceListTableProps) {
+  const showCheckboxes = !!onSelectionChange;
+
+  // Handle "Select All" checkbox
+  const allSelected =
+    invoices.length > 0 &&
+    invoices.every((inv) => selectedInvoiceIds.includes(inv.id));
+  const someSelected =
+    selectedInvoiceIds.length > 0 && !allSelected;
+
+  const handleSelectAll = () => {
+    if (!onSelectionChange) return;
+
+    if (allSelected) {
+      // Deselect all
+      onSelectionChange([]);
+    } else {
+      // Select all on current page
+      onSelectionChange(invoices.map((inv) => inv.id));
+    }
+  };
+
+  const handleToggleInvoice = (invoiceId: number, event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent row click
+    if (!onSelectionChange) return;
+
+    if (selectedInvoiceIds.includes(invoiceId)) {
+      onSelectionChange(selectedInvoiceIds.filter((id) => id !== invoiceId));
+    } else {
+      onSelectionChange([...selectedInvoiceIds, invoiceId]);
+    }
+  };
+
   if (invoices.length === 0) {
     return (
       <div className="rounded-lg border p-8 text-center text-muted-foreground">
@@ -56,6 +93,16 @@ export function InvoiceListTable({
       <table className="w-full border-collapse">
         <thead>
           <tr className="border-b bg-muted/50">
+            {showCheckboxes && (
+              <th className="p-3 w-12">
+                <Checkbox
+                  checked={allSelected}
+                  onCheckedChange={handleSelectAll}
+                  aria-label="Select all invoices"
+                  className={someSelected ? 'opacity-50' : ''}
+                />
+              </th>
+            )}
             <th className="p-3 text-left text-sm font-semibold">
               Invoice Number
             </th>
@@ -68,15 +115,34 @@ export function InvoiceListTable({
           </tr>
         </thead>
         <tbody>
-          {invoices.map((invoice) => (
-            <tr
-              key={invoice.id}
-              onClick={() => onRowClick(invoice)}
-              className="cursor-pointer border-b transition-colors hover:bg-muted/50"
-            >
-              <td className="p-3 text-sm font-medium">
-                {invoice.invoice_number}
-              </td>
+          {invoices.map((invoice) => {
+            const isSelected = selectedInvoiceIds.includes(invoice.id);
+
+            return (
+              <tr
+                key={invoice.id}
+                onClick={() => onRowClick(invoice)}
+                className={`cursor-pointer border-b transition-colors hover:bg-muted/50 ${
+                  isSelected ? 'bg-muted/30' : ''
+                }`}
+              >
+                {showCheckboxes && (
+                  <td className="p-3 w-12">
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={(checked) =>
+                        handleToggleInvoice(invoice.id, {
+                          stopPropagation: () => {},
+                        } as React.MouseEvent)
+                      }
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label={`Select invoice ${invoice.invoice_number}`}
+                    />
+                  </td>
+                )}
+                <td className="p-3 text-sm font-medium">
+                  {invoice.invoice_number}
+                </td>
               <td className="p-3 text-sm text-muted-foreground">
                 {invoice.vendor?.name || 'N/A'}
               </td>
@@ -95,11 +161,12 @@ export function InvoiceListTable({
                   )}
                 </div>
               </td>
-              <td className="p-3 text-sm text-muted-foreground">
-                {formatDate(invoice.invoice_date)}
-              </td>
-            </tr>
-          ))}
+                <td className="p-3 text-sm text-muted-foreground">
+                  {formatDate(invoice.invoice_date)}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

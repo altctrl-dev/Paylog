@@ -15,17 +15,23 @@ import { Card } from '@/components/ui/card';
 import { usePanel } from '@/hooks/use-panel';
 import { useInvoices, useInvoiceFormOptions } from '@/hooks/use-invoices';
 import { InvoiceListTable } from '@/components/invoices/invoice-list-table';
+import { BulkActionBar } from '@/components/bulk-operations/bulk-action-bar';
 import { INVOICE_STATUS } from '@/types/invoice';
 import type { InvoiceWithRelations, InvoiceStatus } from '@/types/invoice';
+import { useSession } from 'next-auth/react';
 
 export default function InvoicesPage() {
   const { openPanel } = usePanel();
+  const { data: session } = useSession();
 
   // Fetch form options for filter dropdowns
   const { data: formOptions } = useInvoiceFormOptions();
 
   // Filter state
   const [search, setSearch] = React.useState('');
+
+  // Bulk operations state
+  const [selectedInvoiceIds, setSelectedInvoiceIds] = React.useState<number[]>([]);
   const [statusFilter, setStatusFilter] = React.useState<InvoiceStatus | ''>('');
   const [vendorFilter, setVendorFilter] = React.useState<number | ''>('');
   const [categoryFilter, setCategoryFilter] = React.useState<number | ''>('');
@@ -363,6 +369,8 @@ export default function InvoicesPage() {
           <InvoiceListTable
             invoices={data.invoices}
             onRowClick={handleRowClick}
+            selectedInvoiceIds={selectedInvoiceIds}
+            onSelectionChange={setSelectedInvoiceIds}
           />
 
           {/* Pagination */}
@@ -395,6 +403,13 @@ export default function InvoicesPage() {
           <p className="text-muted-foreground">Loading invoices...</p>
         </Card>
       )}
+
+      {/* Bulk Action Bar (floating) */}
+      <BulkActionBar
+        selectedInvoiceIds={selectedInvoiceIds}
+        onClearSelection={() => setSelectedInvoiceIds([])}
+        currentUserRole={session?.user?.role || 'standard_user'}
+      />
     </div>
   );
 }
