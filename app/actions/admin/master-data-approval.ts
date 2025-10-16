@@ -16,6 +16,35 @@ import type {
   RequestData,
 } from '../master-data-requests';
 
+interface RawMasterDataRequest {
+  id: number;
+  entity_type: string;
+  status: string;
+  requester_id: number;
+  request_data: string;
+  reviewer_id: number | null;
+  reviewed_at: Date | null;
+  rejection_reason: string | null;
+  admin_edits: string | null;
+  admin_notes: string | null;
+  resubmission_count: number;
+  previous_attempt_id: number | null;
+  superseded_by_id: number | null;
+  created_entity_id: string | null;
+  created_at: Date;
+  updated_at: Date;
+  requester: {
+    id: number;
+    full_name: string;
+    email: string;
+  };
+  reviewer: {
+    id: number;
+    full_name: string;
+    email: string;
+  } | null;
+}
+
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
@@ -86,7 +115,9 @@ export async function getAdminRequests(
       },
     });
 
-    const formatted: MasterDataRequestWithDetails[] = requests.map((request) => {
+    const formatted: MasterDataRequestWithDetails[] = (
+      requests as RawMasterDataRequest[]
+    ).map((request) => {
       const mapped: MasterDataRequestWithDetails = {
         id: request.id,
         entity_type: request.entity_type as MasterDataEntityType,
