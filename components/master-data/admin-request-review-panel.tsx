@@ -35,12 +35,7 @@ export function AdminRequestReviewPanel({ config, onClose, requestId }: AdminReq
   const { openPanel } = usePanel();
   const { toast } = useToast();
 
-  // Load request on mount
-  React.useEffect(() => {
-    loadRequest();
-  }, [requestId]);
-
-  const loadRequest = async () => {
+  const loadRequest = React.useCallback(async () => {
     setIsLoading(true);
     try {
       const result = await getRequestById(requestId);
@@ -71,7 +66,12 @@ export function AdminRequestReviewPanel({ config, onClose, requestId }: AdminReq
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [requestId, toast]);
+
+  // Load request on mount
+  React.useEffect(() => {
+    loadRequest();
+  }, [loadRequest]);
 
   const handleEditField = (field: string, value: any) => {
     setAdminEdits((prev) => ({

@@ -24,14 +24,7 @@ export default function SettingsPage() {
   const [filter, setFilter] = React.useState<MasterDataEntityType | 'all'>('all');
   const { openPanel } = usePanel();
 
-  // Fetch requests when tab is active
-  React.useEffect(() => {
-    if (activeTab === 'requests') {
-      loadRequests();
-    }
-  }, [activeTab, filter]);
-
-  const loadRequests = async () => {
+  const loadRequests = React.useCallback(async () => {
     setIsLoading(true);
     try {
       const result = await getUserRequests(
@@ -45,7 +38,14 @@ export default function SettingsPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [filter]);
+
+  // Fetch requests when tab is active
+  React.useEffect(() => {
+    if (activeTab === 'requests') {
+      loadRequests();
+    }
+  }, [activeTab, loadRequests]);
 
   const handleNewRequest = (entityType: MasterDataEntityType) => {
     openPanel('master-data-request-form', { entityType }, { width: 600 });

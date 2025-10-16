@@ -28,17 +28,42 @@ export default function AdminPage() {
   const [filters, setFilters] = React.useState<GetAdminRequestsFilters>({});
   const { openPanel } = usePanel();
 
+  const loadPendingCount = React.useCallback(async () => {
+    try {
+      const result = await getPendingRequestCount();
+      if (result.success) {
+        setPendingCount(result.data);
+      }
+    } catch (error) {
+      console.error('Failed to load pending count:', error);
+    }
+  }, []);
+
   // Load pending count on mount
   React.useEffect(() => {
     loadPendingCount();
-  }, []);
+  }, [loadPendingCount]);
+
+  const loadRequests = React.useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const result = await getAdminRequests(filters);
+      if (result.success) {
+        setRequests(result.data);
+      }
+    } catch (error) {
+      console.error('Failed to load requests:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [filters]);
 
   // Load requests when Master Data Requests tab is active
   React.useEffect(() => {
     if (activeTab === 'requests') {
       loadRequests();
     }
-  }, [activeTab, filters]);
+  }, [activeTab, loadRequests]);
 
   // Listen for admin-request-reviewed event to refresh list
   React.useEffect(() => {
@@ -51,32 +76,7 @@ export default function AdminPage() {
     return () => {
       window.removeEventListener('admin-request-reviewed', handleRequestReviewed);
     };
-  }, []);
-
-  const loadPendingCount = async () => {
-    try {
-      const result = await getPendingRequestCount();
-      if (result.success) {
-        setPendingCount(result.data);
-      }
-    } catch (error) {
-      console.error('Failed to load pending count:', error);
-    }
-  };
-
-  const loadRequests = async () => {
-    setIsLoading(true);
-    try {
-      const result = await getAdminRequests(filters);
-      if (result.success) {
-        setRequests(result.data);
-      }
-    } catch (error) {
-      console.error('Failed to load requests:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [loadRequests, loadPendingCount]);
 
   const handleViewRequest = (request: MasterDataRequestWithDetails) => {
     openPanel('admin-request-review', { requestId: request.id }, { width: 700 });

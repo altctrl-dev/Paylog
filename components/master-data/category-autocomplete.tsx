@@ -70,6 +70,8 @@ export function CategoryAutocomplete({
             type="button"
             role="combobox"
             aria-expanded={open}
+            aria-controls="category-listbox"
+            aria-haspopup="listbox"
             aria-label="Select category"
             disabled={disabled}
             className={cn(

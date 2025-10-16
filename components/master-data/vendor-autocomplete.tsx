@@ -70,6 +70,8 @@ export function VendorAutocomplete({
             type="button"
             role="combobox"
             aria-expanded={open}
+            aria-controls="vendor-listbox"
+            aria-haspopup="listbox"
             aria-label="Select vendor"
             disabled={disabled}
             className={cn(
