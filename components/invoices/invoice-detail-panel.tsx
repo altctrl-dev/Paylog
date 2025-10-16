@@ -18,6 +18,7 @@ import { usePaymentSummary } from '@/hooks/use-payments';
 import { InvoiceStatusBadge } from './invoice-status-badge';
 import { PaymentHistoryList } from '@/components/payments/payment-history-list';
 import { CommentList } from '@/components/comments/comment-list';
+import { ActivityLogViewer } from '@/components/activity-log/activity-log-viewer';
 import type { PanelConfig } from '@/types/panel';
 import { INVOICE_STATUS } from '@/types/invoice';
 
@@ -444,6 +445,18 @@ export function InvoiceDetailPanel({
           <div>
             <h3 className="mb-3 font-semibold text-lg">Discussion</h3>
             <CommentList
+              invoiceId={invoiceId}
+              currentUserId={parseInt(session.user.id)}
+              currentUserRole={session.user.role || 'user'}
+            />
+          </div>
+        )}
+
+        {/* Activity Log Section */}
+        {session?.user?.id && (
+          <div>
+            <h3 className="mb-3 font-semibold text-lg">Activity Log</h3>
+            <ActivityLogViewer
               invoiceId={invoiceId}
               currentUserId={parseInt(session.user.id)}
               currentUserRole={session.user.role || 'user'}
