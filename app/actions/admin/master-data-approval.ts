@@ -6,7 +6,7 @@
 
 'use server';
 
-import { Prisma } from '@prisma/client';
+import type { MasterDataRequest } from '@prisma/client';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { emailService, sendEmailAsync } from '@/lib/email';
@@ -16,24 +16,18 @@ import type {
   ServerActionResult,
   RequestData,
 } from '../master-data-requests';
-type RawMasterDataRequest = Prisma.MasterDataRequestGetPayload<{
-  include: {
-    requester: {
-      select: {
-        id: true;
-        full_name: true;
-        email: true;
-      };
-    };
-    reviewer: {
-      select: {
-        id: true;
-        full_name: true;
-        email: true;
-      };
-    };
+type RawMasterDataRequest = MasterDataRequest & {
+  requester: {
+    id: number;
+    full_name: string;
+    email: string;
   };
-}>;
+  reviewer: {
+    id: number;
+    full_name: string;
+    email: string;
+  } | null;
+};
 
 // ============================================================================
 // HELPER FUNCTIONS
