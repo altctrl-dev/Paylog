@@ -303,7 +303,9 @@ export async function exportActivityLog(
 
     // 5. Generate CSV
     const headers = ['Timestamp', 'User', 'Action', 'Invoice Number', 'Old Data', 'New Data'];
-    const rows = entries.map((entry): string[] => [
+    // Ensure TypeScript knows the shape of entries to avoid implicit any
+    const typedEntries = entries as ActivityLogWithRelations[];
+    const rows = typedEntries.map((entry: ActivityLogWithRelations): string[] => [
       entry.created_at.toISOString(),
       entry.user?.full_name || 'System',
       getActivityActionLabel(entry.action as ActivityAction),
