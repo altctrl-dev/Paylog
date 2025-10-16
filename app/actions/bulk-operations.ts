@@ -408,7 +408,7 @@ export async function bulkExportInvoices(
 
     // 5. Calculate computed fields (totalPaid, remainingBalance)
     const invoicesWithTotals = await Promise.all(
-      invoices.map(async (invoice) => {
+      invoices.map(async (invoice: (typeof invoices)[number]) => {
         const payments = await db.payment.findMany({
           where: { invoice_id: invoice.id },
           select: { amount_paid: true },
