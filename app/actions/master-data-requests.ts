@@ -276,7 +276,7 @@ export async function getUserRequests(
 
     return {
       success: true,
-      data: requests.map((request) => ({
+      data: requests.map((request: (typeof requests)[number]) => ({
         ...request,
         entity_type: request.entity_type as MasterDataEntityType,
         status: request.status as MasterDataRequestStatus,
