@@ -140,7 +140,7 @@ export async function getInvoiceSummaryReport(
       { name: string; count: number; amount: number }
     >();
 
-    invoices.forEach((invoice) => {
+    invoices.forEach((invoice: (typeof invoices)[number]) => {
       const existing = vendorMap.get(invoice.vendor_id);
       if (existing) {
         existing.count += 1;
