@@ -143,7 +143,7 @@ export async function getVendors(
       db.vendor.count({ where }),
     ]);
 
-    const vendorsWithCount: VendorWithCount[] = vendors.map((v) => ({
+    const vendorsWithCount: VendorWithCount[] = vendors.map((v: (typeof vendors)[number]) => ({
       id: v.id,
       name: v.name,
       is_active: v.is_active,
@@ -522,7 +522,7 @@ export async function getCategories(
       db.category.count({ where }),
     ]);
 
-    const categoriesWithCount: CategoryWithCount[] = categories.map((c) => ({
+    const categoriesWithCount: CategoryWithCount[] = categories.map((c: (typeof categories)[number]) => ({
       id: c.id,
       name: c.name,
       is_active: c.is_active,
