@@ -414,7 +414,7 @@ export async function bulkExportInvoices(
           select: { amount_paid: true },
         });
 
-        const totalPaid = payments.reduce((sum: number, p) => sum + p.amount_paid, 0);
+        const totalPaid = payments.reduce((sum: number, p: { amount_paid: number }) => sum + p.amount_paid, 0);
         const remainingBalance = invoice.invoice_amount - totalPaid;
 
         return {
