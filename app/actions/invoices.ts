@@ -307,7 +307,7 @@ export async function getInvoices(
     });
 
     // Compute payment aggregates for invoices in the current page
-    const invoiceIds = invoices.map((invoice) => invoice.id);
+    const invoiceIds = invoices.map((invoice: (typeof invoices)[number]) => invoice.id);
     let paymentsByInvoice = new Map<number, number>();
 
     if (invoiceIds.length > 0) {
@@ -325,14 +325,14 @@ export async function getInvoices(
       });
 
       paymentsByInvoice = new Map(
-        paymentAggregates.map((aggregate) => [
+        paymentAggregates.map((aggregate: (typeof paymentAggregates)[number]) => [
           aggregate.invoice_id,
           aggregate._sum.amount_paid ?? 0,
         ])
       );
     }
 
-    const enrichedInvoices = invoices.map((invoice) => {
+    const enrichedInvoices = invoices.map((invoice: (typeof invoices)[number]) => {
       const totalPaid = paymentsByInvoice.get(invoice.id) ?? 0;
       const remainingBalance = Math.max(
         0,
