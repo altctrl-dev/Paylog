@@ -121,7 +121,9 @@ export async function getInvoiceSummaryReport(
     const byStatus: Record<string, { count: number; amount: number }> = {};
 
     Object.values(INVOICE_STATUS).forEach((status) => {
-      const statusInvoices = invoices.filter((inv) => inv.status === status);
+      const statusInvoices = invoices.filter(
+        (inv: (typeof invoices)[number]) => inv.status === status
+      );
       byStatus[status] = {
         count: statusInvoices.length,
         amount: statusInvoices.reduce(
