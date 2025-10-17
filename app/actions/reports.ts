@@ -221,7 +221,7 @@ export async function getVendorSpendingReport(
     });
 
     // Get payment totals for these invoices
-    const invoiceIds = invoices.map((inv) => inv.id);
+    const invoiceIds = invoices.map((inv: (typeof invoices)[number]) => inv.id);
     const paymentAggregates = await db.payment.groupBy({
       by: ['invoice_id'],
       where: {
@@ -253,7 +253,7 @@ export async function getVendorSpendingReport(
       }
     >();
 
-    invoices.forEach((invoice) => {
+    invoices.forEach((invoice: (typeof invoices)[number]) => {
       const paidAmount = paymentsByInvoice.get(invoice.id) ?? 0;
       const existing = vendorMap.get(invoice.vendor_id);
 
