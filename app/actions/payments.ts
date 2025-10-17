@@ -8,6 +8,7 @@
 
 'use server';
 
+import type { Prisma } from '@prisma/client';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import {
@@ -312,7 +313,7 @@ export async function createPayment(
     }
 
     // Use transaction to create payment and update invoice status atomically
-    const result = await db.$transaction(async (tx) => {
+    const result = await db.$transaction(async (tx: Prisma.TransactionClient) => {
       // Create payment record
       const payment = await tx.payment.create({
         data: {
