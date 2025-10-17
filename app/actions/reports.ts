@@ -113,7 +113,7 @@ export async function getInvoiceSummaryReport(
     // Calculate totals
     const totalInvoices = invoices.length;
     const totalAmount = invoices.reduce(
-      (sum, inv) => sum + inv.invoice_amount,
+      (sum: number, inv: (typeof invoices)[number]) => sum + inv.invoice_amount,
       0
     );
 
@@ -125,7 +125,8 @@ export async function getInvoiceSummaryReport(
       byStatus[status] = {
         count: statusInvoices.length,
         amount: statusInvoices.reduce(
-          (sum, inv) => sum + inv.invoice_amount,
+          (sum: number, inv: (typeof statusInvoices)[number]) =>
+            sum + inv.invoice_amount,
           0
         ),
       };
