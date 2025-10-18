@@ -7,6 +7,7 @@
 
 'use server';
 
+import type { Prisma } from '@prisma/client';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import {
@@ -212,7 +213,7 @@ export async function getInvoices(
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const where: any = {
+    const where: Prisma.InvoiceWhereInput = {
       is_hidden: false, // Always exclude hidden invoices by default
     };
 
@@ -284,7 +285,7 @@ export async function getInvoices(
     // Determine ordering strategy
     // If explicit sort requested, use database ordering and skip priority sort
     // Otherwise, fetch all and apply priority sorting in-memory
-    let orderBy: any;
+    let orderBy: Prisma.InvoiceOrderByWithRelationInput | undefined;
     const useExplicitSort = Boolean(validated.sort_by);
 
     if (useExplicitSort) {

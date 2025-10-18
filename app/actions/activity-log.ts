@@ -13,6 +13,7 @@
 
 'use server';
 
+import type { Prisma } from '@prisma/client';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
@@ -156,7 +157,7 @@ export async function getActivityLog(
     const skip = (page - 1) * perPage;
 
     // RBAC: Standard users see only their own actions
-    const whereClause: any = {
+    const whereClause: Prisma.ActivityLogWhereInput = {
       invoice_id: invoiceId,
       ...(filters?.action && { action: filters.action }),
       ...(filters?.startDate && {
@@ -260,7 +261,7 @@ export async function exportActivityLog(
     }
 
     // 3. Build query filters (no pagination for export)
-    const whereClause: any = {
+    const whereClause: Prisma.ActivityLogWhereInput = {
       invoice_id: invoiceId,
       ...(filters?.action && { action: filters.action }),
       ...(filters?.startDate && {

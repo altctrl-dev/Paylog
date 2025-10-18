@@ -56,7 +56,7 @@ function isAdmin(role: string): boolean {
 /**
  * Format value for CSV export
  */
-function formatCsvValue(value: any, columnId: string): string {
+function formatCsvValue(value: unknown, columnId: string): string {
   if (value === null || value === undefined) {
     return '';
   }
@@ -75,7 +75,7 @@ function formatCsvValue(value: any, columnId: string): string {
 
   // Currency formatting
   if (columnId.includes('amount') || columnId.includes('paid') || columnId.includes('balance')) {
-    const num = typeof value === 'number' ? value : parseFloat(value);
+    const num = typeof value === 'number' ? value : parseFloat(String(value));
     if (!isNaN(num)) {
       return `$${num.toFixed(2)}`;
     }
@@ -436,7 +436,7 @@ export async function bulkExportInvoices(
     // 7. Build CSV data rows
     const rows = invoicesWithTotals.map((invoice) => {
       const rowData = columnIds.map((columnId) => {
-        let value: any;
+        let value: unknown;
 
         switch (columnId) {
           case 'invoice_number':

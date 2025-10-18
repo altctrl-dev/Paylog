@@ -15,7 +15,10 @@ import { Card } from '@/components/ui/card';
 import { usePanel } from '@/hooks/use-panel';
 import { getRequestById } from '@/app/actions/master-data-requests';
 import { approveRequest } from '@/app/actions/admin/master-data-approval';
-import type { MasterDataRequestWithDetails } from '@/app/actions/master-data-requests';
+import type {
+  MasterDataRequestWithDetails,
+  RequestData,
+} from '@/app/actions/master-data-requests';
 import type { PanelConfig } from '@/types/panel';
 import { useToast } from '@/hooks/use-toast';
 
@@ -30,7 +33,7 @@ export function AdminRequestReviewPanel({ config, onClose, requestId }: AdminReq
   const [isLoading, setIsLoading] = React.useState(true);
   const [isEditing, setIsEditing] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
-  const [adminEdits, setAdminEdits] = React.useState<Record<string, any>>({});
+  const [adminEdits, setAdminEdits] = React.useState<Record<string, unknown>>({});
   const [adminNotes, setAdminNotes] = React.useState('');
   const { openPanel } = usePanel();
   const { toast } = useToast();
@@ -73,7 +76,7 @@ export function AdminRequestReviewPanel({ config, onClose, requestId }: AdminReq
     loadRequest();
   }, [loadRequest]);
 
-  const handleEditField = (field: string, value: any) => {
+  const handleEditField = (field: string, value: unknown) => {
     setAdminEdits((prev) => ({
       ...prev,
       [field]: value,
@@ -162,14 +165,22 @@ export function AdminRequestReviewPanel({ config, onClose, requestId }: AdminReq
   };
 
   // Get final data (original + edits)
-  const getFinalValue = (field: string): any => {
-    if (adminEdits[field] !== undefined) {
-      return adminEdits[field];
+  const getFinalValue = (field: keyof RequestData | string): unknown => {
+    if (adminEdits[field as string] !== undefined) {
+      return adminEdits[field as string];
     }
-    return request?.request_data[field as keyof typeof request.request_data];
+    if (!request) return undefined;
+    const data = request.request_data as Record<string, unknown>;
+    return data[field];
+  };
+
+  const getAdminEditValue = <T,>(field: keyof RequestData): T | undefined => {
+    return adminEdits[field as string] as T | undefined;
   };
 
   const isPending = request?.status === 'pending_approval';
+  const editedName = getAdminEditValue<string>('name');
+  const editedDescription = getAdminEditValue<string>('description');
 
   return (
     <PanelLevel
@@ -264,18 +275,18 @@ export function AdminRequestReviewPanel({ config, onClose, requestId }: AdminReq
                   <label className="text-sm font-medium text-gray-700 mb-1 block">Name *</label>
                   {isEditing ? (
                     <Input
-                      value={getFinalValue('name') || ''}
+                      value={(getFinalValue('name') as string | undefined) ?? ''}
                       onChange={(e) => handleEditField('name', e.target.value)}
                       placeholder="Enter name"
                     />
                   ) : (
                     <div className="text-sm p-2 bg-gray-50 rounded border border-gray-200">
-                      {getFinalValue('name') || '-'}
+                      {(getFinalValue('name') as string | undefined) || '-'}
                     </div>
                   )}
-                  {adminEdits.name !== undefined && adminEdits.name !== request.request_data.name && (
+                  {editedName !== undefined && editedName !== request.request_data.name && (
                     <p className="text-xs text-blue-600 mt-1">
-                      Original: {(request.request_data as any).name}
+                      Original: {request.request_data.name}
                     </p>
                   )}
                 </div>
@@ -286,22 +297,30 @@ export function AdminRequestReviewPanel({ config, onClose, requestId }: AdminReq
                     <label className="text-sm font-medium text-gray-700 mb-1 block">Description</label>
                     {isEditing ? (
                       <Textarea
-                        value={getFinalValue('description') || ''}
+                        value={(getFinalValue('description') as string | undefined) ?? ''}
                         onChange={(e) => handleEditField('description', e.target.value)}
                         placeholder="Enter description"
                         rows={3}
                       />
                     ) : (
                       <div className="text-sm p-2 bg-gray-50 rounded border border-gray-200 min-h-[60px]">
-                        {getFinalValue('description') || '-'}
+                        {(getFinalValue('description') as string | undefined) || '-'}
                       </div>
                     )}
-                    {adminEdits.description !== undefined &&
-                      adminEdits.description !== (request.request_data as any).description && (
-                        <p className="text-xs text-blue-600 mt-1">
-                          Original: {(request.request_data as any).description || 'None'}
-                        </p>
-                      )}
+                    {(() => {
+                      const originalDescription =
+                        'description' in request.request_data
+                          ? (request.request_data as { description?: string }).description
+                          : undefined;
+                      return (
+                        editedDescription !== undefined &&
+                        editedDescription !== originalDescription && (
+                          <p className="text-xs text-blue-600 mt-1">
+                            Original: {originalDescription || 'None'}
+                          </p>
+                        )
+                      );
+                    })()}
                   </div>
                 )}
 
@@ -312,13 +331,15 @@ export function AdminRequestReviewPanel({ config, onClose, requestId }: AdminReq
                       {isEditing ? (
                         <input
                           type="checkbox"
-                          checked={getFinalValue('visible_to_all') ?? true}
+                          checked={
+                            (getFinalValue('visible_to_all') as boolean | undefined) ?? true
+                          }
                           onChange={(e) => handleEditField('visible_to_all', e.target.checked)}
                           className="h-4 w-4"
                         />
                       ) : (
                         <div className="h-4 w-4 border rounded flex items-center justify-center bg-gray-50">
-                          {getFinalValue('visible_to_all') ? '✓' : ''}
+                          {(getFinalValue('visible_to_all') as boolean | undefined) ? '✓' : ''}
                         </div>
                       )}
                       <span className="text-sm font-medium">Visible to All</span>
@@ -333,13 +354,17 @@ export function AdminRequestReviewPanel({ config, onClose, requestId }: AdminReq
                       {isEditing ? (
                         <input
                           type="checkbox"
-                          checked={getFinalValue('requires_reference') ?? false}
+                          checked={
+                            (getFinalValue('requires_reference') as boolean | undefined) ?? false
+                          }
                           onChange={(e) => handleEditField('requires_reference', e.target.checked)}
                           className="h-4 w-4"
                         />
                       ) : (
                         <div className="h-4 w-4 border rounded flex items-center justify-center bg-gray-50">
-                          {getFinalValue('requires_reference') ? '✓' : ''}
+                          {(getFinalValue('requires_reference') as boolean | undefined)
+                            ? '✓'
+                            : ''}
                         </div>
                       )}
                       <span className="text-sm font-medium">Requires Reference</span>
@@ -356,13 +381,15 @@ export function AdminRequestReviewPanel({ config, onClose, requestId }: AdminReq
                       {isEditing ? (
                         <input
                           type="checkbox"
-                          checked={getFinalValue('is_active') ?? true}
+                          checked={
+                            (getFinalValue('is_active') as boolean | undefined) ?? true
+                          }
                           onChange={(e) => handleEditField('is_active', e.target.checked)}
                           className="h-4 w-4"
                         />
                       ) : (
                         <div className="h-4 w-4 border rounded flex items-center justify-center bg-gray-50">
-                          {getFinalValue('is_active') ? '✓' : ''}
+                          {(getFinalValue('is_active') as boolean | undefined) ? '✓' : ''}
                         </div>
                       )}
                       <span className="text-sm font-medium">Is Active</span>

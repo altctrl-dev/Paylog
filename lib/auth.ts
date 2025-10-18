@@ -1,9 +1,11 @@
+import 'server-only';
+
 import NextAuth from 'next-auth';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import Credentials from 'next-auth/providers/credentials';
 import { db } from '@/lib/db';
-import bcrypt from 'bcryptjs';
 import { z } from 'zod';
+import { verifyPassword } from '@/lib/crypto';
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -31,7 +33,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         if (!user || !user.password_hash) return null;
 
-        const passwordValid = await bcrypt.compare(password, user.password_hash);
+        const passwordValid = await verifyPassword(password, user.password_hash);
         if (!passwordValid) return null;
 
         if (!user.is_active) throw new Error('Account is deactivated');

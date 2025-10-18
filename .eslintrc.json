@@ -1,3 +1,47 @@
 {
-  "extends": "next/core-web-vitals"
+  "extends": ["next/core-web-vitals", "plugin:@typescript-eslint/recommended"],
+  "overrides": [
+    {
+      "files": ["app/actions/**/*.{ts,tsx}", "lib/**/*.ts", "prisma/**/*.ts"],
+      "rules": {
+        "@typescript-eslint/no-explicit-any": "error"
+      }
+    },
+    {
+      "files": [
+        "app/**/page.tsx",
+        "app/**/layout.tsx",
+        "app/**/components/**/*.{ts,tsx}",
+        "components/**/*.{ts,tsx}"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "bcrypt",
+                "message": "Use the server-only crypto adapter instead. bcrypt is not supported in Edge/client runtimes."
+              },
+              {
+                "name": "bcryptjs",
+                "message": "Use the server-only crypto adapter instead. bcryptjs is not supported in Edge/client runtimes."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": [
+        "lib/server/**/*.{ts,tsx}",
+        "lib/**/crypto.ts",
+        "app/**/route.ts",
+        "app/**/actions.ts"
+      ],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
+    }
+  ]
 }

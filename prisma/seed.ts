@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import bcrypt from 'bcryptjs';
+import { hashPassword } from '@/lib/crypto';
 
 const prisma = new PrismaClient();
 
@@ -7,7 +7,7 @@ async function main() {
   console.log('Seeding database...');
 
   // Create Super Admin user (skip if already exists)
-  const hashedPassword = await bcrypt.hash('admin123', 10);
+  const hashedPassword = await hashPassword('admin123');
 
   const existingAdmin = await prisma.user.findUnique({
     where: { email: 'admin@paylog.com' },

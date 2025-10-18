@@ -31,6 +31,13 @@ import {
   YAxis,
   CartesianGrid,
 } from 'recharts';
+import type { PieLabelRenderProps } from 'recharts';
+
+type StatusTooltipProps = {
+  payload: {
+    count: number;
+  };
+};
 
 export default function ReportsPage() {
   // Date range state
@@ -320,7 +327,7 @@ export default function ReportsPage() {
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    label={(props: any) =>
+                    label={(props: PieLabelRenderProps) =>
                       `${props.name}: ${(props.percent * 100).toFixed(0)}%`
                     }
                     outerRadius={80}
@@ -337,7 +344,7 @@ export default function ReportsPage() {
                       ))}
                   </Pie>
                   <Tooltip
-                    formatter={(value: number, name: string, props: any) => [
+                    formatter={(value: number, name: string, props: StatusTooltipProps) => [
                       `${formatCurrency(value)} (${props.payload.count} invoices)`,
                       name,
                     ]}
@@ -403,7 +410,7 @@ export default function ReportsPage() {
                     }
                   />
                   <Tooltip
-                    formatter={(value: number, name: string, props: any) => [
+                    formatter={(value: number, name: string, props: StatusTooltipProps) => [
                       formatCurrency(value),
                       `Total (${props.payload.count} invoices)`,
                     ]}

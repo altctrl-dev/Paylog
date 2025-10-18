@@ -7,6 +7,7 @@
 
 'use server';
 
+import type { Prisma } from '@prisma/client';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import {
@@ -116,7 +117,7 @@ export async function getVendors(
       ...filters,
     });
 
-    const where: any = {};
+    const where: Prisma.VendorWhereInput = {};
 
     if (validated.search) {
       where.name = {
@@ -495,7 +496,7 @@ export async function getCategories(
       ...filters,
     });
 
-    const where: any = {};
+    const where: Prisma.CategoryWhereInput = {};
 
     if (validated.search) {
       where.name = {
