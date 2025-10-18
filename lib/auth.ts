@@ -7,6 +7,20 @@ import { db } from '@/lib/db';
 import { z } from 'zod';
 import { verifyPassword } from '@/lib/crypto';
 
+// Validate required environment variables
+if (!process.env.NEXTAUTH_SECRET) {
+  throw new Error(
+    'NEXTAUTH_SECRET is not set. Please add it to your environment variables.\n' +
+    'Generate one with: openssl rand -base64 32'
+  );
+}
+
+if (!process.env.NEXTAUTH_URL && process.env.NODE_ENV === 'production') {
+  console.warn(
+    'Warning: NEXTAUTH_URL is not set in production. This may cause issues with authentication.'
+  );
+}
+
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
@@ -15,6 +29,7 @@ const loginSchema = z.object({
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(db),
   session: { strategy: 'jwt' },
+  secret: process.env.NEXTAUTH_SECRET,
   pages: {
     signIn: '/login',
   },
