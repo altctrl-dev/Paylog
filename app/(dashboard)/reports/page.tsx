@@ -31,13 +31,7 @@ import {
   YAxis,
   CartesianGrid,
 } from 'recharts';
-import type { PieLabelRenderProps } from 'recharts';
-
-type StatusTooltipProps = {
-  payload: {
-    count: number;
-  };
-};
+import type { PieLabelRenderProps, TooltipFormatter, Payload } from 'recharts';
 
 export default function ReportsPage() {
   // Date range state
@@ -63,6 +57,30 @@ export default function ReportsPage() {
       currency: 'INR',
       minimumFractionDigits: 2,
     }).format(amount);
+  };
+
+  type StatusTooltipPayload = {
+    count: number;
+  };
+
+  const statusTooltipFormatter: TooltipFormatter<number, string> = (
+    value,
+    name,
+    item
+  ) => {
+    const payload = item as Payload<number, string> | undefined;
+    const count = (payload?.payload as StatusTooltipPayload | undefined)?.count ?? 0;
+    return [`${formatCurrency(value)} (${count} invoices)`, name];
+  };
+
+  const vendorTooltipFormatter: TooltipFormatter<number, string> = (
+    value,
+    _name,
+    item
+  ) => {
+    const payload = item as Payload<number, string> | undefined;
+    const count = (payload?.payload as { count?: number } | undefined)?.count ?? 0;
+    return [formatCurrency(value), `Total (${count} invoices)`];
   };
 
   // Format date
@@ -327,9 +345,11 @@ export default function ReportsPage() {
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    label={(props: PieLabelRenderProps) =>
-                      `${props.name}: ${(props.percent * 100).toFixed(0)}%`
-                    }
+                    label={(props: PieLabelRenderProps) => {
+                      const name = String(props.name ?? '');
+                      const percent = typeof props.percent === 'number' ? props.percent : 0;
+                      return `${name}: ${(percent * 100).toFixed(0)}%`;
+                    }}
                     outerRadius={80}
                     fill="#8884d8"
                     dataKey="value"
@@ -343,12 +363,7 @@ export default function ReportsPage() {
                         />
                       ))}
                   </Pie>
-                  <Tooltip
-                    formatter={(value: number, name: string, props: StatusTooltipProps) => [
-                      `${formatCurrency(value)} (${props.payload.count} invoices)`,
-                      name,
-                    ]}
-                  />
+                  <Tooltip formatter={statusTooltipFormatter} />
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>
@@ -409,12 +424,7 @@ export default function ReportsPage() {
                       }).format(value)
                     }
                   />
-                  <Tooltip
-                    formatter={(value: number, name: string, props: StatusTooltipProps) => [
-                      formatCurrency(value),
-                      `Total (${props.payload.count} invoices)`,
-                    ]}
-                  />
+                  <Tooltip formatter={vendorTooltipFormatter} />
                   <Bar dataKey="amount" fill="#3b82f6" />
                 </BarChart>
               </ResponsiveContainer>
