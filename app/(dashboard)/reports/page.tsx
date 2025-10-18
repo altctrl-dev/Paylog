@@ -31,7 +31,7 @@ import {
   YAxis,
   CartesianGrid,
 } from 'recharts';
-import type { PieLabelRenderProps, TooltipFormatter, Payload } from 'recharts';
+import type { PieLabelRenderProps, DefaultTooltipContentProps } from 'recharts';
 
 export default function ReportsPage() {
   // Date range state
@@ -63,24 +63,20 @@ export default function ReportsPage() {
     count: number;
   };
 
-  const statusTooltipFormatter: TooltipFormatter<number, string> = (
-    value,
-    name,
-    item
-  ) => {
-    const payload = item as Payload<number, string> | undefined;
-    const count = (payload?.payload as StatusTooltipPayload | undefined)?.count ?? 0;
-    return [`${formatCurrency(value)} (${count} invoices)`, name];
+  type TooltipFormatterFn = NonNullable<
+    DefaultTooltipContentProps<number, string>['formatter']
+  >;
+
+  const statusTooltipFormatter: TooltipFormatterFn = (value, name, item) => {
+    const count =
+      (item.payload as StatusTooltipPayload | undefined)?.count ?? 0;
+    return [`${formatCurrency(Number(value))} (${count} invoices)`, name];
   };
 
-  const vendorTooltipFormatter: TooltipFormatter<number, string> = (
-    value,
-    _name,
-    item
-  ) => {
-    const payload = item as Payload<number, string> | undefined;
-    const count = (payload?.payload as { count?: number } | undefined)?.count ?? 0;
-    return [formatCurrency(value), `Total (${count} invoices)`];
+  const vendorTooltipFormatter: TooltipFormatterFn = (value, _name, item) => {
+    const count =
+      (item.payload as { count?: number } | undefined)?.count ?? 0;
+    return [formatCurrency(Number(value)), `Total (${count} invoices)`];
   };
 
   // Format date
@@ -332,7 +328,7 @@ export default function ReportsPage() {
                 <PieChart>
                   <Pie
                     data={Object.entries(summaryReport.byStatus)
-                      .filter(([_, data]) => data.count > 0)
+                      .filter(([, data]) => data.count > 0)
                       .map(([status, data]) => {
                         const config =
                           INVOICE_STATUS_CONFIG[status as keyof typeof INVOICE_STATUS_CONFIG];
@@ -355,8 +351,8 @@ export default function ReportsPage() {
                     dataKey="value"
                   >
                     {Object.entries(summaryReport.byStatus)
-                      .filter(([_, data]) => data.count > 0)
-                      .map((_, index) => (
+                      .filter(([, data]) => data.count > 0)
+                      .map((_entry, index) => (
                         <Cell
                           key={`cell-${index}`}
                           fill={CHART_COLORS[index % CHART_COLORS.length]}

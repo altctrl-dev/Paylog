@@ -17,7 +17,6 @@ import { getRequestById } from '@/app/actions/master-data-requests';
 import { approveRequest } from '@/app/actions/admin/master-data-approval';
 import type {
   MasterDataRequestWithDetails,
-  RequestData,
 } from '@/app/actions/master-data-requests';
 import type { PanelConfig } from '@/types/panel';
 import { useToast } from '@/hooks/use-toast';
@@ -165,17 +164,17 @@ export function AdminRequestReviewPanel({ config, onClose, requestId }: AdminReq
   };
 
   // Get final data (original + edits)
-  const getFinalValue = (field: keyof RequestData | string): unknown => {
-    if (adminEdits[field as string] !== undefined) {
-      return adminEdits[field as string];
+  const getFinalValue = (field: string): unknown => {
+    if (adminEdits[field] !== undefined) {
+      return adminEdits[field];
     }
     if (!request) return undefined;
-    const data = request.request_data as Record<string, unknown>;
+    const data = request.request_data as unknown as Record<string, unknown>;
     return data[field];
   };
 
-  const getAdminEditValue = <T,>(field: keyof RequestData): T | undefined => {
-    return adminEdits[field as string] as T | undefined;
+  const getAdminEditValue = <T,>(field: string): T | undefined => {
+    return adminEdits[field] as T | undefined;
   };
 
   const isPending = request?.status === 'pending_approval';

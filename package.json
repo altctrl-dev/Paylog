@@ -76,11 +76,5 @@
     "typescript": "^5",
     "husky": "^9.0.11",
     "lint-staged": "^15.2.2"
-  },
-  "lint-staged": {
-    "*.{ts,tsx}": [
-      "tsc --noEmit -p tsconfig.json",
-      "eslint --fix"
-    ]
   }
 }
