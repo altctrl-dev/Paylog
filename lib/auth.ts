@@ -30,6 +30,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(db),
   session: { strategy: 'jwt' },
   secret: process.env.NEXTAUTH_SECRET,
+  trustHost: true, // Trust Railway proxy headers
   pages: {
     signIn: '/login',
   },
