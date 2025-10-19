@@ -16,7 +16,8 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "user:create": "tsx scripts/create-user.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -61,8 +62,10 @@
     "autoprefixer": "^10.4.20",
     "eslint": "^8",
     "eslint-config-next": "^14.2.15",
+    "husky": "^9.0.11",
     "jest": "^30.2.0",
     "jest-environment-jsdom": "^30.2.0",
+    "lint-staged": "^15.2.2",
     "node-mocks-http": "^1.17.2",
     "postcss": "^8",
     "prettier": "^3.3.3",
@@ -72,9 +75,6 @@
     "ts-jest": "^29.4.5",
     "ts-node": "^10.9.2",
     "tsx": "^4.20.6",
-    "tsx": "^4.20.6",
-    "typescript": "^5",
-    "husky": "^9.0.11",
-    "lint-staged": "^15.2.2"
+    "typescript": "^5"
   }
 }
