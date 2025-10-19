@@ -6,7 +6,7 @@
  */
 
 import { db } from '../lib/db';
-import { hashPassword } from '../lib/crypto';
+import { hashPassword } from './crypto-utils';
 import readline from 'readline';
 
 const rl = readline.createInterface({
