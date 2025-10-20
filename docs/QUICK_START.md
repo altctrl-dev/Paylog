@@ -34,7 +34,7 @@ Role: super_admin
 ### Tech Stack
 - **Framework**: Next.js 14.2.33 (App Router)
 - **Language**: TypeScript (strict mode)
-- **Database**: SQLite (Prisma ORM)
+- **Database**: PostgreSQL 17 (local) / PostgreSQL (Railway production) - Prisma ORM
 - **Auth**: NextAuth v5 (credentials provider)
 - **UI**: Tailwind CSS + Shadcn/ui
 - **Email**: Resend (transactional emails)
@@ -110,6 +110,49 @@ To use custom domain `notifications@servsys.com`:
 3. Wait for verification (5-30 minutes)
 4. Update `.env`: `EMAIL_FROM=notifications@servsys.com`
 5. Restart server
+
+---
+
+## PostgreSQL Setup (Local Development)
+
+### Initial Setup (Already Done)
+PostgreSQL 17 is installed and running locally. If you need to set it up again:
+
+```bash
+# Install PostgreSQL 17
+brew install postgresql@17
+
+# Start PostgreSQL service (runs on login)
+brew services start postgresql@17
+
+# Create database
+/opt/homebrew/opt/postgresql@17/bin/createdb paylog_dev
+
+# Apply schema
+npx prisma db push
+
+# Seed with initial data
+npx prisma db seed
+```
+
+### Database Connection
+Local: `postgresql://althaf@localhost:5432/paylog_dev`
+Production: Set in Railway environment variables
+
+### PostgreSQL Service Management
+```bash
+# Check if running
+brew services list | grep postgresql@17
+
+# Stop PostgreSQL
+brew services stop postgresql@17
+
+# Start PostgreSQL
+brew services start postgresql@17
+
+# Restart PostgreSQL
+brew services restart postgresql@17
+```
 
 ---
 
