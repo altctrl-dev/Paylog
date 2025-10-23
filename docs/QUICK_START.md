@@ -2,9 +2,9 @@
 
 ## Current Project Status
 
-**Sprint**: 6 of 12 ✅ Complete
-**Story Points**: 100/179 (55.9% complete)
-**Last Session**: October 15, 2025 - File Attachments Documentation
+**Sprint**: 9A of 13 (In Progress - 3/10 phases complete)
+**Story Points**: 130/183 (71.0% complete)
+**Last Session**: October 23, 2025 - Sprint 9A Database Migration
 
 ---
 
@@ -50,6 +50,9 @@ Role: super_admin
 7. ✅ User-created master data requests
 8. ✅ Admin approval workflow
 9. ✅ File attachments (drag-drop upload, secure storage)
+10. ✅ Multi-currency support foundation (50 ISO 4217 currencies)
+11. ✅ Enhanced master data (Entity with address/country, Vendor with address/GST/bank details)
+12. ✅ PostgreSQL 17 migration (local + Railway production)
 
 ---
 
@@ -110,6 +113,52 @@ To use custom domain `notifications@servsys.com`:
 3. Wait for verification (5-30 minutes)
 4. Update `.env`: `EMAIL_FROM=notifications@servsys.com`
 5. Restart server
+
+---
+
+## Sprint 9A Database Changes (October 23, 2025)
+
+### New Prisma Models
+
+**Currency** (Multi-currency support):
+- Fields: code, name, symbol, is_active
+- 50 ISO 4217 currencies seeded (all inactive by default)
+- Used in: Invoice, InvoiceProfile
+
+**Entity** (NEW table, coexists with SubEntity):
+- Fields: name, code, address, country, is_active
+- Migrated 3 entities from SubEntity
+- Country stored as ISO 3166-1 alpha-2 codes (US, IN, GB)
+- Used in: Invoice, InvoiceProfile
+
+### Enhanced Models
+
+**Vendor**:
+- NEW: address (string, optional)
+- NEW: gst_exemption (boolean, required, default false)
+- NEW: bank_details (text, optional)
+
+**Category**:
+- UPDATED: description (required, was optional)
+- Backfilled with "No description provided"
+
+**Invoice**:
+- NEW: currency_id (foreign key to Currency, nullable)
+- NEW: entity_id (foreign key to Entity, nullable)
+
+### Removed Models
+
+**ArchiveRequest**:
+- DROPPED (0 pending requests confirmed)
+- Admin direct archive/unarchive via trash icon instead
+
+### Post-Migration Admin Tasks
+
+After implementing UI in remaining phases:
+1. Activate currencies: `UPDATE currencies SET is_active = true WHERE code IN ('USD', 'INR');`
+2. Update entity addresses: Replace "Migration: Address pending" with real addresses
+3. Update entity countries: Replace default 'US' with correct ISO alpha-2 codes
+4. Update vendor fields: Add addresses, GST exemption, bank details via admin UI
 
 ---
 
@@ -377,7 +426,8 @@ paylog-3/
 │   ├── (dashboard)/          # Protected dashboard routes
 │   │   ├── invoices/         # Invoice management
 │   │   ├── reports/          # Reporting & analytics
-│   │   └── settings/         # Settings & master data
+│   │   ├── settings/         # User settings
+│   │   └── admin/            # Admin panel & master data
 │   ├── actions/              # Server Actions
 │   │   ├── invoices.ts
 │   │   ├── master-data-requests.ts

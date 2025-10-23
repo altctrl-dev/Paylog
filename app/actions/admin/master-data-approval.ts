@@ -166,7 +166,7 @@ export async function getAdminRequests(
  */
 export async function approveRequest(
   requestId: number,
-  adminEdits?: Record<string, any>,
+  adminEdits?: Record<string, unknown>,
   adminNotes?: string
 ): Promise<ServerActionResult<MasterDataRequestWithDetails>> {
   try {
@@ -213,6 +213,7 @@ export async function approveRequest(
         const category = await db.category.create({
           data: {
             name: finalData.name,
+            description: finalData.description || '',
             is_active: finalData.is_active ?? true,
           },
         });
@@ -439,7 +440,7 @@ export async function bulkApprove(
   requestIds: number[]
 ): Promise<ServerActionResult<{ approved: number; failed: number }>> {
   try {
-    const admin = await getAdmin();
+    await getAdmin(); // Verify admin access
 
     let approved = 0;
     let failed = 0;
@@ -479,7 +480,7 @@ export async function bulkReject(
   reason: string
 ): Promise<ServerActionResult<{ rejected: number; failed: number }>> {
   try {
-    const admin = await getAdmin();
+    await getAdmin(); // Verify admin access
 
     if (!reason || reason.trim().length < 10) {
       return {

@@ -12,6 +12,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { PanelLevel } from '@/components/panels/panel-level';
 import { useCreateCategory, useUpdateCategory } from '@/hooks/use-categories';
 import { categoryFormSchema, type CategoryFormData } from '@/lib/validations/master-data';
@@ -20,7 +21,7 @@ import type { PanelConfig } from '@/types/panel';
 interface CategoryFormPanelProps {
   config: PanelConfig;
   onClose: () => void;
-  category?: { id: number; name: string };
+  category?: { id: number; name: string; description?: string };
 }
 
 export function CategoryFormPanel({ config, onClose, category }: CategoryFormPanelProps) {
@@ -36,6 +37,7 @@ export function CategoryFormPanel({ config, onClose, category }: CategoryFormPan
     resolver: zodResolver(categoryFormSchema),
     defaultValues: {
       name: category?.name || '',
+      description: category?.description || '',
     },
   });
 
@@ -84,11 +86,27 @@ export function CategoryFormPanel({ config, onClose, category }: CategoryFormPan
           )}
         </div>
 
+        <div>
+          <Label htmlFor="description">
+            Description <span className="text-destructive">*</span>
+          </Label>
+          <Textarea
+            id="description"
+            {...register('description')}
+            placeholder="Category description explaining its purpose and use cases"
+            rows={4}
+          />
+          {errors.description && (
+            <p className="mt-1 text-xs text-destructive">{errors.description.message}</p>
+          )}
+        </div>
+
         <div className="rounded-md border border-border bg-muted p-3 text-xs">
           <p className="mb-1 font-semibold">Requirements:</p>
           <ul className="space-y-1 text-muted-foreground">
-            <li>• Name must be unique (case-insensitive)</li>
-            <li>• Between 1-100 characters</li>
+            <li>• Category name must be unique (case-insensitive)</li>
+            <li>• Name: 1-100 characters (required)</li>
+            <li>• Description: required field</li>
             <li>• Will be available immediately after creation</li>
           </ul>
         </div>

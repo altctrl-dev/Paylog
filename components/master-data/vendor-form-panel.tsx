@@ -12,6 +12,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { PanelLevel } from '@/components/panels/panel-level';
 import { useCreateVendor, useUpdateVendor } from '@/hooks/use-vendors';
 import { vendorFormSchema, type VendorFormData } from '@/lib/validations/master-data';
@@ -20,7 +22,13 @@ import type { PanelConfig } from '@/types/panel';
 interface VendorFormPanelProps {
   config: PanelConfig;
   onClose: () => void;
-  vendor?: { id: number; name: string };
+  vendor?: {
+    id: number;
+    name: string;
+    address?: string | null;
+    gst_exemption?: boolean;
+    bank_details?: string | null;
+  };
 }
 
 export function VendorFormPanel({ config, onClose, vendor }: VendorFormPanelProps) {
@@ -31,13 +39,20 @@ export function VendorFormPanel({ config, onClose, vendor }: VendorFormPanelProp
   const {
     register,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<VendorFormData>({
     resolver: zodResolver(vendorFormSchema),
     defaultValues: {
       name: vendor?.name || '',
+      address: vendor?.address || '',
+      gst_exemption: vendor?.gst_exemption ?? false,
+      bank_details: vendor?.bank_details || '',
     },
   });
+
+  const gstExemption = watch('gst_exemption');
 
   const onSubmit = async (data: VendorFormData) => {
     try {
@@ -84,11 +99,56 @@ export function VendorFormPanel({ config, onClose, vendor }: VendorFormPanelProp
           )}
         </div>
 
+        <div>
+          <Label htmlFor="address">Address</Label>
+          <Textarea
+            id="address"
+            {...register('address')}
+            placeholder="Vendor physical or mailing address"
+            rows={3}
+          />
+          {errors.address && (
+            <p className="mt-1 text-xs text-destructive">{errors.address.message}</p>
+          )}
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="gst_exemption"
+            checked={gstExemption}
+            onCheckedChange={(checked) => setValue('gst_exemption', !!checked)}
+          />
+          <Label
+            htmlFor="gst_exemption"
+            className="text-sm font-normal cursor-pointer"
+          >
+            GST/VAT Exempt
+          </Label>
+        </div>
+
+        <div>
+          <Label htmlFor="bank_details">Bank Details</Label>
+          <Textarea
+            id="bank_details"
+            {...register('bank_details')}
+            placeholder="Bank account details for payment processing"
+            rows={3}
+            maxLength={1000}
+          />
+          {errors.bank_details && (
+            <p className="mt-1 text-xs text-destructive">{errors.bank_details.message}</p>
+          )}
+          <p className="mt-1 text-xs text-muted-foreground">
+            Max 1000 characters
+          </p>
+        </div>
+
         <div className="rounded-md border border-border bg-muted p-3 text-xs">
           <p className="mb-1 font-semibold">Requirements:</p>
           <ul className="space-y-1 text-muted-foreground">
-            <li>• Name must be unique (case-insensitive)</li>
-            <li>• Between 1-100 characters</li>
+            <li>• Vendor name must be unique (case-insensitive)</li>
+            <li>• Name: 1-100 characters (required)</li>
+            <li>• Address, bank details: optional</li>
             <li>• Will be available immediately after creation</li>
           </ul>
         </div>

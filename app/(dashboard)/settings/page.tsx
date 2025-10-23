@@ -15,10 +15,9 @@ import {
   type MasterDataRequestWithDetails,
   type MasterDataEntityType,
 } from '@/app/actions/master-data-requests';
-import { MasterDataSettings } from '@/components/master-data/master-data-settings';
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = React.useState<'profile' | 'requests' | 'master-data'>('profile');
+  const [activeTab, setActiveTab] = React.useState<'profile' | 'requests'>('profile');
   const [requests, setRequests] = React.useState<MasterDataRequestWithDetails[]>([]);
   const [isLoading, setIsLoading] = React.useState(false);
   const [filter, setFilter] = React.useState<MasterDataEntityType | 'all'>('all');
@@ -135,19 +134,6 @@ export default function SettingsPage() {
                 {pendingCount}
               </span>
             )}
-          </button>
-          <button
-            onClick={() => setActiveTab('master-data')}
-            className={`
-              whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium
-              ${
-                activeTab === 'master-data'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-              }
-            `}
-          >
-            Master Data
           </button>
         </nav>
       </div>
@@ -276,11 +262,6 @@ export default function SettingsPage() {
             </div>
           )}
         </div>
-      )}
-
-      {/* Master Data Tab */}
-      {activeTab === 'master-data' && (
-        <MasterDataSettings />
       )}
     </div>
   );

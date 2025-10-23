@@ -1,9 +1,9 @@
 # PayLog Sprint Plan (Revised)
 
-**Last Updated**: October 21, 2025
+**Last Updated**: October 23, 2025
 **Total Story Points**: 183 SP
-**Completed**: 127 SP (69.4%)
-**Remaining**: 56 SP (30.6%)
+**Completed**: 130 SP (71.0%)
+**Remaining**: 53 SP (29.0%)
 
 ---
 
@@ -49,41 +49,119 @@
 
 ## 🚀 Sprint 9A: Admin Reorganization & Enhanced Master Data (14 SP)
 
-**Status**: 🚀 **CURRENT SPRINT**
+**Status**: 🚀 **CURRENT SPRINT (IN PROGRESS - 3/10 phases complete)**
 **Goal**: Move master data to admin menu, add currency support, enhance all master data entities
+**Progress**: 130/183 SP Complete (71.0%)
 
-### Deliverables
+### ✅ Completed Phases (3/10)
 
-#### **Phase 1: Admin Menu Structure** (3 SP)
+#### **Phase 1: Requirements Clarification & Change Mapping (RC+CN)** - COMPLETE ✅
+- ✅ Clarified target audience, scope, depth, format preferences
+- ✅ Analyzed impact on existing codebase
+- ✅ Mapped database schema changes
+- ✅ Documented key decisions (see "Adjusted Plan" section below)
+
+#### **Phase 2: Schema Design (DME)** - COMPLETE ✅
+- ✅ Created `Currency` table (50 ISO 4217 currencies)
+- ✅ Created `Entity` table (NEW table, coexists with SubEntity)
+- ✅ Enhanced `Vendor` with address, gst_exemption, bank_details
+- ✅ Enhanced `Category` with required description
+- ✅ Retained `PaymentType.description` field (user requirement change)
+- ✅ Added Invoice foreign keys: currency_id, entity_id (nullable)
+- ✅ Dropped `ArchiveRequest` table (0 pending requests confirmed)
+
+#### **Phase 3: Migration Execution** - COMPLETE ✅
+- ✅ Applied Prisma schema changes
+- ✅ Seeded 50 ISO 4217 currencies (all inactive)
+- ✅ Migrated 3 entities from SubEntity (placeholder addresses)
+- ✅ Backfilled Category descriptions ("No description provided")
+- ✅ Regenerated Prisma Client successfully
+- ✅ Zero breaking changes to existing code
+- ✅ All existing invoices load correctly
+
+### 🔄 Adjusted Plan (Key Decisions)
+
+**Decision 1: Safe Entity Migration Strategy**
+- **Original Plan**: Rename SubEntity → Entity (breaking change)
+- **Adjusted Plan**: Create NEW Entity table alongside SubEntity (zero breaking changes)
+- **Rationale**: Safer migration, easy rollback, no downtime
+- **Impact**: Both tables coexist; migration path established for Sprint 9B
+
+**Decision 2: PaymentType Description KEPT**
+- **Original Plan**: Remove description field from PaymentType
+- **Adjusted Plan**: KEEP description field (make it required with name and requires_reference)
+- **Rationale**: User requirement - all 3 fields mandatory for PaymentType
+- **Impact**: No schema change for PaymentType description
+
+**Decision 3: Admin RBAC Behavior**
+- **Question**: 403 Forbidden or redirect for non-admin users accessing /admin/*?
+- **Decision**: 403 Forbidden with error page
+- **Rationale**: Clearer error, no redirect loops if user bookmarks URL
+
+**Decision 4: Currency List (50 ISO 4217)**
+- **Selected**: USD, EUR, GBP, JPY, CNY, INR, AUD, CAD, CHF, BRL, KRW, MXN, RUB, SGD, HKD, SEK, NOK, ZAR, TRY, NZD + 30 more regional currencies
+- **All start inactive**: Admins explicitly activate currencies as needed
+
+**Decision 5: Entity Country Field**
+- **Format**: Store ISO 3166-1 alpha-2 codes (US, IN, GB)
+- **Display**: Full country names with autocomplete search
+- **Rationale**: Database optimization (2 chars) + UX friendliness (full names)
+
+### Migration Results Summary
+
+**Database Changes Applied:**
+- ✅ Currency table: 50 ISO 4217 currencies (all inactive)
+- ✅ Entity table: 3 entities migrated from SubEntity (placeholder addresses)
+- ✅ Vendor enhancements: address, gst_exemption, bank_details fields
+- ✅ Category enhancement: description field (required, backfilled)
+- ✅ Invoice foreign keys: currency_id, entity_id (nullable for backward compatibility)
+- ✅ ArchiveRequest table: DROPPED (0 pending requests confirmed)
+- ✅ Prisma Client: Regenerated successfully, all models working
+
+**Post-Migration Status:**
+- SubEntity table preserved (untouched)
+- Zero breaking changes to existing code
+- All existing invoices load correctly
+- Safe rollback available within 24-hour window
+
+**Pending Admin Tasks (Post-Implementation):**
+1. Activate Currencies: `UPDATE currencies SET is_active = true WHERE code IN ('USD', 'INR');`
+2. Update Entity Addresses: Replace "Migration: Address pending" with real addresses
+3. Update Entity Countries: Replace default 'US' with correct ISO alpha-2 codes
+4. Update Vendor Fields: Add addresses, GST exemption, bank details (via admin UI in Phase 7)
+
+### 🔲 Remaining Phases (7/10)
+
+#### **Phase 4: RBAC Middleware (IE+SA)** - PENDING
+- [ ] Implement middleware for `/admin/*` routes
+- [ ] Block non-admin access with 403 Forbidden error page
+- [ ] Add server-side permission checks in admin actions
+- [ ] Test with standard_user, admin, super_admin roles
+
+#### **Phase 5: Admin Menu Structure (IE)** - PENDING
 - [ ] Move "Master Data" from `/settings` → `/admin/master-data`
-- [ ] Add RBAC middleware to `/admin/*` (admin + super_admin only)
 - [ ] Update sidebar navigation (show "Admin" menu only to admin roles)
 - [ ] Remove "Master Data" tab from Settings page
 - [ ] Settings page now has: Profile + My Requests tabs only
 
-#### **Phase 2: Currency Management** (3 SP)
-- [ ] Create `Currency` table in schema
-  - Fields: `id, code, name, symbol, is_active, created_at, updated_at`
-  - Relations: `InvoiceProfile[]`, `Invoice[]`
-- [ ] Seed with ISO 4217 currencies (top 50, all inactive by default)
-- [ ] Build Currency CRUD UI in `/admin/master-data` (new tab 6)
+#### **Phase 6: Currency Management UI (SUPB+IE)** - PENDING
+- [ ] Build Currency CRUD UI in `/admin/master-data` (new tab)
 - [ ] Currency selector: searchable dropdown with symbol + name
+- [ ] Activation toggle in table view (not in forms)
 - [ ] ❌ NO `is_active` checkbox in create/edit forms
 
-#### **Phase 3: Entity Enhancement** (2 SP)
-- [ ] Rename `SubEntity` → `Entity` in schema
-- [ ] Update all code references (SubEntity → Entity)
-- [ ] Add `address` field (required, string)
-- [ ] Add `country` field (required, dropdown from ~250 countries)
-- [ ] Update Entity CRUD UI
-- [ ] ❌ NO `is_active` checkbox in create/edit forms
+#### **Phase 7: Entity Management UI (IE)** - PENDING
+- [ ] Update Entity CRUD UI with address/country fields
+- [ ] Address field: required, text input
+- [ ] Country field: required, searchable dropdown (ISO alpha-2)
 - [ ] Archive/unarchive via trash icon in table only
+- [ ] ❌ NO `is_active` checkbox in create/edit forms
 
-#### **Phase 4: Vendor Enhancement** (3 SP)
-- [ ] Add `address` field (optional, string)
-- [ ] Add `gst_exemption` field (required, boolean, default false)
-- [ ] Add `bank_details` field (optional, textarea)
-- [ ] Update Vendor CRUD UI (4 fields total)
+#### **Phase 8: Vendor Enhancement UI (SUPB+IE)** - PENDING
+- [ ] Update Vendor CRUD UI with new fields:
+  - Address (optional, string)
+  - GST Exemption (required, boolean, default false)
+  - Bank Details (optional, textarea)
 - [ ] Add "+ Add New Vendor" link in invoice form (admin only)
   - Opens Level 3 panel (500px)
   - Creates vendor immediately
@@ -91,18 +169,29 @@
 - [ ] ❌ Remove "+ Request New Vendor" link (standard users)
 - [ ] ❌ NO `is_active` checkbox in create/edit forms
 
-#### **Phase 5: Category & Payment Type Updates** (3 SP)
-- [ ] Category: Make `description` field required (was optional)
-- [ ] PaymentType: Remove `description` field entirely
-- [ ] PaymentType: Keep only `name` + `requires_reference` fields
-- [ ] Update all CRUD UIs
+#### **Phase 9: Category/PaymentType Updates (IE)** - PENDING
+- [ ] Category: Verify description field is required (already in schema)
+- [ ] PaymentType: Verify description field is required (already in schema)
+- [ ] Update CRUD UIs to reflect required fields
 - [ ] ❌ NO `is_active` checkbox in create/edit forms
 
-#### **Cleanup Tasks**
-- [ ] Drop `archive_requests` table from schema
-- [ ] Delete archive request server actions (if any)
-- [ ] Delete archive request components (if any)
-- [ ] Remove `is_active` checkbox from ALL master data forms
+#### **Phase 10: Testing & Integration (TA+ICA)** - PENDING
+- [ ] Validate all CRUD operations
+- [ ] Test RBAC middleware (403 for non-admins)
+- [ ] Test currency activation workflow
+- [ ] Test entity address/country fields
+- [ ] Test vendor enhancements
+- [ ] Run lint, typecheck, build
+- [ ] Integration audit (ICA) - no regressions
+- [ ] Manual testing on PostgreSQL (local + Railway)
+
+#### **Phase 11: Quality Gates & Docs (PRV+DA)** - PENDING
+- [ ] Production readiness verification (PRV)
+- [ ] Update documentation (README, CHANGELOG, SESSION_HANDOFF)
+- [ ] Update sprint status in SPRINTS_REVISED.md
+- [ ] Create migration guide for admins
+- [ ] Final quality check (lint, typecheck, build, tests)
+- [ ] Deploy-ready confirmation
 
 ### Technical Highlights
 - Admin-only master data management (RBAC enforced)
@@ -345,10 +434,10 @@
 
 ## 📈 Sprint Velocity
 
-**Average SP per Sprint**: 15.9 SP (127 SP / 8 sprints completed)
+**Average SP per Sprint**: 16.3 SP (130 SP / 8 sprints completed)
 **Estimated Completion**: 13 sprints total (revised from 12)
-**Current Progress**: 8/13 sprints (61.5% complete)
-**Story Point Progress**: 127/183 SP (69.4% complete)
+**Current Progress**: Sprint 9A In Progress (3/10 phases complete)
+**Story Point Progress**: 130/183 SP (71.0% complete)
 
 **Sprint Completions**:
 - Sprint 1: 13 SP ✅

@@ -241,6 +241,9 @@ export async function createVendor(
     const vendor = await db.vendor.create({
       data: {
         name: validated.name,
+        address: validated.address || null,
+        gst_exemption: validated.gst_exemption ?? false,
+        bank_details: validated.bank_details || null,
         is_active: true,
       },
       include: {
@@ -317,6 +320,9 @@ export async function updateVendor(
       where: { id },
       data: {
         name: validated.name,
+        address: validated.address || null,
+        gst_exemption: validated.gst_exemption ?? false,
+        bank_details: validated.bank_details || null,
       },
       include: {
         _count: {
@@ -621,6 +627,7 @@ export async function createCategory(
     const category = await db.category.create({
       data: {
         name: validated.name,
+        description: validated.description,
         is_active: true,
       },
       include: {
@@ -698,6 +705,7 @@ export async function updateCategory(
       where: { id },
       data: {
         name: validated.name,
+        description: validated.description,
       },
       include: {
         _count: {

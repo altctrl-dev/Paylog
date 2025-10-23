@@ -48,10 +48,10 @@ async function main() {
   if (categoryCount === 0) {
     const categories = await prisma.category.createMany({
       data: [
-        { name: 'Software & Licenses' },
-        { name: 'Office Supplies' },
-        { name: 'Marketing & Advertising' },
-        { name: 'Professional Services' },
+        { name: 'Software & Licenses', description: 'Software subscriptions, licenses, and SaaS products' },
+        { name: 'Office Supplies', description: 'General office supplies and equipment' },
+        { name: 'Marketing & Advertising', description: 'Marketing campaigns, advertising costs, and promotional materials' },
+        { name: 'Professional Services', description: 'Consulting, legal, accounting, and other professional services' },
       ],
     });
     console.log('✅ Created', categories.count, 'categories');

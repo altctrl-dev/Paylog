@@ -229,3 +229,138 @@ export function createAttachmentWithRelations(
       : null,
   }
 }
+
+/**
+ * Mock Currencies (Sprint 9A)
+ */
+export const mockCurrencies = {
+  usd: {
+    id: 1,
+    code: 'USD',
+    name: 'United States Dollar',
+    symbol: '$',
+    is_active: true,
+    created_at: new Date('2024-01-01'),
+    updated_at: new Date('2024-01-01'),
+  },
+  inr: {
+    id: 2,
+    code: 'INR',
+    name: 'Indian Rupee',
+    symbol: '₹',
+    is_active: true,
+    created_at: new Date('2024-01-01'),
+    updated_at: new Date('2024-01-01'),
+  },
+  eur: {
+    id: 3,
+    code: 'EUR',
+    name: 'Euro',
+    symbol: '€',
+    is_active: false,
+    created_at: new Date('2024-01-01'),
+    updated_at: new Date('2024-01-01'),
+  },
+}
+
+/**
+ * Mock Entities (Sprint 9A)
+ */
+export const mockEntities = {
+  indiaEntity: {
+    id: 1,
+    name: 'Acme India Pvt. Ltd.',
+    description: 'India operations entity',
+    address: '123 Business Park, Mumbai, Maharashtra 400001',
+    country: 'IN',
+    is_active: true,
+    created_at: new Date('2024-01-01'),
+    updated_at: new Date('2024-01-01'),
+  },
+  usEntity: {
+    id: 2,
+    name: 'Acme USA Inc.',
+    description: null,
+    address: '456 Tech Street, San Francisco, CA 94105',
+    country: 'US',
+    is_active: true,
+    created_at: new Date('2024-01-01'),
+    updated_at: new Date('2024-01-01'),
+  },
+  inactiveEntity: {
+    id: 3,
+    name: 'Old Entity Ltd.',
+    description: 'Archived entity',
+    address: '789 Old Road, London, UK',
+    country: 'GB',
+    is_active: false,
+    created_at: new Date('2024-01-01'),
+    updated_at: new Date('2024-01-01'),
+  },
+}
+
+/**
+ * Mock Vendors with Sprint 9A enhancements
+ */
+export const mockVendors = {
+  basicVendor: {
+    id: 1,
+    name: 'Basic Vendor Ltd.',
+    address: null,
+    gst_exemption: false,
+    bank_details: null,
+    is_active: true,
+    created_at: new Date('2024-01-01'),
+    updated_at: new Date('2024-01-01'),
+  },
+  enhancedVendor: {
+    id: 2,
+    name: 'Enhanced Vendor Inc.',
+    address: '123 Vendor Street, City, State 12345',
+    gst_exemption: true,
+    bank_details: 'Bank: ABC Bank\nAccount: 1234567890\nIFSC: ABCD0001234\nBranch: Main Branch',
+    is_active: true,
+    created_at: new Date('2024-01-01'),
+    updated_at: new Date('2024-01-01'),
+  },
+  inactiveVendor: {
+    id: 3,
+    name: 'Old Vendor Corp.',
+    address: null,
+    gst_exemption: false,
+    bank_details: null,
+    is_active: false,
+    created_at: new Date('2024-01-01'),
+    updated_at: new Date('2024-01-01'),
+  },
+}
+
+/**
+ * Mock Categories with Sprint 9A enhancements
+ */
+export const mockCategories = {
+  travelCategory: {
+    id: 1,
+    name: 'Travel',
+    description: 'Travel and transportation expenses',
+    is_active: true,
+    created_at: new Date('2024-01-01'),
+    updated_at: new Date('2024-01-01'),
+  },
+  suppliesCategory: {
+    id: 2,
+    name: 'Office Supplies',
+    description: 'Office supplies and stationery',
+    is_active: true,
+    created_at: new Date('2024-01-01'),
+    updated_at: new Date('2024-01-01'),
+  },
+  inactiveCategory: {
+    id: 3,
+    name: 'Deprecated',
+    description: 'No longer used category',
+    is_active: false,
+    created_at: new Date('2024-01-01'),
+    updated_at: new Date('2024-01-01'),
+  },
+}

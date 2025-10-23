@@ -1,7 +1,8 @@
 // ============================================================================
-// Prisma Schema: Phase 1 Clarified Features
+// Prisma Schema: Phase 1 Clarified Features + Sprint 9A Enhancements
 // Generated: 2025-10-08
-// Database: SQLite (Development) - Converted from PostgreSQL
+// Updated: 2025-10-23 (Sprint 9A: Currency, Entity, Master Data Enhancements)
+// Database: PostgreSQL 17 (Local + Railway Production)
 // ============================================================================
 
 generator client {
@@ -35,8 +36,6 @@ model User {
   rejected_invoices        Invoice[]               @relation("InvoiceRejector")
   profile_visibilities     UserProfileVisibility[] @relation("UserProfileAccess")
   granted_visibilities     UserProfileVisibility[] @relation("VisibilityGranter")
-  archive_requests         ArchiveRequest[]        @relation("ArchiveRequester")
-  reviewed_requests        ArchiveRequest[]        @relation("ArchiveReviewer")
   created_requests         MasterDataRequest[]     @relation("RequestRequester")
   reviewed_master_requests MasterDataRequest[]     @relation("RequestReviewer")
   uploaded_attachments     InvoiceAttachment[]     @relation("AttachmentUploader")
@@ -69,6 +68,27 @@ model InvoiceProfile {
   @@map("invoice_profiles")
 }
 
+// ============================================================================
+// CURRENCY (Sprint 9A)
+// ============================================================================
+
+model Currency {
+  id         Int      @id @default(autoincrement())
+  code       String   @unique @db.VarChar(3)
+  name       String
+  symbol     String   @db.VarChar(10)
+  is_active  Boolean  @default(false)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  // Relations
+  invoices Invoice[] @relation("InvoiceCurrency")
+
+  @@index([is_active], map: "idx_currencies_active")
+  @@index([code], map: "idx_currencies_code")
+  @@map("currencies")
+}
+
 model UserProfileVisibility {
   id         Int      @id @default(autoincrement())
   user_id    Int
@@ -93,11 +113,14 @@ model UserProfileVisibility {
 // ============================================================================
 
 model Vendor {
-  id         Int      @id @default(autoincrement())
-  name       String
-  is_active  Boolean  @default(true)
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  id             Int      @id @default(autoincrement())
+  name           String
+  address        String?  @db.Text
+  gst_exemption  Boolean  @default(false)
+  bank_details   String?  @db.Text
+  is_active      Boolean  @default(true)
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
 
   // Relations
   invoices Invoice[]
@@ -106,11 +129,12 @@ model Vendor {
 }
 
 model Category {
-  id         Int      @id @default(autoincrement())
-  name       String
-  is_active  Boolean  @default(true)
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String   @db.Text
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
 
   // Relations
   invoices Invoice[]
@@ -119,7 +143,32 @@ model Category {
 }
 
 // ============================================================================
+// ENTITIES (Sprint 9A: NEW - Organizational Entities with Address & Country)
+// ============================================================================
+
+model Entity {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(255)
+  description String?  @db.Text
+  address     String   @db.Text
+  country     String   @db.VarChar(2)
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  // Relations
+  invoices Invoice[] @relation("InvoiceEntity")
+
+  @@index([is_active], map: "idx_entities_active")
+  @@index([country], map: "idx_entities_country")
+  @@index([name], map: "idx_entities_name")
+  @@map("entities")
+}
+
+// ============================================================================
 // SUB ENTITIES (Divisions/Departments/Branches)
+// PRESERVED for backward compatibility during Sprint 9A-9B migration
+// Will be deprecated in Sprint 9C after all invoices migrated to Entity
 // ============================================================================
 
 model SubEntity {
@@ -183,7 +232,16 @@ model Invoice {
 
   // Sub Entity (Division/Department/Branch) (Phase 2: Sprint 6)
   // Links invoice to a specific division/department/branch for expense tracking
+  // DEPRECATED in Sprint 9B - use entity_id instead
   sub_entity_id Int?
+
+  // Currency (Sprint 9A)
+  // Nullable in Sprint 9A-9B; becomes required in Sprint 9C
+  currency_id Int?
+
+  // Entity (Sprint 9A - Migration Path)
+  // Replaces sub_entity_id; nullable during Sprint 9A-9B migration
+  entity_id Int?
 
   // Internal Notes (Phase 2: Sprint 6)
   // Additional context or descriptions about the invoice
@@ -220,15 +278,17 @@ model Invoice {
   updated_at DateTime @updatedAt
 
   // Relations
-  vendor     Vendor          @relation(fields: [vendor_id], references: [id], onDelete: Restrict)
-  category   Category?       @relation(fields: [category_id], references: [id], onDelete: SetNull)
-  profile    InvoiceProfile? @relation(fields: [profile_id], references: [id], onDelete: SetNull)
-  sub_entity SubEntity?      @relation(fields: [sub_entity_id], references: [id], onDelete: SetNull)
-  creator    User            @relation("InvoiceCreator", fields: [created_by], references: [id], onDelete: Restrict)
-  holder     User?           @relation("InvoiceHolder", fields: [hold_by], references: [id], onDelete: Restrict)
-  hider      User?           @relation("InvoiceHider", fields: [hidden_by], references: [id], onDelete: Restrict)
-  rejector   User?           @relation("InvoiceRejector", fields: [rejected_by], references: [id], onDelete: Restrict)
-  payments   Payment[]
+  vendor      Vendor          @relation(fields: [vendor_id], references: [id], onDelete: Restrict)
+  category    Category?       @relation(fields: [category_id], references: [id], onDelete: SetNull)
+  profile     InvoiceProfile? @relation(fields: [profile_id], references: [id], onDelete: SetNull)
+  sub_entity  SubEntity?      @relation(fields: [sub_entity_id], references: [id], onDelete: SetNull)
+  currency    Currency?       @relation("InvoiceCurrency", fields: [currency_id], references: [id], onDelete: SetNull)
+  entity      Entity?         @relation("InvoiceEntity", fields: [entity_id], references: [id], onDelete: SetNull)
+  creator     User            @relation("InvoiceCreator", fields: [created_by], references: [id], onDelete: Restrict)
+  holder      User?           @relation("InvoiceHolder", fields: [hold_by], references: [id], onDelete: Restrict)
+  hider       User?           @relation("InvoiceHider", fields: [hidden_by], references: [id], onDelete: Restrict)
+  rejector    User?           @relation("InvoiceRejector", fields: [rejected_by], references: [id], onDelete: Restrict)
+  payments    Payment[]
   attachments InvoiceAttachment[]
   comments    InvoiceComment[]
   activity_logs ActivityLog[]
@@ -240,6 +300,8 @@ model Invoice {
   @@index([submission_count], map: "idx_invoices_submission_count")
   @@index([created_at], map: "idx_invoices_created_at")
   @@index([sub_entity_id], map: "idx_invoices_sub_entity")
+  @@index([currency_id], map: "idx_invoices_currency")
+  @@index([entity_id], map: "idx_invoices_entity")
   @@map("invoices")
 }
 
@@ -268,35 +330,6 @@ model Payment {
   @@index([status], name: "idx_payments_status")
   @@index([payment_date], name: "idx_payments_date")
   @@map("payments")
-}
-
-// ============================================================================
-// ARCHIVE REQUESTS (Phase 1)
-// ============================================================================
-
-model ArchiveRequest {
-  id               Int       @id @default(autoincrement())
-  // Valid values: "vendor", "category", "sub_entity", "profile"
-  entity_type      String
-  entity_id        Int
-  requested_by     Int
-  reviewed_by      Int?
-  // Valid values: "pending", "approved", "rejected"
-  status           String    @default("pending")
-  reason           String
-  rejection_reason String?
-  requested_at     DateTime  @default(now())
-  reviewed_at      DateTime?
-
-  // Relations
-  requester User  @relation("ArchiveRequester", fields: [requested_by], references: [id], onDelete: Restrict)
-  reviewer  User? @relation("ArchiveReviewer", fields: [reviewed_by], references: [id], onDelete: Restrict)
-
-  @@index([status], name: "idx_archive_requests_status")
-  @@index([entity_type, entity_id], name: "idx_archive_requests_entity")
-  @@index([requested_by], name: "idx_archive_requests_requested_by")
-  @@index([status, requested_at], name: "idx_archive_requests_pending")
-  @@map("archive_requests")
 }
 
 // ============================================================================
@@ -443,6 +476,44 @@ model SchemaMigration {
 // NOTES ON USAGE
 // ============================================================================
 
+// ============================================================================
+// SPRINT 9A CHANGES (2025-10-23)
+// ============================================================================
+
+// 1. CURRENCY TABLE (NEW)
+// - ISO 4217 currency codes for multi-currency invoice support
+// - All 50 currencies start inactive (is_active = false)
+// - Admins activate currencies as needed for organization
+// - Invoice.currency_id: Nullable in Sprint 9A-9B; becomes required in Sprint 9C
+// - Query active currencies: where({ is_active: true })
+
+// 2. ENTITY TABLE (NEW - Migration Path from SubEntity)
+// - Replaces SubEntity with address and country fields
+// - SubEntity preserved for backward compatibility during Sprint 9A-9B
+// - Invoice.entity_id: Nullable; gradually replaces sub_entity_id
+// - All entities migrated from SubEntity with placeholder addresses
+// - Admins must update Entity addresses and countries post-migration
+// - Country: ISO 3166-1 alpha-2 codes (US, IN, GB, etc.)
+
+// 3. VENDOR ENHANCEMENTS
+// - address: Optional vendor address (free-form text)
+// - gst_exemption: GST/VAT exemption flag (default: false)
+// - bank_details: Optional bank account details (max 1000 chars)
+
+// 4. CATEGORY DESCRIPTION (ENHANCED)
+// - description: Now required (was nullable)
+// - Existing categories backfilled with "No description provided"
+// - All new categories must have description
+
+// 5. ARCHIVE REQUESTS (REMOVED)
+// - ArchiveRequest table dropped (0 pending requests confirmed)
+// - User.archive_requests and User.reviewed_requests relations removed
+// - Archive functionality to be reimplemented in future sprint if needed
+
+// ============================================================================
+// PHASE 1 CLARIFIED FEATURES
+// ============================================================================
+
 // 1. ON HOLD WORKFLOW
 // - Admin places invoice on hold: Set status='on_hold', hold_reason, hold_by, hold_at
 // - Admin releases from hold: Set status='pending_approval', clear hold_* fields
@@ -467,10 +538,10 @@ model SchemaMigration {
 // - Dashboard filters automatically exclude: where({ is_hidden: false })
 // - Show hidden toggle: include({ where: { is_hidden: true } })
 
-// 6. ARCHIVE REQUESTS
-// - Users create: status='pending', provide reason
-// - Admins review: Set status='approved'/'rejected', reviewed_by, reviewed_at
-// - Query pending queue: where({ status: 'pending' }).orderBy({ requested_at: 'desc' })
+// 6. ARCHIVE REQUESTS (REMOVED IN SPRINT 9A)
+// - Table dropped; functionality to be reimplemented if needed
+// - Old workflow: Users created requests, admins reviewed
+// - Alternative: Soft delete via is_active flag on master data tables
 
 // 7. MASTER DATA REQUESTS (User-Created Master Data)
 // - Users create requests: status='draft' or 'pending_approval'

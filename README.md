@@ -2,7 +2,7 @@
 
 Internal invoice tracking and payment management system built with Next.js 14.
 
-**Version**: 0.6.0 | **Sprint Progress**: 6/12 (50% complete)
+**Version**: 0.9.0-alpha | **Sprint Progress**: 9A/13 In Progress (71% complete)
 
 ---
 
@@ -62,13 +62,34 @@ Internal invoice tracking and payment management system built with Next.js 14.
   - Path traversal prevention (security hardening)
   - Comprehensive testing (161 tests, 96.73% validation coverage)
 
+### Sprint 7-8 (Complete) ✅
+- Activity logging & collaboration
+- Master data management (admin tools)
+
+### Sprint 9A (In Progress - 3/10 phases complete) 🚀
+- **Multi-Currency Support Foundation**:
+  - 50 ISO 4217 currencies (USD, EUR, GBP, JPY, CNY, INR, AUD, CAD, CHF, etc.)
+  - All currencies inactive by default (admin activates as needed)
+  - Currency selector with symbol + name display
+  - Relations to Invoice and InvoiceProfile
+- **Enhanced Master Data**:
+  - Entity table (NEW, coexists with SubEntity for safe migration)
+    - Full address field (required)
+    - Country field with ISO 3166-1 alpha-2 codes (US, IN, GB)
+  - Vendor enhancements:
+    - Address field (optional)
+    - GST exemption flag (required, default false)
+    - Bank details field (optional, textarea)
+  - Category description now required
+- **Database Migration**: PostgreSQL 17 (local + Railway production)
+- **Breaking Change Mitigation**: Zero breaking changes, safe rollback available
+
 ### Planned Features
-- Advanced invoice features (Sprint 7)
-- Master data management - admin tools (Sprint 8)
-- Archive request workflow (Sprint 9)
-- User management (Sprint 10)
-- Dashboard & analytics (Sprint 11)
-- Production polish & testing (Sprint 12)
+- Sprint 9A completion (RBAC middleware, admin UI, currency/entity/vendor management)
+- Sprint 9B: Invoice profile enhancement (12-field profiles)
+- Sprint 10: User management & RBAC
+- Sprint 11: Dashboard & analytics
+- Sprint 12: Polish, testing & production prep
 
 ---
 
@@ -85,7 +106,7 @@ Internal invoice tracking and payment management system built with Next.js 14.
 
 ### Backend
 - **Runtime**: Node.js 18+
-- **Database**: SQLite (development), PostgreSQL (production-ready)
+- **Database**: PostgreSQL 17 (development + production)
 - **ORM**: Prisma 5.20.0
 - **Authentication**: NextAuth.js v5 (beta.22)
 - **Forms**: React Hook Form 7.64.0 + Zod 3.23.8
@@ -232,21 +253,22 @@ paylog-3/
 
 ## Database Schema
 
-PayLog uses 17 models implementing Phase 1 & Sprint 2 features:
+PayLog uses 18 models implementing comprehensive invoice management:
 
 ### Core Models
 - **User**: User accounts with role-based access
-- **Invoice**: Invoice tracking with comprehensive fields
-- **Vendor**: Vendor directory (required for invoices)
-- **Category**: Invoice categorization
+- **Invoice**: Invoice tracking with comprehensive fields (includes currency_id, entity_id)
+- **Vendor**: Vendor directory with address, GST exemption, bank details
+- **Category**: Invoice categorization with required description
 - **Payment**: Payment tracking
-- **PaymentType**: Payment method types
-- **SubEntity**: Divisions/departments/branches (NEW)
+- **PaymentType**: Payment method types with description
+- **SubEntity**: Divisions/departments/branches (legacy, preserved)
+- **Entity**: NEW - Organizations with full address and country (coexists with SubEntity)
+- **Currency**: Multi-currency support (50 ISO 4217 currencies)
 
 ### Advanced Features
 - **InvoiceProfile**: Profile-based visibility control
 - **UserProfileVisibility**: User access to private profiles
-- **ArchiveRequest**: Soft delete approval workflow
 - **MasterDataRequest**: User-created master data with admin approval
 
 ### Phase 1 Features
@@ -416,14 +438,15 @@ if (result.error) {
 | Sprint 4 | ✅ Complete | Search & Reporting (22 SP) |
 | Sprint 5 | ✅ Complete | Email & Master Data Requests (13 SP) |
 | Sprint 6 | ✅ Complete | File Attachments (12 SP) |
-| Sprint 7 | 🔲 Planned | Advanced Features (14 SP) |
-| Sprint 8 | 🔲 Planned | Master Data Management (13 SP) |
-| Sprint 9 | 🔲 Planned | Archive Requests (11 SP) |
-| Sprint 10 | 🔲 Planned | User Management (12 SP) |
+| Sprint 7 | ✅ Complete | Activity Logging & Collaboration (14 SP) |
+| Sprint 8 | ✅ Complete | Master Data Management (13 SP) |
+| Sprint 9A | 🚀 In Progress | Admin Reorganization & Enhanced Master Data (14 SP) |
+| Sprint 9B | 🔲 Planned | Invoice Profile Enhancement (12 SP) |
+| Sprint 10 | 🔲 Planned | User Management & RBAC (12 SP) |
 | Sprint 11 | 🔲 Planned | Dashboard & Analytics (14 SP) |
-| Sprint 12 | 🔲 Planned | Polish & Testing (9 SP) |
+| Sprint 12 | 🔲 Planned | Polish, Testing & Production Prep (9 SP) |
 
-**Total**: 179 Story Points | **Complete**: 100 SP (55.9%)
+**Total**: 183 Story Points | **Complete**: 130 SP (71.0%)
 
 See [docs/SPRINTS.md](docs/SPRINTS.md) for detailed sprint breakdown.
 

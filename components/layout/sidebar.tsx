@@ -60,6 +60,17 @@ export function Sidebar({ collapsed, onToggle, user }: SidebarProps) {
   const initials = getInitials(displayName);
   const formattedRole = formatRole(user.role);
 
+  // Filter navigation items based on user role
+  // Only show Admin menu item for admin and super_admin roles
+  const filteredNavigation = React.useMemo(() => {
+    return navigation.filter(item => {
+      if (item.href.startsWith('/admin')) {
+        return user.role === 'admin' || user.role === 'super_admin';
+      }
+      return true;
+    });
+  }, [user.role]);
+
   return (
     <aside
       className={cn(
@@ -89,8 +100,9 @@ export function Sidebar({ collapsed, onToggle, user }: SidebarProps) {
       </div>
 
       <nav className="flex-1 space-y-1 px-3 pt-5 pb-4">
-        {navigation.map((item) => {
-          const isActive = pathname === item.href;
+        {filteredNavigation.map((item) => {
+          // Check if current path matches or starts with the item's path (for nested routes)
+          const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
           const Icon = item.icon;
 
           return (

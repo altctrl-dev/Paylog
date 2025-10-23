@@ -9,7 +9,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Sprint 3-5 Planning Phase
+### Sprint 9A: Admin Reorganization & Enhanced Master Data (In Progress)
+
+**Status**: Database migration complete (3/10 phases)
+**Date**: October 23, 2025
+
+#### Database Schema Changes
+
+**New Models**:
+- **Currency**: Multi-currency support (ISO 4217)
+  - Fields: code, name, symbol, is_active
+  - 50 currencies seeded (USD, EUR, GBP, JPY, CNY, INR, AUD, CAD, etc.)
+  - All currencies start inactive (admin activates as needed)
+  - Relations: Invoice, InvoiceProfile
+
+- **Entity**: NEW table (coexists with SubEntity for safe migration)
+  - Fields: name, code, address, country, is_active
+  - 3 entities migrated from SubEntity
+  - Country stored as ISO 3166-1 alpha-2 codes (US, IN, GB)
+  - Relations: Invoice, InvoiceProfile
+
+**Enhanced Models**:
+- **Vendor**:
+  - Added: address (string, optional)
+  - Added: gst_exemption (boolean, required, default false)
+  - Added: bank_details (text, optional)
+
+- **Category**:
+  - Updated: description (now required, was optional)
+  - Backfilled existing records with "No description provided"
+
+- **Invoice**:
+  - Added: currency_id (foreign key to Currency, nullable)
+  - Added: entity_id (foreign key to Entity, nullable)
+
+**Removed Models**:
+- **ArchiveRequest**: Dropped (0 pending requests, admin direct archive instead)
+
+#### Key Decisions
+
+1. **Safe Entity Migration**: NEW Entity table alongside SubEntity (zero breaking changes)
+2. **PaymentType Description**: Kept description field (user requirement, all 3 fields mandatory)
+3. **Admin RBAC**: 403 Forbidden for non-admin users (no redirect)
+4. **Currency Activation**: All 50 currencies start inactive, admin activates as needed
+5. **Country Storage**: ISO 3166-1 alpha-2 codes for efficiency, full names for display
+
+#### Migration Results
+- ✅ Zero breaking changes to existing code
+- ✅ All existing invoices load correctly
+- ✅ Prisma Client regenerated successfully
+- ✅ TypeScript compilation passed
+- ✅ Application builds without errors
+
+#### Remaining Work (7 Phases)
+- Phase 4: RBAC Middleware (IE+SA)
+- Phase 5: Admin Menu Structure (IE)
+- Phase 6: Currency Management UI (SUPB+IE)
+- Phase 7: Entity Management UI (IE)
+- Phase 8: Vendor Enhancement UI (SUPB+IE)
+- Phase 9: Category/PaymentType Updates (IE)
+- Phase 10: Testing & Integration (TA+ICA)
+- Phase 11: Quality Gates & Docs (PRV+DA)
 
 ---
 
