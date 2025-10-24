@@ -582,11 +582,17 @@ export async function createInvoice(
       }
     }
 
+    // Determine initial status based on user role (PHASE 3.5 Change 5)
+    const initialStatus =
+      user.role === 'admin' || user.role === 'super_admin'
+        ? INVOICE_STATUS.UNPAID // Admins skip approval
+        : INVOICE_STATUS.PENDING_APPROVAL; // Standard users need approval
+
     // Create invoice
     const invoice = await db.invoice.create({
       data: {
         ...validated,
-        status: INVOICE_STATUS.PENDING_APPROVAL,
+        status: initialStatus,
         created_by: user.id,
       },
       include: invoiceInclude,
@@ -724,10 +730,24 @@ export async function updateInvoice(
       }
     }
 
+    // Determine new status based on user role and current status (PHASE 3.5 Change 5)
+    let newStatus = existing.status;
+
+    if (user.role === 'standard_user') {
+      // Standard users editing approved/unpaid invoices → re-approval
+      if (existing.status !== INVOICE_STATUS.PENDING_APPROVAL) {
+        newStatus = INVOICE_STATUS.PENDING_APPROVAL;
+      }
+    }
+    // Admins/Super Admins → keep existing status (no forced re-approval)
+
     // Update invoice
     const invoice = await db.invoice.update({
       where: { id },
-      data: validated,
+      data: {
+        ...validated,
+        status: newStatus,
+      },
       include: invoiceInclude,
     });
 
@@ -1106,7 +1126,75 @@ export async function rejectInvoice(
 }
 
 /**
- * Get dropdown data for forms (vendors, categories, profiles, sub entities)
+ * Get single invoice profile by ID with relations (for form pre-filling)
+ *
+ * @param profileId - Invoice Profile ID
+ * @returns Invoice profile with entity, vendor, category, currency relations
+ */
+export async function getInvoiceProfileById(
+  profileId: number
+): Promise<
+  ServerActionResult<{
+    id: number;
+    name: string;
+    entity_id: number;
+    vendor_id: number;
+    category_id: number;
+    currency_id: number;
+    tds_applicable: boolean;
+    tds_percentage: number | null;
+    entity: { id: number; name: string };
+    vendor: { id: number; name: string };
+    category: { id: number; name: string };
+    currency: { id: number; code: string; name: string; symbol: string };
+  }>
+> {
+  try {
+    await getCurrentUser();
+
+    const profile = await db.invoiceProfile.findUnique({
+      where: { id: profileId },
+      include: {
+        entity: {
+          select: { id: true, name: true },
+        },
+        vendor: {
+          select: { id: true, name: true },
+        },
+        category: {
+          select: { id: true, name: true },
+        },
+        currency: {
+          select: { id: true, code: true, name: true, symbol: true },
+        },
+      },
+    });
+
+    if (!profile) {
+      return {
+        success: false,
+        error: 'Invoice profile not found',
+      };
+    }
+
+    return {
+      success: true,
+      data: profile,
+    };
+  } catch (error) {
+    console.error('getInvoiceProfileById error:', error);
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : 'Failed to fetch invoice profile',
+    };
+  }
+}
+
+/**
+ * Get dropdown data for forms (vendors, categories, profiles, sub entities, entities, currencies)
  *
  * @returns Form dropdown options
  */
@@ -1116,32 +1204,45 @@ export async function getInvoiceFormOptions(): Promise<
     categories: Array<{ id: number; name: string }>;
     profiles: Array<{ id: number; name: string }>;
     subEntities: Array<{ id: number; name: string }>;
+    entities: Array<{ id: number; name: string }>;
+    currencies: Array<{ id: number; code: string; name: string; symbol: string }>;
   }>
 > {
   try {
     await getCurrentUser();
 
-    const [vendors, categories, profiles, subEntities] = await Promise.all([
-      db.vendor.findMany({
-        where: { is_active: true },
-        select: { id: true, name: true },
-        orderBy: { name: 'asc' },
-      }),
-      db.category.findMany({
-        where: { is_active: true },
-        select: { id: true, name: true },
-        orderBy: { name: 'asc' },
-      }),
-      db.invoiceProfile.findMany({
-        select: { id: true, name: true },
-        orderBy: { name: 'asc' },
-      }),
-      db.subEntity.findMany({
-        where: { is_active: true },
-        select: { id: true, name: true },
-        orderBy: { name: 'asc' },
-      }),
-    ]);
+    const [vendors, categories, profiles, subEntities, entities, currencies] =
+      await Promise.all([
+        db.vendor.findMany({
+          where: { is_active: true },
+          select: { id: true, name: true },
+          orderBy: { name: 'asc' },
+        }),
+        db.category.findMany({
+          where: { is_active: true },
+          select: { id: true, name: true },
+          orderBy: { name: 'asc' },
+        }),
+        db.invoiceProfile.findMany({
+          select: { id: true, name: true },
+          orderBy: { name: 'asc' },
+        }),
+        db.subEntity.findMany({
+          where: { is_active: true },
+          select: { id: true, name: true },
+          orderBy: { name: 'asc' },
+        }),
+        db.entity.findMany({
+          where: { is_active: true },
+          select: { id: true, name: true },
+          orderBy: { name: 'asc' },
+        }),
+        db.currency.findMany({
+          where: { is_active: true },
+          select: { id: true, code: true, name: true, symbol: true },
+          orderBy: { code: 'asc' },
+        }),
+      ]);
 
     return {
       success: true,
@@ -1150,6 +1251,8 @@ export async function getInvoiceFormOptions(): Promise<
         categories,
         profiles,
         subEntities,
+        entities,
+        currencies,
       },
     };
   } catch (error) {

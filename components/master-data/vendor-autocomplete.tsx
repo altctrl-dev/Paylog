@@ -13,7 +13,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import * as Popover from '@radix-ui/react-popover';
 import { cn } from '@/lib/utils';
 import { useSearchVendors } from '@/hooks/use-vendors';
-import { usePanel } from '@/hooks/use-panel';
+// import { usePanel } from '@/hooks/use-panel'; // TODO: For request new vendor feature
 
 // ============================================================================
 // TYPES
@@ -38,8 +38,9 @@ export function VendorAutocomplete({
 }: VendorAutocompleteProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const { data: vendors = [], isLoading } = useSearchVendors(search, open);
-  const { openPanel } = usePanel();
+  // Enable search when dropdown is open OR when there's a selected value (to display it)
+  const { data: vendors = [], isLoading } = useSearchVendors(search, open || value !== null);
+  // const { openPanel } = usePanel(); // TODO: Implement request new vendor panel
 
   // Find selected vendor name
   const selectedVendor = vendors.find((v) => v.id === value);

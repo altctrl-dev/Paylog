@@ -31,6 +31,9 @@ export const invoiceFormSchema = z
     category_id: z.number().int().positive('Category is required'),
     profile_id: z.number().int().positive('Invoice profile is required'),
     sub_entity_id: z.number().int().positive('Sub entity is required'),
+    // NEW: Sprint 9A fields (optional for now, will be required in Sprint 9C)
+    entity_id: z.number().int().positive('Entity is required').optional(),
+    currency_id: z.number().int().positive('Currency is required').optional(),
     invoice_amount: z
       .number()
       .min(0.01, 'Amount must be greater than 0')
@@ -40,14 +43,13 @@ export const invoiceFormSchema = z
       required_error: 'Invoice date is required',
       invalid_type_error: 'Invalid date format',
     }),
+    // Period dates are OPTIONAL (Phase 3.5 Change 1)
     period_start: z.date({
-      required_error: 'Period start date is required',
       invalid_type_error: 'Invalid date format',
-    }),
+    }).nullable(),
     period_end: z.date({
-      required_error: 'Period end date is required',
       invalid_type_error: 'Invalid date format',
-    }),
+    }).nullable(),
     due_date: z.date({
       required_error: 'Due date is required',
       invalid_type_error: 'Invalid date format',
@@ -62,8 +64,23 @@ export const invoiceFormSchema = z
   })
   .refine(
     (data) => {
-      // Validation: period_end must be >= period_start
-      return data.period_end >= data.period_start;
+      // Validation: If one period date provided, both required
+      if (data.period_start && !data.period_end) return false;
+      if (!data.period_start && data.period_end) return false;
+      return true;
+    },
+    {
+      message: 'Both period start and end dates are required if one is provided',
+      path: ['period_end'],
+    }
+  )
+  .refine(
+    (data) => {
+      // Validation: If both provided, period_end must be >= period_start
+      if (data.period_start && data.period_end) {
+        return data.period_end >= data.period_start;
+      }
+      return true;
     },
     {
       message: 'Period end date must be after or equal to period start date',

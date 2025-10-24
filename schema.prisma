@@ -58,13 +58,31 @@ model InvoiceProfile {
   name           String
   description    String?
   visible_to_all Boolean  @default(true)
+
+  // Sprint 9B: Enhanced Template Fields (7 new fields)
+  entity_id          Int
+  vendor_id          Int
+  category_id        Int
+  currency_id        Int
+  prepaid_postpaid   String?  // 'prepaid' or 'postpaid' (optional)
+  tds_applicable     Boolean  @default(false)
+  tds_percentage     Float?   // 0-100, required if tds_applicable=true (app-level validation)
+
   created_at     DateTime @default(now())
   updated_at     DateTime @updatedAt
 
   // Relations
+  entity       Entity       @relation("ProfileEntity", fields: [entity_id], references: [id], onDelete: Restrict)
+  vendor       Vendor       @relation("ProfileVendor", fields: [vendor_id], references: [id], onDelete: Restrict)
+  category     Category     @relation("ProfileCategory", fields: [category_id], references: [id], onDelete: Restrict)
+  currency     Currency     @relation("ProfileCurrency", fields: [currency_id], references: [id], onDelete: Restrict)
   invoices     Invoice[]
   visibilities UserProfileVisibility[]
 
+  @@index([entity_id], map: "idx_invoice_profiles_entity")
+  @@index([vendor_id], map: "idx_invoice_profiles_vendor")
+  @@index([category_id], map: "idx_invoice_profiles_category")
+  @@index([currency_id], map: "idx_invoice_profiles_currency")
   @@map("invoice_profiles")
 }
 
@@ -82,7 +100,8 @@ model Currency {
   updated_at DateTime @updatedAt
 
   // Relations
-  invoices Invoice[] @relation("InvoiceCurrency")
+  invoices        Invoice[]        @relation("InvoiceCurrency")
+  invoice_profiles InvoiceProfile[] @relation("ProfileCurrency")
 
   @@index([is_active], map: "idx_currencies_active")
   @@index([code], map: "idx_currencies_code")
@@ -123,7 +142,8 @@ model Vendor {
   updated_at     DateTime @updatedAt
 
   // Relations
-  invoices Invoice[]
+  invoices         Invoice[]        @relation
+  invoice_profiles InvoiceProfile[] @relation("ProfileVendor")
 
   @@map("vendors")
 }
@@ -137,7 +157,8 @@ model Category {
   updated_at  DateTime @updatedAt
 
   // Relations
-  invoices Invoice[]
+  invoices         Invoice[]        @relation
+  invoice_profiles InvoiceProfile[] @relation("ProfileCategory")
 
   @@map("categories")
 }
@@ -157,7 +178,8 @@ model Entity {
   updated_at  DateTime @updatedAt
 
   // Relations
-  invoices Invoice[] @relation("InvoiceEntity")
+  invoices         Invoice[]        @relation("InvoiceEntity")
+  invoice_profiles InvoiceProfile[] @relation("ProfileEntity")
 
   @@index([is_active], map: "idx_entities_active")
   @@index([country], map: "idx_entities_country")

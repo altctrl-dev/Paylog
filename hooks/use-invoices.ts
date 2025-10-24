@@ -17,6 +17,7 @@ import {
   approveInvoice,
   rejectInvoice,
   getInvoiceFormOptions,
+  getInvoiceProfileById,
 } from '@/app/actions/invoices';
 import type {
   InvoiceFilters,
@@ -97,7 +98,7 @@ export function useInvoice(id: number | null) {
 }
 
 /**
- * Fetch form dropdown options (vendors, categories, profiles)
+ * Fetch form dropdown options (vendors, categories, profiles, entities, currencies)
  *
  * @returns Query result with form options
  *
@@ -118,6 +119,33 @@ export function useInvoiceFormOptions() {
     },
     staleTime: 300000, // 5 minutes (these change infrequently)
     refetchOnWindowFocus: false,
+  });
+}
+
+/**
+ * Fetch invoice profile by ID with relations (for form pre-filling)
+ *
+ * @param profileId - Invoice Profile ID (null disables query)
+ * @returns Query result with profile details including entity, vendor, category, currency
+ *
+ * @example
+ * ```tsx
+ * const watchedProfileId = watch('profile_id');
+ * const { data: profile } = useInvoiceProfile(watchedProfileId);
+ * ```
+ */
+export function useInvoiceProfile(profileId: number | null) {
+  return useQuery({
+    queryKey: [...invoiceKeys.all, 'profile', profileId],
+    queryFn: async () => {
+      const result = await getInvoiceProfileById(profileId!);
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      return result.data;
+    },
+    enabled: profileId !== null && profileId > 0,
+    staleTime: 60000, // 1 minute
   });
 }
 

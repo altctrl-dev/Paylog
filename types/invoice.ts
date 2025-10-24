@@ -168,11 +168,15 @@ export interface InvoiceFormData {
   category_id: number;
   profile_id: number;
   sub_entity_id: number;
+  // NEW: Sprint 9A fields (optional for now, will be required in Sprint 9C)
+  entity_id?: number;
+  currency_id?: number;
   invoice_amount: number;
   // Date fields: Required (non-null) for form submission
+  // PHASE 3.5: period_start and period_end are now optional
   invoice_date: Date;
-  period_start: Date;
-  period_end: Date;
+  period_start: Date | null;
+  period_end: Date | null;
   due_date: Date;
   tds_applicable: boolean;
   tds_percentage: number | null;

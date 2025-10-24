@@ -64,14 +64,41 @@ async function main() {
     where: { name: 'Standard Invoice' },
   });
   if (!existingProfile) {
-    const profile = await prisma.invoiceProfile.create({
-      data: {
-        name: 'Standard Invoice',
-        description: 'Default invoice profile for standard purchases',
-        visible_to_all: true,
-      },
+    // Get first active entity, vendor, category, currency for profile
+    const firstEntity = await prisma.entity.findFirst({
+      where: { is_active: true },
+      orderBy: { id: 'asc' },
     });
-    console.log('✅ Created invoice profile:', profile.name);
+    const firstVendor = await prisma.vendor.findFirst({
+      where: { is_active: true },
+      orderBy: { id: 'asc' },
+    });
+    const firstCategory = await prisma.category.findFirst({
+      where: { is_active: true },
+      orderBy: { id: 'asc' },
+    });
+    const firstCurrency = await prisma.currency.findFirst({
+      where: { is_active: true },
+      orderBy: { id: 'asc' },
+    });
+
+    if (firstEntity && firstVendor && firstCategory && firstCurrency) {
+      const profile = await prisma.invoiceProfile.create({
+        data: {
+          name: 'Standard Invoice',
+          description: 'Default invoice profile for standard purchases',
+          visible_to_all: true,
+          entity_id: firstEntity.id,
+          vendor_id: firstVendor.id,
+          category_id: firstCategory.id,
+          currency_id: firstCurrency.id,
+          tds_applicable: false,
+        },
+      });
+      console.log('✅ Created invoice profile:', profile.name);
+    } else {
+      console.log('⚠️  Skipping invoice profile creation (missing required master data)');
+    }
   } else {
     console.log('⏭️  Invoice profile already exists:', existingProfile.name);
   }

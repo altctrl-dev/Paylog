@@ -128,3 +128,101 @@ export const entityFiltersSchema = z.object({
 });
 
 export type EntityFilters = z.infer<typeof entityFiltersSchema>;
+
+// ============================================================================
+// INVOICE PROFILE VALIDATION (Sprint 9B Phase 1)
+// ============================================================================
+
+/**
+ * InvoiceProfile create/update validation schema
+ * - Name: required, 1-100 chars
+ * - Description: optional, text
+ * - Entity: required foreign key reference
+ * - Vendor: required foreign key reference
+ * - Category: required foreign key reference
+ * - Currency: required foreign key reference
+ * - Prepaid/Postpaid: optional enum ('prepaid' | 'postpaid')
+ * - TDS Applicable: boolean, default false
+ * - TDS Percentage: 0-100, required if tds_applicable=true
+ */
+export const invoiceProfileFormSchema = z
+  .object({
+    name: z
+      .string()
+      .min(1, 'Profile name is required')
+      .max(100, 'Profile name too long')
+      .trim(),
+    description: z.string().optional(),
+    entity_id: z
+      .number()
+      .int()
+      .positive('Entity is required'),
+    vendor_id: z
+      .number()
+      .int()
+      .positive('Vendor is required'),
+    category_id: z
+      .number()
+      .int()
+      .positive('Category is required'),
+    currency_id: z
+      .number()
+      .int()
+      .positive('Currency is required'),
+    prepaid_postpaid: z
+      .enum(['prepaid', 'postpaid'], {
+        errorMap: () => ({ message: 'Must be either "prepaid" or "postpaid"' }),
+      })
+      .optional(),
+    tds_applicable: z.boolean(),
+    tds_percentage: z
+      .number()
+      .min(0, 'TDS percentage cannot be negative')
+      .max(100, 'TDS percentage cannot exceed 100')
+      .optional(),
+  })
+  .refine(
+    (data) => {
+      // If TDS applicable, percentage is required
+      if (data.tds_applicable && (data.tds_percentage === undefined || data.tds_percentage === null)) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: 'TDS percentage is required when TDS is applicable',
+      path: ['tds_percentage'],
+    }
+  )
+  .refine(
+    (data) => {
+      // If TDS not applicable, percentage should not be set
+      if (!data.tds_applicable && data.tds_percentage !== undefined && data.tds_percentage !== null) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: 'TDS percentage should not be set when TDS is not applicable',
+      path: ['tds_percentage'],
+    }
+  );
+
+export type InvoiceProfileFormData = z.infer<typeof invoiceProfileFormSchema>;
+
+/**
+ * InvoiceProfile search/filter schema
+ */
+export const invoiceProfileFiltersSchema = z.object({
+  search: z.string().optional(),
+  entity_id: z.number().int().positive().optional(),
+  vendor_id: z.number().int().positive().optional(),
+  category_id: z.number().int().positive().optional(),
+  currency_id: z.number().int().positive().optional(),
+  prepaid_postpaid: z.enum(['prepaid', 'postpaid']).optional(),
+  tds_applicable: z.boolean().optional(),
+  page: z.number().int().positive().default(1),
+  per_page: z.number().int().positive().default(20),
+});
+
+export type InvoiceProfileFilters = z.infer<typeof invoiceProfileFiltersSchema>;

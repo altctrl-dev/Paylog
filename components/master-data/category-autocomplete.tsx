@@ -13,7 +13,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import * as Popover from '@radix-ui/react-popover';
 import { cn } from '@/lib/utils';
 import { useSearchCategories } from '@/hooks/use-categories';
-import { usePanel } from '@/hooks/use-panel';
+// import { usePanel } from '@/hooks/use-panel'; // TODO: For request new category feature
 
 // ============================================================================
 // TYPES
@@ -38,8 +38,9 @@ export function CategoryAutocomplete({
 }: CategoryAutocompleteProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const { data: categories = [], isLoading } = useSearchCategories(search, open);
-  const { openPanel } = usePanel();
+  // Enable search when dropdown is open OR when there's a selected value (to display it)
+  const { data: categories = [], isLoading } = useSearchCategories(search, open || value !== null);
+  // const { openPanel } = usePanel(); // TODO: Implement request new category panel
 
   // Find selected category name
   const selectedCategory = categories.find((c) => c.id === value);

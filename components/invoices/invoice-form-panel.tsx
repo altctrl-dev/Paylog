@@ -6,17 +6,18 @@
  *
  * Field Order:
  * 1. Invoice Profile
- * 2. Vendor (REQUIRED)
- * 3. Invoice Number
- * 4. Invoice Date
- * 5. Invoice Period (from/to)
- * 6. Due Date
- * 7. Amount
- * 8. TDS Applicable
- * 9. Category
- * 10. Sub Entity
- * 11. Notes
- * 12. Added by (read-only)
+ * 2. Entity (NEW - Sprint 9A)
+ * 3. Vendor (REQUIRED)
+ * 4. Invoice Number
+ * 5. Invoice Date
+ * 6. Invoice Period (from/to) - OPTIONAL (Phase 3.5)
+ * 7. Due Date
+ * 8. Amount (with Currency dropdown) - UPDATED Sprint 9B Phase 3.5
+ * 9. TDS Applicable
+ * 10. Category
+ * 11. Sub Entity
+ * 12. Notes
+ * 13. Added by (read-only)
  */
 
 'use client';
@@ -41,11 +42,11 @@ import {
   useCreateInvoice,
   useUpdateInvoice,
   useInvoiceFormOptions,
+  useInvoiceProfile,
 } from '@/hooks/use-invoices';
 import { VendorAutocomplete } from '@/components/master-data/vendor-autocomplete';
 import { CategoryAutocomplete } from '@/components/master-data/category-autocomplete';
-import { type InvoiceFormData } from '@/types/invoice';
-import { invoiceFormSchema } from '@/lib/validations/invoice';
+import { invoiceFormSchema, type InvoiceFormData } from '@/lib/validations/invoice';
 import type { PanelConfig } from '@/types/panel';
 
 interface InvoiceFormPanelProps {
@@ -68,10 +69,10 @@ function formatDateForInput(date: Date | null | undefined): string {
 
 /**
  * Parse date from input[type="date"]
- * Returns a Date object (always non-null) because form requires dates
+ * Returns a Date object or null for optional date fields
  */
-function parseDateFromInput(value: string): Date {
-  if (!value) return new Date(); // Return current date if empty
+function parseDateFromInput(value: string): Date | null {
+  if (!value || value === '') return null; // Return null for optional dates
   return new Date(value);
 }
 
@@ -121,12 +122,14 @@ export function InvoiceFormPanel({
       category_id: 0, // Will be required to change
       profile_id: 0, // Will be required to change
       sub_entity_id: 0, // Will be required to change
+      entity_id: 0, // NEW: Sprint 9A
+      currency_id: 0, // NEW: Sprint 9A
       invoice_amount: 0, // Will be required to enter valid amount
       // Date fields: Use current date as default (user can change)
       // This ensures form has valid dates for validation
       invoice_date: new Date(),
-      period_start: new Date(),
-      period_end: new Date(),
+      period_start: null, // PHASE 3.5: No default (optional)
+      period_end: null,   // PHASE 3.5: No default (optional)
       due_date: new Date(),
       tds_applicable: false,
       tds_percentage: null,
@@ -136,6 +139,12 @@ export function InvoiceFormPanel({
 
   // Watch values for conditional logic
   const watchedTdsApplicable = watch('tds_applicable');
+  const watchedProfileId = watch('profile_id');
+
+  // Fetch profile data when profile is selected (for pre-filling)
+  const { data: selectedProfile } = useInvoiceProfile(
+    watchedProfileId && watchedProfileId > 0 ? watchedProfileId : null
+  );
 
   // Reset form when invoice data loads (edit mode)
   React.useEffect(() => {
@@ -147,11 +156,13 @@ export function InvoiceFormPanel({
         category_id: invoice.category_id ?? 0,
         profile_id: invoice.profile_id ?? 0,
         sub_entity_id: invoice.sub_entity_id ?? 0,
+        entity_id: (invoice as any).entity_id ?? 0, // NEW: Sprint 9A (may not exist in older invoices)
+        currency_id: (invoice as any).currency_id ?? 0, // NEW: Sprint 9A (may not exist in older invoices)
         invoice_amount: invoice.invoice_amount,
-        // Convert null dates to current date (form requires non-null)
+        // Convert null dates to current date for required fields, keep null for optional
         invoice_date: invoice.invoice_date ?? new Date(),
-        period_start: invoice.period_start ?? new Date(),
-        period_end: invoice.period_end ?? new Date(),
+        period_start: invoice.period_start ?? null, // PHASE 3.5: Keep null (optional)
+        period_end: invoice.period_end ?? null,     // PHASE 3.5: Keep null (optional)
         due_date: invoice.due_date ?? new Date(),
         tds_applicable: invoice.tds_applicable,
         tds_percentage: invoice.tds_percentage,
@@ -159,6 +170,25 @@ export function InvoiceFormPanel({
       });
     }
   }, [invoice, reset]);
+
+  // Pre-fill fields when profile changes (create mode only)
+  React.useEffect(() => {
+    if (selectedProfile && !isEditMode) {
+      // Pre-fill entity, vendor, category, currency
+      setValue('entity_id', selectedProfile.entity_id);
+      setValue('vendor_id', selectedProfile.vendor_id);
+      setValue('category_id', selectedProfile.category_id);
+      setValue('currency_id', selectedProfile.currency_id);
+
+      // Pre-fill TDS
+      setValue('tds_applicable', selectedProfile.tds_applicable);
+      if (selectedProfile.tds_applicable && selectedProfile.tds_percentage) {
+        setValue('tds_percentage', selectedProfile.tds_percentage);
+      } else {
+        setValue('tds_percentage', null);
+      }
+    }
+  }, [selectedProfile, isEditMode, setValue]);
 
   // Debug: Log errors when they change
   React.useEffect(() => {
@@ -216,18 +246,7 @@ export function InvoiceFormPanel({
     }
   };
 
-  // Handlers for inline master data requests
-  const handleRequestVendor = () => {
-    openPanel('master-data-request-form', { entityType: 'vendor' }, { width: 600 });
-  };
-
-  const handleRequestCategory = () => {
-    openPanel('master-data-request-form', { entityType: 'category' }, { width: 600 });
-  };
-
-  const handleRequestProfile = () => {
-    openPanel('master-data-request-form', { entityType: 'invoice_profile' }, { width: 600 });
-  };
+  // PHASE 3.5 Change 4: Removed request handlers - users can request from Settings → My Requests
 
   // Handlers for attachments
   const handleUploadComplete = (attachmentId: string) => {
@@ -376,16 +395,43 @@ export function InvoiceFormPanel({
               {errors.profile_id.message}
             </p>
           )}
-          <button
-            type="button"
-            onClick={handleRequestProfile}
-            className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
-          >
-            + Request New Invoice Profile
-          </button>
         </div>
 
-        {/* 2. Vendor (REQUIRED) */}
+        {/* 2. Entity (NEW - Sprint 9A, LOCKED when profile selected) */}
+        <div className="space-y-2">
+          <Label htmlFor="entity_id">
+            Entity <span className="text-destructive">*</span>
+          </Label>
+          <Controller
+            name="entity_id"
+            control={control}
+            render={({ field }) => (
+              <Select
+                id="entity_id"
+                value={field.value?.toString() || ''}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  field.onChange(value === '' ? 0 : parseInt(value, 10));
+                }}
+                disabled={watchedProfileId > 0}
+              >
+                <option value="">-- Select Entity --</option>
+                {options?.entities.map((entity) => (
+                  <option key={entity.id} value={entity.id}>
+                    {entity.name}
+                  </option>
+                ))}
+              </Select>
+            )}
+          />
+          {errors.entity_id && (
+            <p className="text-xs text-destructive">
+              {errors.entity_id.message}
+            </p>
+          )}
+        </div>
+
+        {/* 3. Vendor (REQUIRED, LOCKED when profile selected) */}
         <div className="space-y-2">
           <Label htmlFor="vendor_id">
             Vendor <span className="text-destructive">*</span>
@@ -398,12 +444,13 @@ export function InvoiceFormPanel({
                 value={field.value || null}
                 onChange={(vendorId) => field.onChange(vendorId || 0)}
                 error={errors.vendor_id?.message}
+                disabled={watchedProfileId > 0}
               />
             )}
           />
         </div>
 
-        {/* 3. Invoice Number + 4. Invoice Date (side by side) */}
+        {/* 4. Invoice Number + 5. Invoice Date (side by side) */}
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="invoice_number">
@@ -446,11 +493,11 @@ export function InvoiceFormPanel({
           </div>
         </div>
 
-        {/* 5. Invoice Period (from/to) - side by side */}
+        {/* 6. Invoice Period (from/to) - OPTIONAL - side by side */}
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="period_start">
-              Period Start <span className="text-destructive">*</span>
+              Period Start
             </Label>
             <Controller
               name="period_start"
@@ -475,7 +522,7 @@ export function InvoiceFormPanel({
 
           <div className="space-y-2">
             <Label htmlFor="period_end">
-              Period End <span className="text-destructive">*</span>
+              Period End
             </Label>
             <Controller
               name="period_end"
@@ -522,27 +569,56 @@ export function InvoiceFormPanel({
           )}
         </div>
 
-        {/* 7. Amount */}
+        {/* 8. Amount with Currency (PHASE 3.5: Integrated) */}
         <div className="space-y-2">
           <Label htmlFor="invoice_amount">
             Amount <span className="text-destructive">*</span>
           </Label>
-          <Input
-            id="invoice_amount"
-            type="number"
-            step="0.01"
-            {...register('invoice_amount', { valueAsNumber: true })}
-            placeholder="0.00"
-            className={errors.invoice_amount ? 'border-destructive' : ''}
-          />
-          {errors.invoice_amount && (
+          <div className="grid grid-cols-[140px_1fr] gap-2">
+            {/* Currency Dropdown - Left side */}
+            <Controller
+              name="currency_id"
+              control={control}
+              render={({ field }) => (
+                <Select
+                  id="currency_id"
+                  value={field.value?.toString() || ''}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    field.onChange(value === '' ? 0 : parseInt(value, 10));
+                  }}
+                  className="h-10"
+                >
+                  <option value="">--</option>
+                  {options?.currencies.map((currency) => (
+                    <option key={currency.id} value={currency.id}>
+                      {currency.code} {currency.symbol}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            />
+
+            {/* Amount Input - Right side */}
+            <Input
+              id="invoice_amount"
+              type="number"
+              step="0.01"
+              {...register('invoice_amount', { valueAsNumber: true })}
+              placeholder="0.00"
+              className={errors.invoice_amount ? 'border-destructive' : ''}
+            />
+          </div>
+
+          {/* Show error for either field */}
+          {(errors.invoice_amount || errors.currency_id) && (
             <p className="text-xs text-destructive">
-              {errors.invoice_amount.message}
+              {errors.invoice_amount?.message || errors.currency_id?.message}
             </p>
           )}
         </div>
 
-        {/* 8. TDS Applicable + Percentage (side by side) */}
+        {/* 9. TDS Applicable + Percentage (side by side, editable) */}
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label>TDS Applicable</Label>
@@ -604,6 +680,7 @@ export function InvoiceFormPanel({
                     const value = e.target.value;
                     field.onChange(value === '' ? null : parseFloat(value));
                   }}
+                  onWheel={(e) => e.currentTarget.blur()}
                   className={errors.tds_percentage ? 'border-destructive' : ''}
                 />
               )}
@@ -616,7 +693,7 @@ export function InvoiceFormPanel({
           </div>
         </div>
 
-        {/* 9. Category + 10. Sub Entity (side by side) */}
+        {/* 10. Category (LOCKED when profile selected) + 11. Sub Entity (side by side) */}
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="category_id">
@@ -630,6 +707,7 @@ export function InvoiceFormPanel({
                   value={field.value || null}
                   onChange={(categoryId) => field.onChange(categoryId || 0)}
                   error={errors.category_id?.message}
+                  disabled={watchedProfileId > 0}
                 />
               )}
             />
