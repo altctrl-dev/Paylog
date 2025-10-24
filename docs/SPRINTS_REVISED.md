@@ -1,9 +1,9 @@
 # PayLog Sprint Plan (Revised)
 
-**Last Updated**: October 23, 2025
-**Total Story Points**: 183 SP
-**Completed**: 130 SP (71.0%)
-**Remaining**: 53 SP (29.0%)
+**Last Updated**: October 24, 2025
+**Total Story Points**: 202 SP
+**Completed**: 144 SP (71.3%)
+**Remaining**: 58 SP (28.7%)
 
 ---
 
@@ -19,11 +19,13 @@
 | Sprint 6 | ✅ Complete | 12 SP | File Attachments & Storage |
 | Sprint 7 | ✅ Complete | 14 SP | Activity Logging & Collaboration |
 | Sprint 8 | ✅ Complete | 13 SP | Master Data Management (Admin) |
-| **Sprint 9A** | **🚀 Current** | **14 SP** | **Admin Reorganization & Enhanced Master Data** |
-| **Sprint 9B** | **🔲 Planned** | **12 SP** | **Invoice Profile Enhancement** |
-| Sprint 10 | 🔲 Planned | 12 SP | User Management & RBAC |
-| Sprint 11 | 🔲 Planned | 14 SP | Dashboard & Analytics |
-| Sprint 12 | 🔲 Planned | 9 SP | Polish, Testing & Production Prep |
+| Sprint 9A | ✅ Complete | 14 SP | Admin Reorganization & Enhanced Master Data |
+| **Sprint 9B** | **🚀 Next** | **12 SP** | **Invoice Profile Enhancement** |
+| **Sprint 9C** | **🔲 Planned** | **3 SP** | **UX Polish (URL Routing)** |
+| Sprint 10 | 🔲 Planned | 16 SP | Design System & Styling Refactor |
+| Sprint 11 | 🔲 Planned | 12 SP | User Management & RBAC |
+| Sprint 12 | 🔲 Planned | 14 SP | Dashboard & Analytics |
+| Sprint 13 | 🔲 Planned | 9 SP | Polish, Testing & Production Prep |
 
 ---
 
@@ -47,11 +49,12 @@
 
 ---
 
-## 🚀 Sprint 9A: Admin Reorganization & Enhanced Master Data (14 SP)
+## ✅ Sprint 9A: Admin Reorganization & Enhanced Master Data (14 SP)
 
-**Status**: 🚀 **CURRENT SPRINT (IN PROGRESS - 3/10 phases complete)**
+**Status**: ✅ **COMPLETE** (Deployed October 24, 2025)
 **Goal**: Move master data to admin menu, add currency support, enhance all master data entities
-**Progress**: 130/183 SP Complete (71.0%)
+**Commit**: `3fab966`
+**Progress**: 144/202 SP Complete (71.3%)
 
 ### ✅ Completed Phases (3/10)
 
@@ -304,7 +307,143 @@
 
 ---
 
-## 🔲 Sprint 10: User Management & RBAC (12 SP)
+## 🔲 Sprint 9C: UX Polish - URL Routing (3 SP)
+
+**Status**: 🔲 **PLANNED**
+**Goal**: Fix URL routing inconsistencies for better bookmarkability and browser navigation
+
+### Deliverables
+
+#### **Phase 1: Settings Tab Routing** (1 SP)
+- [ ] Add query parameter support to Settings page tabs
+  - Profile tab: `/settings` or `/settings?tab=profile`
+  - My Requests tab: `/settings?tab=requests`
+- [ ] Update tab click handlers to update URL
+- [ ] Preserve tab state on page refresh
+- [ ] Support browser back/forward navigation
+
+#### **Phase 2: Master Data Sub-Tab Routing** (1 SP)
+- [ ] Add query parameter for Master Data sub-tabs
+  - `/admin?tab=master-data&subtab=vendors`
+  - `/admin?tab=master-data&subtab=categories`
+  - `/admin?tab=master-data&subtab=entities`
+  - `/admin?tab=master-data&subtab=payment-types`
+  - `/admin?tab=master-data&subtab=currencies`
+  - `/admin?tab=master-data&subtab=invoice-profiles`
+- [ ] Update sub-tab navigation to use query params
+- [ ] Preserve sub-tab state on refresh
+
+#### **Phase 3: Testing & QA** (1 SP)
+- [ ] Test bookmarking specific tabs
+- [ ] Test browser back/forward buttons
+- [ ] Test page refresh preserves tab state
+- [ ] Test URL sharing (copy/paste)
+- [ ] Verify consistency across all tabbed interfaces
+
+### Technical Highlights
+- Consistent URL routing across Settings and Admin pages
+- Improved user experience (bookmarkable, shareable URLs)
+- Browser navigation support (back/forward buttons work)
+- Tab state persistence on page refresh
+
+### Acceptance Criteria
+- ✅ Settings tabs update URL with query params
+- ✅ Admin sub-tabs update URL with nested query params
+- ✅ Browser back/forward buttons work correctly
+- ✅ Page refresh preserves active tab
+- ✅ URLs are bookmarkable and shareable
+
+---
+
+## 🔲 Sprint 10: Design System & Styling Refactor (16 SP)
+
+**Status**: 🔲 **PLANNED**
+**Goal**: Unify visual design with consistent black/white theme, brand orange primary, global tokens, and dark mode parity
+
+### Deliverables
+
+#### **Phase 1: Global Tokens & Base Styles** (3 SP)
+- [ ] Create/expand global tokens in `app/globals.css`
+  - Define `:root` and `.dark` CSS variables
+  - Backgrounds, foregrounds, brand orange, neutral grays
+  - Info/success/warning/error accent colors
+  - Typography scale (headings, body, labels)
+  - Spacing scale, border radii, shadows
+- [ ] Apply base styles via `@layer base`
+  - Body, headings, paragraphs, links
+  - Buttons, inputs, focus states
+- [ ] Create reusable component classes via `@layer components`
+  - Heading scale (.heading-1, .heading-2, etc.)
+  - Text styles (.text-body, .text-label, etc.)
+  - Surface wrappers (.surface, .surface-elevated)
+  - Icon helpers (.icon, .icon-sm, .icon-lg)
+
+#### **Phase 2: Tailwind Configuration** (2 SP)
+- [ ] Update `tailwind.config.ts`
+  - Ensure `darkMode: 'class'`
+  - Map `theme.extend.colors` to CSS variables
+  - Map `fontFamily`, `borderRadius`, `boxShadow` to tokens
+  - Add necessary plugins (`@tailwindcss/typography`, `@tailwindcss/forms`)
+  - Confirm content paths cover app, components, stories
+
+#### **Phase 3: Component Refactoring** (6 SP)
+- [ ] Align shadcn/Radix components
+  - Create theme override file for shadcn tokens
+  - Update button, input, badge, card, sheet, dialog
+- [ ] Sweep existing components (30+ files)
+  - Buttons: Replace ad-hoc Tailwind with semantic classes
+  - Panels: Use surface wrappers
+  - Tables: Consistent row/cell styles
+  - Forms: Use input tokens
+  - Navigation: Sidebar, header, breadcrumbs
+  - Cards: Dashboard cards, stat cards
+  - Alerts: Error, success, warning, info
+- [ ] Verify no regressions (manual + visual testing)
+
+#### **Phase 4: Dark Mode Verification** (3 SP)
+- [ ] Ensure `.dark` overrides cover all surfaces
+  - Text colors (foreground, muted, disabled)
+  - Backgrounds (surface, elevated, overlay)
+  - Borders (default, focus, hover)
+  - Focus rings (consistent across light/dark)
+  - Charts (readable in both modes)
+- [ ] Add Storybook stories demonstrating themes
+- [ ] Document dark mode guidelines
+
+#### **Phase 5: Storybook & Documentation** (2 SP)
+- [ ] Setup Storybook for design system
+  - Import Tailwind globals in `.storybook/preview.ts`
+  - Add global decorator to toggle light/dark
+  - Create color palette documentation
+  - Create typography scale documentation
+  - Add representative component stories
+- [ ] Update `docs/styling_guide.md`
+  - Document all tokens (colors, typography, spacing)
+  - Component usage examples
+  - Dark mode guidelines
+  - Contribution guide
+
+### Technical Highlights
+- Production-ready black/white theme with brand orange
+- Consistent typography and spacing
+- Reusable design tokens (CSS variables)
+- Dark mode parity (automated inheritance)
+- Storybook integration for design system docs
+- WCAG AA contrast compliance
+
+### Acceptance Criteria
+- ✅ Global tokens defined in `app/globals.css`
+- ✅ Tailwind config uses CSS variables
+- ✅ All components use semantic classes or tokens
+- ✅ Dark mode works across all pages
+- ✅ Storybook documents design system
+- ✅ No visual regressions (manual QA)
+- ✅ WCAG AA contrast ratios met
+- ✅ Lint/typecheck/build all pass
+
+---
+
+## 🔲 Sprint 11: User Management & RBAC (12 SP)
 
 **Status**: 🔲 **PLANNED**
 **Goal**: Complete user management and permissions
@@ -343,7 +482,7 @@
 
 ---
 
-## 🔲 Sprint 11: Dashboard & Analytics (14 SP)
+## 🔲 Sprint 12: Dashboard & Analytics (14 SP)
 
 **Status**: 🔲 **PLANNED**
 **Goal**: Build comprehensive dashboard with KPIs
@@ -383,7 +522,7 @@
 
 ---
 
-## 🔲 Sprint 12: Polish, Testing & Production Prep (9 SP)
+## 🔲 Sprint 13: Polish, Testing & Production Prep (9 SP)
 
 **Status**: 🔲 **PLANNED**
 **Goal**: Final polish and production readiness
@@ -434,10 +573,10 @@
 
 ## 📈 Sprint Velocity
 
-**Average SP per Sprint**: 16.3 SP (130 SP / 8 sprints completed)
-**Estimated Completion**: 13 sprints total (revised from 12)
-**Current Progress**: Sprint 9A In Progress (3/10 phases complete)
-**Story Point Progress**: 130/183 SP (71.0% complete)
+**Average SP per Sprint**: 16.0 SP (144 SP / 9 sprints completed)
+**Estimated Completion**: 14 sprints total (revised from 13)
+**Current Progress**: Sprint 9A Complete, Sprint 9B Next
+**Story Point Progress**: 144/202 SP (71.3% complete)
 
 **Sprint Completions**:
 - Sprint 1: 13 SP ✅
@@ -448,33 +587,29 @@
 - Sprint 6: 12 SP ✅ (on target, local filesystem MVP)
 - Sprint 7: 14 SP ✅ (on target, activity logging & collaboration)
 - Sprint 8: 13 SP ✅ (on target, master data management)
+- Sprint 9A: 14 SP ✅ (admin reorganization, deployed Oct 24)
 
 **Remaining Sprints**:
-- Sprint 9A: 14 SP 🚀 (current)
-- Sprint 9B: 12 SP 🔲
-- Sprint 10: 12 SP 🔲
-- Sprint 11: 14 SP 🔲
-- Sprint 12: 9 SP 🔲
+- Sprint 9B: 12 SP 🚀 (next - invoice profile enhancement)
+- Sprint 9C: 3 SP 🔲 (UX polish - URL routing)
+- Sprint 10: 16 SP 🔲 (design system & styling refactor)
+- Sprint 11: 12 SP 🔲 (user management & RBAC)
+- Sprint 12: 14 SP 🔲 (dashboard & analytics)
+- Sprint 13: 9 SP 🔲 (polish, testing & production prep)
 
 ---
 
-## 🎯 Current Focus: Sprint 9A
+## 🎯 Current Focus: Sprint 9B
 
-**Priority**: Admin menu reorganization and enhanced master data
+**Priority**: Invoice Profile Enhancement with 12 fields
 **Blockers**: None
-**Dependencies**: PostgreSQL 17 migration complete ✅
+**Dependencies**: Sprint 9A complete ✅
 
-**To Start Sprint 9A**:
-1. Move Master Data from Settings to Admin menu
-2. Implement RBAC middleware for `/admin/*` routes
-3. Create Currency table with ISO 4217 seed data
-4. Rename SubEntity → Entity with address/country fields
-5. Enhance Vendor with address/GST/bank details
-6. Update Category (description required) and PaymentType (remove description)
-7. Remove `is_active` checkbox from all forms
-8. Add admin quick-create vendor from invoice form
-9. Remove standard user quick-create links from invoice form
-10. Clean up ArchiveRequest table and related code
+**Sprint 9B Goals**:
+1. Add 7 new fields to InvoiceProfile (entity, vendor, category, currency, prepaid/postpaid, TDS)
+2. Lock vendor/entity fields when profile selected in invoice form
+3. Admin quick-create workflows (vendor panel + profile navigation)
+4. Draft save/restore for complex profile creation
 
 ---
 
@@ -483,15 +618,25 @@
 ### Completed Milestones
 - ✅ **Milestone 1**: Core Invoice Management (Sprints 1-4) - 75 SP
 - ✅ **Milestone 2**: Collaboration & Master Data (Sprints 5-8) - 52 SP
+- ✅ **Milestone 3**: Admin Reorganization (Sprint 9A) - 14 SP
 
 ### Upcoming Milestones
-- 🚀 **Milestone 3**: Enhanced Master Data & Profiles (Sprints 9A-9B) - 26 SP
-- 🔲 **Milestone 4**: User Management & Analytics (Sprints 10-11) - 26 SP
-- 🔲 **Milestone 5**: Production Launch (Sprint 12) - 9 SP
+- 🚀 **Milestone 4**: Enhanced Profiles & UX (Sprints 9B-9C) - 15 SP
+- 🔲 **Milestone 5**: Design System & User Management (Sprints 10-11) - 28 SP
+- 🔲 **Milestone 6**: Dashboard & Production Launch (Sprints 12-13) - 23 SP
 
 ---
 
 ## 🔄 Version History
+
+### Version 3.0 (October 24, 2025)
+- Sprint 9A complete and deployed to production
+- Added Sprint 9C (UX Polish - URL Routing) - 3 SP
+- Added Sprint 10 (Design System & Styling Refactor) - 16 SP
+- Moved User Management from Sprint 10 → Sprint 11
+- Renumbered remaining sprints: Dashboard (12), Polish (13)
+- Total SP: 183 → 202 (+19 SP)
+- Reason: Design system foundation for remaining sprints + UX improvements
 
 ### Version 2.0 (October 21, 2025)
 - Replaced Sprint 9 (Archive Request Workflow) with Sprint 9A + 9B
@@ -509,6 +654,6 @@
 
 ---
 
-**Last Updated**: October 21, 2025
-**Next Review**: After Sprint 9A completion
-**Status**: Active Development
+**Last Updated**: October 24, 2025
+**Next Review**: After Sprint 9B completion
+**Status**: Active Development - Sprint 9A Deployed 🚀
