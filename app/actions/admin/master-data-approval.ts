@@ -222,11 +222,70 @@ export async function approveRequest(
       }
 
       case 'invoice_profile': {
+        // Sprint 9B: InvoiceProfile now requires entity_id, vendor_id, category_id, currency_id
+        // Get defaults from finalData or use first active records
+        let entityId = finalData.entity_id;
+        let vendorId = finalData.vendor_id;
+        let categoryId = finalData.category_id;
+        let currencyId = finalData.currency_id;
+
+        // If not provided in request, use first active records as defaults
+        if (!entityId) {
+          const firstEntity = await db.entity.findFirst({
+            where: { is_active: true },
+            orderBy: { id: 'asc' },
+          });
+          if (!firstEntity) {
+            throw new Error('No active entities found. Cannot create invoice profile.');
+          }
+          entityId = firstEntity.id;
+        }
+
+        if (!vendorId) {
+          const firstVendor = await db.vendor.findFirst({
+            where: { is_active: true },
+            orderBy: { id: 'asc' },
+          });
+          if (!firstVendor) {
+            throw new Error('No active vendors found. Cannot create invoice profile.');
+          }
+          vendorId = firstVendor.id;
+        }
+
+        if (!categoryId) {
+          const firstCategory = await db.category.findFirst({
+            where: { is_active: true },
+            orderBy: { id: 'asc' },
+          });
+          if (!firstCategory) {
+            throw new Error('No active categories found. Cannot create invoice profile.');
+          }
+          categoryId = firstCategory.id;
+        }
+
+        if (!currencyId) {
+          const firstCurrency = await db.currency.findFirst({
+            where: { is_active: true },
+            orderBy: { id: 'asc' },
+          });
+          if (!firstCurrency) {
+            throw new Error('No active currencies found. Cannot create invoice profile.');
+          }
+          currencyId = firstCurrency.id;
+        }
+
         const profile = await db.invoiceProfile.create({
           data: {
             name: finalData.name,
             description: finalData.description,
             visible_to_all: finalData.visible_to_all ?? true,
+            entity_id: entityId,
+            vendor_id: vendorId,
+            category_id: categoryId,
+            currency_id: currencyId,
+            prepaid_postpaid: finalData.prepaid_postpaid || null,
+            tds_applicable: finalData.tds_applicable ?? false,
+            tds_percentage: finalData.tds_percentage || null,
           },
         });
         createdEntityId = `PRF-${profile.id}`;
