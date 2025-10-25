@@ -29,6 +29,8 @@ model User {
   reviewed_master_requests MasterDataRequest[]     @relation("RequestReviewer")
   granted_visibilities     UserProfileVisibility[] @relation("VisibilityGranter")
   profile_visibilities     UserProfileVisibility[] @relation("UserProfileAccess")
+  audit_actions            UserAuditLog[]          @relation("AuditActor")
+  audit_history            UserAuditLog[]          @relation("AuditTarget")
 
   @@index([role, is_active], map: "idx_users_role_active")
   @@index([role], map: "idx_users_super_admin")
@@ -352,4 +354,24 @@ model Entity {
   @@index([country], map: "idx_entities_country")
   @@index([name], map: "idx_entities_name")
   @@map("entities")
+}
+
+model UserAuditLog {
+  id             String   @id @default(cuid())
+  target_user_id Int
+  actor_user_id  Int?
+  event_type     String
+  old_data       String?
+  new_data       String?
+  ip_address     String?
+  user_agent     String?
+  created_at     DateTime @default(now())
+  actor          User?    @relation("AuditActor", fields: [actor_user_id], references: [id])
+  target_user    User     @relation("AuditTarget", fields: [target_user_id], references: [id], onDelete: Cascade)
+
+  @@index([target_user_id, created_at], map: "idx_user_audit_target_time")
+  @@index([actor_user_id], map: "idx_user_audit_actor")
+  @@index([event_type], map: "idx_user_audit_event")
+  @@index([created_at], map: "idx_user_audit_time")
+  @@map("user_audit_logs")
 }
