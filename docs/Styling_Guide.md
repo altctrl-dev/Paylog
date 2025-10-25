@@ -1,272 +1,225 @@
-em Implementation Instructions for Agent
-
-Design System and Theming Instructions for Next.js Project
-
-These instructions define a comprehensive design system for a Next.js 13+ application using Tailwind CSS, Shadcn UI, Radix UI, Lucide icons, and Storybook. The goal is uniformity and consistency across the entire app. Follow each section below carefully and do exactly as instructed.
-
-Overview: Consistency Through a Design System
+# PayLog Design System & Styling Guide
 
-Establish a central design system early to ensure uniform branding and UX
-dev.to
-. All pages and components should look coherent and professional.
+## Overview
 
-Use single source of truth variables (CSS variables and Tailwind config) for colors, typography, spacing, etc. This global control lets you update the theme in one place.
+PayLog uses a comprehensive design token system built on Tailwind CSS, providing a consistent, maintainable, and accessible design language across the application. The design system supports full light and dark mode with automatic theme switching.
 
-Do not introduce inline styles or one-off CSS rules. Instead, use Tailwind utility classes, custom components, or semantic class names (with @apply) consistently. This avoids duplication.
+---
 
-Use Shadcn UI components for common UI patterns and Radix UI primitives for accessibility. Style them with Tailwind classes
-medium.com
-. Use Lucide for icons (which inherit currentColor
-lucide.dev
-). Document all components in Storybook with the theme applied.
+## Design Principles
 
-Color Palette & Theming
+1. **Consistency**: Single source of truth for all design tokens
+2. **Accessibility**: WCAG AA compliant with proper contrast ratios
+3. **Maintainability**: CSS variables for easy theme updates
+4. **Scalability**: Semantic utility classes for rapid development
+5. **Performance**: Optimized Tailwind output with PurgeCSS
 
-Brand Orange (Primary Color): Keep the brand orange exactly as given. Do not modify its hue or saturation
-medium.com
-medium.com
-. This is a fixed brand token (e.g. define as --color-brand-orange). Always use it for primary actions (buttons, links, highlights).
+---
 
-Black and White: Use pure black (#000000) and pure white (#FFFFFF) as base colors. Light mode uses white backgrounds with black text; dark mode inverts to black backgrounds with white text. These should be the main contrast colors for body background and text.
+## Color System
 
-Neutral Grays: Define a small set of neutral gray shades for borders, backgrounds, and disabled states. For example: very light gray (for subtle backgrounds, e.g. --gray-100: #f9f9f9) and very dark gray (e.g. --gray-900: #1f1f1f). Avoid medium-gray backgrounds as they can look “muddy”
-medium.com
-. Keep neutrals minimal (few light and few dark grays)
-medium.com
-.
+### Brand Colors
 
-Accents & Highlights: Besides brand orange, you may define at most a couple of complementary accent colors (e.g. a blue or teal for informational charts, a green for success). Use them sparingly to highlight secondary actions or multi-category data. For example: primary charts lines in orange, secondary in a muted blue. Ensure all accent colors are accessible against both black and white (check contrast).
+```css
+--primary: 25 95% 53%  /* Brand Orange - used for primary actions */
+```
 
-CSS Variables: Define all above colors as CSS variables in the global stylesheet (:root). For example:
+### Semantic Colors
 
-/* globals.css */
-:root {
-  --color-background: #ffffff;
-  --color-foreground: #000000;
-  --color-brand: /* brand orange code */;
-  --gray-100: #f9f9f9;
-  --gray-900: #1f1f1f;
-  /* ... any accent colors ... */
-}
-.dark {
-  --color-background: #000000;
-  --color-foreground: #ffffff;
-  /* In dark mode, brand orange remains unchanged by design */
-  /* You may define alternative grays for dark mode if needed, or invert them */
-  --gray-100: #1a1a1a;
-  --gray-900: #e0e0e0;
-}
+| Token | Light Mode | Dark Mode | Usage |
+|-------|------------|-----------|-------|
+| `--foreground` | `222 47% 6%` | `0 0% 96%` | Primary text color |
+| `--background` | `216 33% 97%` | `220 12% 6%` | Page background |
+| `--muted-foreground` | `222 15% 42%` | `220 5% 70%` | Secondary text |
+| `--border` | `220 18% 88%` | `220 7% 18%` | Borders and dividers |
 
+### Status Colors
 
-Then extend Tailwind’s theme to use these variables:
+```tsx
+// Success (green)
+<div className="bg-success text-success-foreground">Success message</div>
 
-// tailwind.config.js
-module.exports = {
-  darkMode: 'class', // or 'media' if preferred; using 'class' allows toggling
-  theme: {
-    extend: {
-      colors: {
-        background: 'var(--color-background)',
-        foreground: 'var(--color-foreground)',
-        brand: 'var(--color-brand)',
-        gray: {
-          100: 'var(--gray-100)',
-          900: 'var(--gray-900)',
-        },
-        // add any accent colors similarly
-      },
-    },
-  },
-  plugins: [],
-}
+// Warning (amber)
+<div className="bg-warning text-warning-foreground">Warning message</div>
 
+// Error (red)
+<div className="bg-destructive text-destructive-foreground">Error message</div>
 
-By mapping Tailwind colors to CSS variables, changing themes (light/dark) happens via the .dark class
-dev.to
-medium.com
-.
+// Info (blue)
+<div className="bg-info text-info-foreground">Info message</div>
+```
 
-Typography & Font Sizing
+---
 
-Global Font: Choose a clean, professional font (e.g. Inter or a similar sans-serif). Set a CSS variable --font-family: 'Inter', sans-serif; in :root
-medium.com
-. Apply globally (e.g. in body { font-family: var(--font-family); }).
+## Typography
 
-Font Scale: Define a typographic scale with semantic roles. For example:
+### Scale
 
---font-size-base: 16px (the default body size)
-medium.com
-.
+| Token | Size | Usage |
+|-------|------|-------|
+| `--font-size-xs` | 0.75rem (12px) | Captions, helper text |
+| `--font-size-sm` | 0.875rem (14px) | Labels, small body text |
+| `--font-size-base` | 1rem (16px) | Body text (default) |
+| `--font-size-lg` | 1.125rem (18px) | Large body text |
+| `--font-size-xl` | 1.25rem (20px) | Small headings |
+| `--font-size-2xl` | 1.5rem (24px) | Medium headings |
+| `--font-size-3xl` | 1.875rem (30px) | Large headings |
+| `--font-size-4xl` | 2.25rem (36px) | Hero headings |
 
-Headings: Create classes or use Tailwind’s text sizes (e.g. text-4xl, text-3xl, text-2xl, etc) but ensure consistency. For instance:
+### Heading Classes
 
-H1: .heading-1 { @apply text-4xl font-bold leading-tight; }
+Use semantic heading classes instead of raw Tailwind for consistency:
 
-H2: .heading-2 { @apply text-3xl font-semibold; }
+```tsx
+// ✅ Good - semantic classes
+<h1 className="heading-1">Page Title</h1>
+<h2 className="heading-2">Section Title</h2>
+<h3 className="heading-3">Subsection Title</h3>
+<h4 className="heading-4">Card Title</h4>
+<h5 className="heading-5">Small Heading</h5>
+<h6 className="heading-6">Tiny Heading</h6>
 
-H3: .heading-3 { @apply text-2xl font-medium; }
+// ❌ Avoid - raw Tailwind (inconsistent)
+<h1 className="text-4xl font-bold">Page Title</h1>
+```
 
-Body text: .text-body { @apply text-base leading-relaxed; }
+### Text Styles
 
-Small text: .text-sm { @apply text-sm; }
+```tsx
+// Body text
+<p className="text-body">Standard paragraph text with relaxed line height</p>
+<p className="text-body-sm">Small body text</p>
+<p className="text-body-lg">Large body text</p>
 
-Line-height & Spacing: Use consistent line-height (e.g. leading-relaxed for body, leading-snug for headings). Set global variables for spacing if needed (--spacing-sm, --spacing-md etc) to match Tailwind’s spacing scale.
+// Labels and captions
+<label className="text-label">Form Label</label>
+<small className="text-caption">Helper text or footnote</small>
 
-Font Weights: Normalize font weights (e.g. normal = 400, semibold = 600, etc). Only use the few needed weights to keep uniform look.
+// Overline (all-caps labels)
+<span className="text-overline">Section Label</span>
+```
 
-Implementation Tip: You can define these text classes with Tailwind’s @apply inside a CSS file or via @layer components. This ensures no repeated inline utility classes. For example:
+### Font Weights
 
-@layer components {
-  .heading-1 { @apply text-4xl font-bold tracking-tight; }
-  .heading-2 { @apply text-3xl font-semibold tracking-tight; }
-  .text-body  { @apply text-base leading-relaxed; }
-  .btn-primary { @apply bg-brand text-white font-semibold py-2 px-4 rounded; }
-  /* Add more as needed */
-}
+```tsx
+className="font-normal"     // 400 - body text
+className="font-medium"     // 500 - labels, buttons
+className="font-semibold"   // 600 - headings
+className="font-bold"       // 700 - emphasis
+```
 
+---
 
-This way, components can simply use className="heading-1" or className="btn-primary".
+## Shadows
 
-Layout, Spacing & Responsiveness
+Shadows automatically adapt to light/dark mode:
 
-Uniform Spacing Scale: Use Tailwind’s default spacing scale (multiples of 4px) consistently. Define CSS variables if you need specific standard spacing (e.g. --spacing-4: 1rem). Avoid magic numbers.
+```tsx
+// ✅ Good - use design tokens
+<div className="shadow-sm">Subtle elevation</div>
+<div className="shadow">Default card shadow</div>
+<div className="shadow-md">Medium elevation</div>
+<div className="shadow-lg">High elevation (modals)</div>
+<div className="shadow-xl">Maximum elevation (overlays)</div>
 
-Breakpoints: Keep default breakpoints (sm, md, lg, xl, 2xl) to adjust layouts. Design mobile-first: stack components on small screens and expand on larger ones.
+// ❌ Avoid - hardcoded shadows
+<div className="shadow-[0_8px_24px_rgba(0,0,0,0.35)]">Don't do this</div>
+```
 
-Containers: Set a max-width container (e.g. Tailwind’s container mx-auto) for page content to limit line length.
+---
 
-Grid & Flex: Use Tailwind’s grid and flex utilities for layout. Ensure elements like cards and tables are responsive (e.g. wrapping or horizontal scroll).
+## Surface Components
 
-Layout Shifts: Prevent cumulative layout shift by specifying width/height or aspect-w/h for images and components. Use Tailwind’s aspect-video or similar for media.
+```tsx
+// Basic card surface
+<div className="surface">Content with border</div>
 
-Visual Contrast: For important elements (CTA buttons, highlighted stats, active nav items), use the brand orange or dark/white contrasts. All text must meet contrast guidelines against its background. Use black on white or white on black for high-emphasis text.
+// Elevated surface with shadow
+<div className="surface-elevated">Card with elevation</div>
 
-Component Libraries (Shadcn UI, Radix UI, Lucide Icons)
+// Interactive surface (hover effects)
+<div className="surface-interactive">Clickable card</div>
+```
 
-Shadcn UI: Incorporate Shadcn’s React component library for common patterns (forms, buttons, cards). When initializing Shadcn (npx shadcn-ui@latest init), select “Yes” for CSS variables support
-dev.to
-. This setup creates index.css with default color variables and a .dark mode override
-dev.to
-. Continue using Shadcn components and theme them via the CSS variables defined.
+---
 
-Radix UI: For advanced interactive components (dialogs, popovers, dropdowns, tooltips, etc), use Radix primitives for accessibility. Style Radix components with Tailwind classes directly. For example:
+## Dark Mode
 
-<DropdownMenu.Trigger className="bg-brand hover:bg-brand-dark text-white font-bold py-2 px-4 rounded">
-  Open Menu
-</DropdownMenu.Trigger>
+### Automatic Theme Switching
 
+```tsx
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
-Tailwind classes can be applied on Radix’s Trigger, Content, Item, etc. This approach is explicitly recommended: “Tailwind CSS classes are directly applied to each component for styling” in Radix + Tailwind guides
-medium.com
-.
+<ThemeToggle />
+```
 
-Lucide Icons: Import Lucide icons and include them inline or via a <Icon /> component. Lucide icons default to currentColor
-lucide.dev
-, so set the icon color with Tailwind text color classes on the icon or its container. For instance: <IconName className="text-2xl text-brand" /> makes the icon orange. Define default icon size (e.g. h-6 w-6) and stroke width via Tailwind if needed. Use consistent sizing: e.g. headings use larger icons, body text use small icons.
+### Writing Dark Mode Styles
 
-Storybook: Use Storybook to develop and preview UI in isolation. In .storybook/preview.js, import your main CSS (which includes Tailwind and your variables) so all stories render with the correct theme
-storybook.js.org
-. Also install @storybook/addon-themes to toggle themes in Storybook. Configure it with withThemeByClassName (or by data attribute) to switch between light and dark
-storybook.js.org
-. Example in preview:
+```tsx
+// ✅ Automatic (preferred)
+<div className="bg-background text-foreground">Auto-adapts</div>
 
-import '../styles/globals.css'; // contains Tailwind imports
-import { withThemeByClassName } from '@storybook/addon-themes';
-export const decorators = [
-  withThemeByClassName({
-    themes: {
-      light: 'light',
-      dark: 'dark',
-    },
-    defaultTheme: 'light',
-  }),
-];
+// ✅ Manual (when needed)
+<div className="bg-white dark:bg-gray-900">Custom behavior</div>
 
-Global Styles and Tailwind Configuration
+// ❌ Avoid
+<div className="bg-white text-black">Doesn't adapt</div>
+```
 
-Global CSS: In your global stylesheet (e.g. globals.css or styles/tailwind.css), include Tailwind’s base, components, and utilities (@tailwind base; @tailwind components; @tailwind utilities;). Then declare all CSS variables (colors, fonts, spacing) under :root and a .dark class as shown above
-medium.com
-medium.com
-.
+---
 
-Tailwind Config:
+## Best Practices
 
-Set darkMode: 'class' (so adding a dark class toggles dark mode)
-dev.to
-.
+### ✅ DO
 
-Extend the colors palette to reference your CSS variables (as shown earlier).
+1. Use design tokens for all colors, typography, and spacing
+2. Use semantic classes (`.heading-3`, `.text-body`) over raw Tailwind
+3. Test in both light and dark themes
+4. Follow WCAG AA contrast guidelines
+5. Use the `cn()` utility to merge classNames
 
-Extend fontFamily if using a custom font: e.g. fontFamily: { sans: ['Inter', 'system-ui'], ... }.
+### ❌ DON'T
 
-(Optional) Define custom spacing or border radius if needed: you can map spacing: { '4xl': '64rem', ... } or similar. Example from [5]: they set --radius-sm, --radius-md, --radius-lg
-medium.com
- and could use these in Tailwind.
+1. Don't hardcode colors - use CSS variables
+2. Don't hardcode shadows - use shadow tokens
+3. Don't hardcode font sizes - use typography scale
+4. Don't use arbitrary values without justification
+5. Don't skip accessibility
 
-Use plugins if needed (e.g. @tailwindcss/forms for form resets, @tailwindcss/typography for prose styling).
+---
 
-Component Utilities: Use Tailwind’s @apply in a CSS file to define reusable utility classes (like buttons, headings) to avoid rewriting the same class sets. This keeps CSS DRY and optimizable.
+## Migration Guide
 
-Implementation Checklist
+When updating existing components:
 
-Set Up CSS Variables: In your global CSS (:root), define variables for background, foreground, brand, grays, font family, base size, radii, etc
-medium.com
-medium.com
-. Under .dark (or [data-theme="dark"]), override them for dark mode.
+```tsx
+// Before: Hardcoded shadow
+className="shadow-[0_8px_24px_-12px_rgba(0,0,0,0.35)]"
 
-Tailwind Configuration: Update tailwind.config.js as described: darkMode: 'class', extend colors using var(--*), set fonts if needed, import any required plugins. Ensure content paths include all component directories.
+// After: Design token
+className="shadow-md"
 
-Global Base Styles: In CSS or via Tailwind plugins, set default styles on body, h1, p, a, button, etc. For example, apply the global font family and base size, and link colors (e.g. use text-brand for <a> by default if appropriate).
+// Before: Hardcoded typography
+className="text-[13px] font-semibold uppercase tracking-[0.32em]"
 
-Typography Classes: Define heading and text classes using @apply in a CSS file (or via a CSS-in-JS theme) so that headings, paragraphs, buttons, etc. have uniform sizes and weights. Use semantic class names (e.g. .heading-1, .text-body) rather than arbitrary combinations.
+// After: Semantic class
+className="text-overline"
 
-Colors in Components: Whenever adding a component (card, button, stat, chart), apply the color classes or variables. Examples:
+// Before: Hardcoded heading
+<h2 className="text-2xl font-semibold text-foreground">Title</h2>
 
-Buttons/CTAs: Use bg-brand text-white (light mode) or bg-white text-brand with a border in dark mode for primary buttons. Use Tailwind’s dark: variant to invert if needed.
+// After: Semantic class
+<h2 className="heading-3">Title</h2>
+```
 
-Stats/Cards: A number or stat that needs emphasis could be text-brand or text-white on colored bg. Labels might use text-gray-500 or text-gray-900 for muted text.
+---
 
-Charts: For line/bar charts, use the brand orange for the primary series. For additional series, use a consistent accent (e.g. stroke-white or a gray). All text in charts should follow the theme (light or dark) for readability.
+## Resources
 
-Icons: Apply text-<color> to set icon color. E.g., <Icon className="text-brand" /> or <Icon className="text-gray-500" />.
+- **Tailwind CSS**: https://tailwindcss.com/docs
+- **shadcn/ui**: https://ui.shadcn.com
+- **WCAG Guidelines**: https://www.w3.org/WAI/WCAG21/quickref/
 
-Storybook: Ensure your Storybook main configuration includes PostCSS and your Tailwind setup. Import your compiled CSS in preview.js
-storybook.js.org
-. Use the theme decorator to add a toolbar toggle between light/dark
-storybook.js.org
-. Write stories for all key components, showing variations of color and size.
+---
 
-Responsive Design: For each component and page, test at different screen sizes. Use Tailwind’s responsive prefixes (e.g. md:px-8, lg:flex-row) to adjust layouts. Ensure no content overflows or shifts improperly when switching breakpoints.
-
-Testing & Review: Use Storybook and a tester to validate contrast. Check all text (especially stat numbers, CTAs) is at least AA compliant. Verify that brand orange is used only for accentuating, and never overridden or altered.
-
-Do’s and Don’ts
-
-Do rely on Tailwind’s utility classes and semantic component classes you create. Do not copy-paste style objects or inline styles.
-
-Do use the global theme variables for colors and fonts everywhere. Do not hard-code hex values in components.
-
-Do keep pages visually consistent: use the same header, footer, nav styling across pages. Common elements should reuse the same components and styles.
-
-Do highlight important elements with high-contrast colors (brand orange or pure black/white) to draw attention.
-
-Don’t introduce random colors or gradients. Stick to the defined palette.
-
-Don’t modify brand orange’s hex or use it in a less accessible saturation
-medium.com
-medium.com
-.
-
-Don’t use medium-gray backgrounds or text; use either very light or very dark neutrals
-medium.com
-.
-
-Don’t leave typography inconsistent: ensure every heading of the same level has the same class and style.
-
-By following these instructions, the lower-level agent should be able to update the project code directly: defining global CSS variables, configuring Tailwind, creating component classes, and ensuring every page and component adheres to this unified theme. Use the references as guides (e.g. the Shadcn+Tailwind Storybook example
-dev.to
-storybook.js.org
- and the theming article
-medium.com
-medium.com
-) to verify correct setup. Ensure no style deviates from this plan unless explicitly updated here.
+**Last Updated**: October 25, 2025 (Sprint 10)
