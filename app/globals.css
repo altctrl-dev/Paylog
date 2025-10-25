@@ -4,6 +4,7 @@
 
 @layer base {
   :root {
+    /* Colors */
     --background: 216 33% 97%;
     --foreground: 222 47% 6%;
     --surface: 0 0% 100%;
@@ -44,10 +45,45 @@
     --border: 220 18% 88%;
     --input: 220 18% 88%;
     --ring: 25 95% 53%;
+
+    /* Border Radius */
     --radius: 0.75rem;
+    --radius-sm: 0.5rem;
+    --radius-md: 0.75rem;
+    --radius-lg: 1rem;
+    --radius-xl: 1.5rem;
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+
+    /* Typography */
+    --font-size-xs: 0.75rem;
+    --font-size-sm: 0.875rem;
+    --font-size-base: 1rem;
+    --font-size-lg: 1.125rem;
+    --font-size-xl: 1.25rem;
+    --font-size-2xl: 1.5rem;
+    --font-size-3xl: 1.875rem;
+    --font-size-4xl: 2.25rem;
+
+    --line-height-tight: 1.25;
+    --line-height-snug: 1.375;
+    --line-height-normal: 1.5;
+    --line-height-relaxed: 1.625;
+    --line-height-loose: 2;
+
+    --font-weight-normal: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
   }
 
   .dark {
+    /* Colors */
     --background: 220 12% 6%;
     --foreground: 0 0% 96%;
     --surface: 220 10% 10%;
@@ -88,6 +124,13 @@
     --border: 220 7% 18%;
     --input: 220 7% 18%;
     --ring: 25 95% 56%;
+
+    /* Shadows for dark mode */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.25);
+    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.35), 0 2px 4px -2px rgb(0 0 0 / 0.35);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.4);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.45), 0 8px 10px -6px rgb(0 0 0 / 0.45);
   }
 }
 
@@ -95,8 +138,69 @@
   * {
     @apply border-border;
   }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-size: var(--font-size-base);
+    line-height: var(--line-height-normal);
+  }
+
+  /* Typography defaults */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold text-foreground;
+    line-height: var(--line-height-tight);
+  }
+
+  h1 {
+    font-size: var(--font-size-4xl);
+  }
+
+  h2 {
+    font-size: var(--font-size-3xl);
+  }
+
+  h3 {
+    font-size: var(--font-size-2xl);
+  }
+
+  h4 {
+    font-size: var(--font-size-xl);
+  }
+
+  h5 {
+    font-size: var(--font-size-lg);
+  }
+
+  h6 {
+    font-size: var(--font-size-base);
+  }
+
+  p {
+    line-height: var(--line-height-relaxed);
+    @apply text-foreground;
+  }
+
+  a {
+    @apply text-primary underline-offset-4 hover:underline;
+    transition: color 150ms ease-in-out;
+  }
+
+  /* Form elements */
+  button {
+    @apply transition-colors;
+  }
+
+  input, textarea, select {
+    @apply text-foreground;
+  }
+
+  /* Focus visible states */
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2;
   }
 }
 
@@ -146,5 +250,155 @@
   .panel-level:focus-visible {
     outline: 2px solid hsl(var(--ring));
     outline-offset: 2px;
+  }
+
+  /* Heading Scale Utilities */
+  .heading-1 {
+    font-size: var(--font-size-4xl);
+    font-weight: var(--font-weight-bold);
+    line-height: var(--line-height-tight);
+    @apply text-foreground;
+  }
+
+  .heading-2 {
+    font-size: var(--font-size-3xl);
+    font-weight: var(--font-weight-semibold);
+    line-height: var(--line-height-tight);
+    @apply text-foreground;
+  }
+
+  .heading-3 {
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-semibold);
+    line-height: var(--line-height-snug);
+    @apply text-foreground;
+  }
+
+  .heading-4 {
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-semibold);
+    line-height: var(--line-height-snug);
+    @apply text-foreground;
+  }
+
+  .heading-5 {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-medium);
+    line-height: var(--line-height-normal);
+    @apply text-foreground;
+  }
+
+  .heading-6 {
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-medium);
+    line-height: var(--line-height-normal);
+    @apply text-foreground;
+  }
+
+  /* Text Style Utilities */
+  .text-body {
+    font-size: var(--font-size-base);
+    line-height: var(--line-height-relaxed);
+    @apply text-foreground;
+  }
+
+  .text-body-sm {
+    font-size: var(--font-size-sm);
+    line-height: var(--line-height-relaxed);
+    @apply text-foreground;
+  }
+
+  .text-body-lg {
+    font-size: var(--font-size-lg);
+    line-height: var(--line-height-relaxed);
+    @apply text-foreground;
+  }
+
+  .text-label {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    line-height: var(--line-height-normal);
+    @apply text-muted-foreground;
+  }
+
+  .text-caption {
+    font-size: var(--font-size-xs);
+    line-height: var(--line-height-normal);
+    @apply text-muted-foreground;
+  }
+
+  .text-overline {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    line-height: var(--line-height-normal);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    @apply text-muted-foreground;
+  }
+
+  /* Surface Wrappers */
+  .surface {
+    @apply bg-surface text-surface-foreground rounded-md border border-border;
+  }
+
+  .surface-elevated {
+    @apply surface;
+    box-shadow: var(--shadow-md);
+  }
+
+  .surface-interactive {
+    @apply surface;
+    @apply transition-all hover:border-primary/50;
+    cursor: pointer;
+  }
+
+  .surface-interactive:hover {
+    box-shadow: var(--shadow);
+  }
+
+  /* Icon Helpers */
+  .icon {
+    @apply inline-flex items-center justify-center;
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  .icon-sm {
+    @apply icon;
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .icon-lg {
+    @apply icon;
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .icon-xl {
+    @apply icon;
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  /* Utility Classes */
+  .shadow-sm {
+    box-shadow: var(--shadow-sm);
+  }
+
+  .shadow {
+    box-shadow: var(--shadow);
+  }
+
+  .shadow-md {
+    box-shadow: var(--shadow-md);
+  }
+
+  .shadow-lg {
+    box-shadow: var(--shadow-lg);
+  }
+
+  .shadow-xl {
+    box-shadow: var(--shadow-xl);
   }
 }
