@@ -7,6 +7,7 @@
 'use client';
 
 import * as React from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { usePanel } from '@/hooks/use-panel';
@@ -17,7 +18,9 @@ import {
 } from '@/app/actions/master-data-requests';
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = React.useState<'profile' | 'requests'>('profile');
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const activeTab = (searchParams.get('tab') as 'profile' | 'requests') || 'profile';
   const [requests, setRequests] = React.useState<MasterDataRequestWithDetails[]>([]);
   const [isLoading, setIsLoading] = React.useState(false);
   const [filter, setFilter] = React.useState<MasterDataEntityType | 'all'>('all');
@@ -45,6 +48,10 @@ export default function SettingsPage() {
       loadRequests();
     }
   }, [activeTab, loadRequests]);
+
+  const handleTabChange = (tab: 'profile' | 'requests') => {
+    router.push(`/settings?tab=${tab}`);
+  };
 
   const handleNewRequest = (entityType: MasterDataEntityType) => {
     openPanel('master-data-request-form', { entityType }, { width: 600 });
@@ -105,7 +112,7 @@ export default function SettingsPage() {
       <div className="border-b border-gray-200">
         <nav className="-mb-px flex space-x-8">
           <button
-            onClick={() => setActiveTab('profile')}
+            onClick={() => handleTabChange('profile')}
             className={`
               whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium
               ${
@@ -118,7 +125,7 @@ export default function SettingsPage() {
             Profile
           </button>
           <button
-            onClick={() => setActiveTab('requests')}
+            onClick={() => handleTabChange('requests')}
             className={`
               whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium flex items-center gap-2
               ${
@@ -158,7 +165,7 @@ export default function SettingsPage() {
                 <span className="text-sm font-medium">Filter:</span>
                 <select
                   value={filter}
-                  onChange={(e) => setFilter(e.target.value as any)}
+                  onChange={(e) => setFilter(e.target.value as MasterDataEntityType | 'all')}
                   className="rounded border border-gray-300 px-3 py-1 text-sm"
                 >
                   <option value="all">All Types</option>
@@ -232,7 +239,7 @@ export default function SettingsPage() {
                         </span>
                       </div>
                       <p className="font-semibold text-lg">
-                        {(request.request_data as any).name}
+                        {request.request_data.name}
                       </p>
                       <p className="text-sm text-muted-foreground mt-1">
                         Created {formatDate(request.created_at)}

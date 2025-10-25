@@ -1,9 +1,9 @@
 # PayLog Sprint Plan (Revised)
 
-**Last Updated**: October 24, 2025
+**Last Updated**: October 25, 2025
 **Total Story Points**: 202 SP
-**Completed**: 144 SP (71.3%)
-**Remaining**: 58 SP (28.7%)
+**Completed**: 156 SP (77.2%)
+**Remaining**: 46 SP (22.8%)
 
 ---
 
@@ -20,8 +20,8 @@
 | Sprint 7 | ✅ Complete | 14 SP | Activity Logging & Collaboration |
 | Sprint 8 | ✅ Complete | 13 SP | Master Data Management (Admin) |
 | Sprint 9A | ✅ Complete | 14 SP | Admin Reorganization & Enhanced Master Data |
-| **Sprint 9B** | **🚀 Next** | **12 SP** | **Invoice Profile Enhancement** |
-| **Sprint 9C** | **🔲 Planned** | **3 SP** | **UX Polish (URL Routing)** |
+| Sprint 9B | ✅ Complete | 12 SP | Invoice Profile Enhancement |
+| **Sprint 9C** | **🚀 Next** | **3 SP** | **UX Polish (URL Routing)** |
 | Sprint 10 | 🔲 Planned | 16 SP | Design System & Styling Refactor |
 | Sprint 11 | 🔲 Planned | 12 SP | User Management & RBAC |
 | Sprint 12 | 🔲 Planned | 14 SP | Dashboard & Analytics |
@@ -217,15 +217,17 @@
 
 ---
 
-## 🔲 Sprint 9B: Invoice Profile Enhancement (12 SP)
+## ✅ Sprint 9B: Invoice Profile Enhancement (12 SP)
 
-**Status**: 🔲 **PLANNED**
+**Status**: ✅ **COMPLETE** (Deployed October 25, 2025)
 **Goal**: Enhance invoice profiles with 12 comprehensive fields, implement profile-based invoice creation
+**Commit**: `8a2c406`
+**Progress**: 156/202 SP Complete (77.2%)
 
-### Deliverables
+### ✅ Completed Phases (4/4)
 
-#### **Phase 1: Schema Migration** (2 SP)
-- [ ] Add 7 new fields to `InvoiceProfile`:
+#### **Phase 1: Schema Migration** (2 SP) - COMPLETE ✅
+- ✅ Added 7 new fields to `InvoiceProfile`:
   - `entity_id` (Int, required) - Foreign key to Entity
   - `vendor_id` (Int, required) - Foreign key to Vendor
   - `category_id` (Int, required) - Foreign key to Category
@@ -233,12 +235,12 @@
   - `prepaid_postpaid` (String?, optional) - 'prepaid' or 'postpaid'
   - `tds_applicable` (Boolean, required, default false)
   - `tds_percentage` (Float?, optional) - Required if tds_applicable=true
-- [ ] Create foreign key constraints with `onDelete: Restrict`
-- [ ] Add indexes on all foreign keys
-- [ ] Migrate existing profiles (set default values for new fields)
+- ✅ Created foreign key constraints with `onDelete: Restrict`
+- ✅ Added indexes on all foreign keys
+- ✅ Migrated existing profiles (backfilled with first active entity/vendor/category/currency)
 
-#### **Phase 2: Invoice Profile CRUD UI** (4 SP)
-- [ ] Build 12-field Invoice Profile form:
+#### **Phase 2: Invoice Profile CRUD UI** (4 SP) - COMPLETE ✅
+- ✅ Built 12-field Invoice Profile form:
   - Profile Name (required)
   - Entity (required, dropdown)
   - Description (optional, textarea)
@@ -248,43 +250,52 @@
   - Prepaid/Postpaid (optional, radio buttons)
   - TDS Applicable (required, checkbox)
   - TDS Percentage (required if applicable, number input)
-- [ ] Conditional TDS percentage field (show only if TDS applicable)
-- [ ] Validation: TDS percentage required if TDS applicable
-- [ ] ❌ NO `is_active` checkbox in form
-- [ ] Archive/unarchive via trash icon in table
+- ✅ Conditional TDS percentage field (show only if TDS applicable)
+- ✅ Validation: TDS percentage required if TDS applicable
+- ✅ NO `is_active` checkbox in form
+- ✅ Archive/unarchive via trash icon in table
 
-#### **Phase 3: Invoice Creation with Profiles** (4 SP)
-- [ ] Update invoice form to lock vendor/entity when profile selected
-- [ ] Pre-fill fields from profile:
-  - **LOCKED**: Vendor (disabled dropdown + tooltip)
-  - **LOCKED**: Entity (disabled dropdown + tooltip)
-  - **EDITABLE**: Category (pre-filled, can change)
+#### **Phase 3: Invoice Creation with Profiles** (4 SP) - COMPLETE ✅
+- ✅ Updated invoice form to lock vendor/entity/category when profile selected
+- ✅ Pre-filled fields from profile:
+  - **LOCKED**: Vendor (disabled dropdown)
+  - **LOCKED**: Entity (disabled dropdown)
+  - **LOCKED**: Category (disabled dropdown)
+  - **EDITABLE**: Currency (pre-filled, integrated with amount field)
   - **EDITABLE**: TDS Applicable (pre-filled, can toggle)
   - **EDITABLE**: TDS Percentage (pre-filled, can edit)
-  - **EDITABLE**: Currency (shown, auto-set from profile)
-- [ ] Visual indicators for locked fields (gray background + lock icon)
-- [ ] Handle profile change (reset locked fields, keep user data)
-- [ ] Add "+ Add New Invoice Profile" link (admin only)
-  - Shows confirmation dialog
-  - Saves current invoice as draft (localStorage)
-  - Navigates to `/admin/master-data/invoice-profiles/new?returnTo=invoice-draft`
-  - After creation, redirects back with draft restored
-  - Auto-selects new profile
-- [ ] ❌ Remove "+ Request New Invoice Profile" link (standard users)
-- [ ] Keep "+ Add New Vendor" link (admin only, opens panel)
-- [ ] ❌ Remove "+ Request New Vendor" link (standard users)
+- ✅ Profile change handling (reset all fields, refetch profile data)
+- ✅ Removed ALL "+ Request New" and "+ Add New" links from invoice form
+- ✅ Admin approval bypass: Admins → "unpaid", Standard users → "pending_approval"
 
-#### **Phase 4: Testing & QA** (2 SP)
-- [ ] Test all CRUD operations on invoice profiles
-- [ ] Test invoice creation from profiles
-- [ ] Test locked vs. editable field behavior
-- [ ] Test admin quick-create workflows (vendor panel + profile navigation)
-- [ ] Test draft save/restore for invoice profiles
-- [ ] Verify RBAC (standard users can't access admin routes)
-- [ ] Test with multiple currencies
-- [ ] Test TDS conditional logic
-- [ ] Run lint, typecheck, build
-- [ ] Test on PostgreSQL (local + Railway)
+#### **Phase 3.5: UX Refinements** (User Feedback) - COMPLETE ✅
+- ✅ Made period dates optional with conditional validation
+  - Both period_start and period_end nullable
+  - Validation: if one provided, both required
+  - Validation: period_end >= period_start
+- ✅ Integrated currency dropdown with amount field
+  - 140px currency dropdown (left) + amount input (right)
+  - Shows code + symbol in dropdown (e.g., "USD $")
+- ✅ Disabled TDS percentage scroll-to-increment
+  - Added `onWheel={(e) => e.currentTarget.blur()}` to prevent accidental changes
+- ✅ Removed ALL request/add links from invoice form
+  - Cleaner UX for all users
+- ✅ Implemented admin approval bypass
+  - Admin-created invoices → "unpaid" status (skip approval)
+  - Standard user invoices → "pending_approval" (existing behavior)
+  - Standard user edits to approved invoices → "pending_approval" (re-approval)
+
+#### **Phase 4: Testing & QA** (2 SP) - COMPLETE ✅
+- ✅ Tested all CRUD operations on invoice profiles
+- ✅ Tested invoice creation with profile pre-filling
+- ✅ Tested locked field behavior (vendor/entity/category disabled when profile selected)
+- ✅ Tested editable field behavior (currency/TDS can be modified)
+- ✅ Tested profile change (fields reset correctly)
+- ✅ Verified RBAC (admin approval bypass working)
+- ✅ Tested with multiple currencies (USD, INR, EUR)
+- ✅ Tested TDS conditional logic
+- ✅ Ran lint, typecheck, build (all passed)
+- ✅ Tested on PostgreSQL (local + Railway production)
 
 ### Technical Highlights
 - 12-field invoice profiles (comprehensive template)
@@ -294,13 +305,37 @@
 - Currency integration (multi-currency support)
 - TDS conditional logic (show percentage only if applicable)
 
+### Migration Results Summary
+
+**Database Changes Applied (Production):**
+- ✅ Sprint 9A migration: Created entities, currencies tables
+- ✅ Sprint 9B migration: Added 7 fields to invoice_profiles
+- ✅ Foreign key constraints: entity_id, vendor_id, category_id, currency_id
+- ✅ Indexes created on all FK columns
+- ✅ Check constraints: prepaid_postpaid IN ('prepaid', 'postpaid'), tds_percentage 0-100
+
+**Seeded Master Data (Production):**
+- ✅ 3 active currencies: USD, INR, EUR (50 total currencies available)
+- ✅ 1 default entity (placeholder address, needs admin update)
+- ✅ 1 default vendor
+- ✅ 1 default category
+
+**Deployment Status:**
+- Commit: `8a2c406`
+- Deployed: October 25, 2025
+- Environment: Railway Production (https://paylog-production.up.railway.app)
+- Status: ✅ Operational
+
 ### Acceptance Criteria
 - ✅ Invoice profiles have 12 fields (7 new + 5 existing)
-- ✅ Foreign keys to Entity, Vendor, Category, Currency
-- ✅ Invoice form locks vendor/entity when profile selected
-- ✅ Category/TDS/Currency pre-filled but editable
-- ✅ Admin "+ Add New Invoice Profile" navigates with draft save
-- ✅ Admin "+ Add New Vendor" opens panel (quick create)
+- ✅ Foreign keys to Entity, Vendor, Category, Currency with RESTRICT
+- ✅ Invoice form locks vendor/entity/category when profile selected
+- ✅ Currency/TDS pre-filled but editable
+- ✅ Period dates optional with conditional validation
+- ✅ Currency integrated with amount field (split layout)
+- ✅ TDS scroll-to-increment disabled
+- ✅ ALL request/add links removed from invoice form
+- ✅ Admin approval bypass implemented (admins → unpaid)
 - ✅ Standard users see NO quick-create links
 - ✅ TDS percentage field conditional on TDS applicable
 - ✅ All quality gates pass (lint, typecheck, build, tests)
@@ -573,10 +608,10 @@
 
 ## 📈 Sprint Velocity
 
-**Average SP per Sprint**: 16.0 SP (144 SP / 9 sprints completed)
+**Average SP per Sprint**: 15.6 SP (156 SP / 10 sprints completed)
 **Estimated Completion**: 14 sprints total (revised from 13)
-**Current Progress**: Sprint 9A Complete, Sprint 9B Next
-**Story Point Progress**: 144/202 SP (71.3% complete)
+**Current Progress**: Sprint 9B Complete, Sprint 9C Next
+**Story Point Progress**: 156/202 SP (77.2% complete)
 
 **Sprint Completions**:
 - Sprint 1: 13 SP ✅
@@ -588,10 +623,10 @@
 - Sprint 7: 14 SP ✅ (on target, activity logging & collaboration)
 - Sprint 8: 13 SP ✅ (on target, master data management)
 - Sprint 9A: 14 SP ✅ (admin reorganization, deployed Oct 24)
+- Sprint 9B: 12 SP ✅ (invoice profile enhancement, deployed Oct 25)
 
 **Remaining Sprints**:
-- Sprint 9B: 12 SP 🚀 (next - invoice profile enhancement)
-- Sprint 9C: 3 SP 🔲 (UX polish - URL routing)
+- Sprint 9C: 3 SP 🚀 (next - UX polish: URL routing)
 - Sprint 10: 16 SP 🔲 (design system & styling refactor)
 - Sprint 11: 12 SP 🔲 (user management & RBAC)
 - Sprint 12: 14 SP 🔲 (dashboard & analytics)
@@ -599,17 +634,17 @@
 
 ---
 
-## 🎯 Current Focus: Sprint 9B
+## 🎯 Current Focus: Sprint 9C
 
-**Priority**: Invoice Profile Enhancement with 12 fields
+**Priority**: UX Polish - URL Routing with query parameters
 **Blockers**: None
-**Dependencies**: Sprint 9A complete ✅
+**Dependencies**: Sprint 9B complete ✅
 
-**Sprint 9B Goals**:
-1. Add 7 new fields to InvoiceProfile (entity, vendor, category, currency, prepaid/postpaid, TDS)
-2. Lock vendor/entity fields when profile selected in invoice form
-3. Admin quick-create workflows (vendor panel + profile navigation)
-4. Draft save/restore for complex profile creation
+**Sprint 9C Goals**:
+1. Add query parameter support to Settings page tabs (`/settings?tab=profile|requests`)
+2. Add query parameters to Admin master data sub-tabs (`/admin?tab=master-data&subtab=vendors`)
+3. Enable browser back/forward navigation
+4. Make all tabs bookmarkable and shareable
 
 ---
 
@@ -619,15 +654,23 @@
 - ✅ **Milestone 1**: Core Invoice Management (Sprints 1-4) - 75 SP
 - ✅ **Milestone 2**: Collaboration & Master Data (Sprints 5-8) - 52 SP
 - ✅ **Milestone 3**: Admin Reorganization (Sprint 9A) - 14 SP
+- ✅ **Milestone 4**: Invoice Profile Enhancement (Sprint 9B) - 12 SP
 
 ### Upcoming Milestones
-- 🚀 **Milestone 4**: Enhanced Profiles & UX (Sprints 9B-9C) - 15 SP
-- 🔲 **Milestone 5**: Design System & User Management (Sprints 10-11) - 28 SP
-- 🔲 **Milestone 6**: Dashboard & Production Launch (Sprints 12-13) - 23 SP
+- 🚀 **Milestone 5**: UX Polish & Design System (Sprints 9C-10) - 19 SP
+- 🔲 **Milestone 6**: User Management & Dashboard (Sprints 11-12) - 26 SP
+- 🔲 **Milestone 7**: Production Launch (Sprint 13) - 9 SP
 
 ---
 
 ## 🔄 Version History
+
+### Version 3.1 (October 25, 2025)
+- Sprint 9B complete and deployed to production
+- Database migrations: Sprint 9A + 9B applied to Railway production
+- Seeded production with minimal master data (1 entity, 1 vendor, 1 category, 3 currencies)
+- Phase 3.5 UX refinements implemented based on user feedback
+- Updated story points: 156/202 SP complete (77.2%)
 
 ### Version 3.0 (October 24, 2025)
 - Sprint 9A complete and deployed to production
@@ -654,6 +697,6 @@
 
 ---
 
-**Last Updated**: October 24, 2025
-**Next Review**: After Sprint 9B completion
-**Status**: Active Development - Sprint 9A Deployed 🚀
+**Last Updated**: October 25, 2025
+**Next Review**: After Sprint 9C completion
+**Status**: Active Development - Sprint 9B Deployed 🚀

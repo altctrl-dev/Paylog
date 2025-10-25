@@ -15,7 +15,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import VendorManagement from '@/components/master-data/vendor-management';
 import CategoryManagement from '@/components/master-data/category-management';
 import EntityManagement from '@/components/master-data/entity-management';
@@ -26,7 +26,9 @@ import InvoiceProfileManagement from '@/components/master-data/invoice-profile-m
 type TabValue = 'vendors' | 'categories' | 'entities' | 'payment-types' | 'currencies' | 'profiles';
 
 export default function MasterDataManagement() {
-  const [activeTab, setActiveTab] = useState<TabValue>('vendors');
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const activeTab = (searchParams.get('subtab') as TabValue) || 'vendors';
 
   const tabs: { value: TabValue; label: string }[] = [
     { value: 'vendors', label: 'Vendors' },
@@ -36,6 +38,10 @@ export default function MasterDataManagement() {
     { value: 'currencies', label: 'Currencies' },
     { value: 'profiles', label: 'Invoice Profiles' },
   ];
+
+  const handleSubTabChange = (subtab: TabValue) => {
+    router.push(`/admin?tab=master-data&subtab=${subtab}`);
+  };
 
   return (
     <div className="space-y-6">
@@ -53,7 +59,7 @@ export default function MasterDataManagement() {
           {tabs.map((tab) => (
             <button
               key={tab.value}
-              onClick={() => setActiveTab(tab.value)}
+              onClick={() => handleSubTabChange(tab.value)}
               className={`
                 whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium transition-colors
                 ${
