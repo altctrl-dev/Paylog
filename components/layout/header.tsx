@@ -16,9 +16,9 @@ interface HeaderProps {
   onToggleSidebar?: () => void;
 }
 
-export function Header({ user, onToggleSidebar }: HeaderProps) {
+export function Header({ onToggleSidebar }: HeaderProps) {
   return (
-    <header className="sticky top-0 z-30 flex h-20 items-center border-b border-navbar-border bg-[var(--navbar-bg)] px-6 backdrop-blur-md shadow-[0_8px_24px_-12px_rgba(0,0,0,0.35)]">
+    <header className="sticky top-0 z-30 flex h-20 items-center border-b border-navbar-border bg-[var(--navbar-bg)] px-6 backdrop-blur-md shadow-md">
       <div className="flex w-full items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <Button
@@ -34,10 +34,10 @@ export function Header({ user, onToggleSidebar }: HeaderProps) {
             <Menu className="h-4 w-4" />
           </Button>
           <div className="flex flex-col leading-tight">
-            <span className="text-[13px] font-semibold uppercase tracking-[0.32em] text-muted-foreground">
+            <span className="text-overline">
               PayLog
             </span>
-            <span className="text-xl font-semibold text-foreground">
+            <span className="heading-5">
               Invoice Management Console
             </span>
           </div>

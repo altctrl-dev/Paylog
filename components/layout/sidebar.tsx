@@ -80,7 +80,7 @@ export function Sidebar({ collapsed, onToggle, user }: SidebarProps) {
     >
       <div className="flex items-center justify-between border-b border-sidebar-border px-4 py-4">
         {!collapsed && (
-          <span className="text-[11px] font-semibold uppercase tracking-[0.32em] text-muted-foreground">
+          <span className="text-overline">
             Navigation
           </span>
         )}
