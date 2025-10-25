@@ -79,3 +79,89 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
   },
 });
+
+// ============================================================================
+// Permission Helper Functions (Sprint 11)
+// ============================================================================
+
+import type { UserRole } from '@/lib/types/user-management';
+
+/**
+ * Check if the current user is a super admin
+ */
+export async function isSuperAdmin(): Promise<boolean> {
+  const session = await auth();
+  return session?.user?.role === 'super_admin';
+}
+
+/**
+ * Check if the current user is an admin or super admin
+ */
+export async function isAdmin(): Promise<boolean> {
+  const session = await auth();
+  return session?.user?.role === 'admin' || session?.user?.role === 'super_admin';
+}
+
+/**
+ * Require super admin role or throw error
+ */
+export async function requireSuperAdmin(): Promise<void> {
+  const isSuperAdminUser = await isSuperAdmin();
+  if (!isSuperAdminUser) {
+    throw new Error('Unauthorized: Super admin access required');
+  }
+}
+
+/**
+ * Require admin role (admin or super_admin) or throw error
+ */
+export async function requireAdmin(): Promise<void> {
+  const isAdminUser = await isAdmin();
+  if (!isAdminUser) {
+    throw new Error('Unauthorized: Admin access required');
+  }
+}
+
+/**
+ * Get the current user's ID from session
+ */
+export async function getCurrentUserId(): Promise<number | null> {
+  const session = await auth();
+  return session?.user?.id ? parseInt(session.user.id, 10) : null;
+}
+
+/**
+ * Get the current user's role from session
+ */
+export async function getCurrentUserRole(): Promise<UserRole | null> {
+  const session = await auth();
+  return (session?.user?.role as UserRole) || null;
+}
+
+/**
+ * Check if a user ID is the last super admin
+ * @param userId - User ID to check
+ * @returns true if this is the last super admin
+ */
+export async function isLastSuperAdmin(userId: number): Promise<boolean> {
+  const superAdminCount = await db.user.count({
+    where: {
+      role: 'super_admin',
+      is_active: true,
+    },
+  });
+
+  if (superAdminCount !== 1) {
+    return false;
+  }
+
+  // Check if the single super admin is this user
+  const superAdmin = await db.user.findFirst({
+    where: {
+      role: 'super_admin',
+      is_active: true,
+    },
+  });
+
+  return superAdmin?.id === userId;
+}
