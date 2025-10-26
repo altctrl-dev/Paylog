@@ -596,6 +596,29 @@
 ### Commits
 - `28b1113` - Phase 1: Database & Contracts
 - `4b5e442` - Phase 2: Server Actions & API
+- `03b3bed` - Railway deployment fix (postinstall script)
+
+### ⚠️ Phase 3 Attempt & Revert
+
+**Date**: October 26, 2025 (continuation session)
+
+**What Happened**: Phase 3 was attempted and implemented (1,042 lines across 10 files), but was reverted due to build errors and misaligned session continuation.
+
+**Reverted Commits**:
+- `95b38a3` - "feat: Sprint 11 Phase 3 - User Management UI" (reverted)
+- `b2909ec` - "fix: Remove 'server-only' import from lib/auth.ts" (reverted)
+
+**Reason for Revert**:
+1. Session continuation proceeded without explicit user instruction
+2. Exposed latent bug: `import 'server-only'` in lib/auth.ts caused Next.js build failures
+3. Local site showed blank white page, Railway deployment failed
+4. User requested revert to last stable state
+
+**Current Status**: Clean revert to commit `03b3bed`. Phase 3 will be reimplemented in future session.
+
+**Known Issue**: The `import 'server-only'` statement in `lib/auth.ts:1` may cause build errors. If encountered, remove this line (functions are already server-only via NextAuth).
+
+See **docs/SESSION_SUMMARY_2025_10_26.md Section 5** for full revert details.
 
 ### Files Created
 - `lib/types/user-management.ts` - TypeScript contracts (187 lines)
