@@ -2,99 +2,135 @@
  * User Management Component
  *
  * Super Admin only feature for managing users, roles, and permissions.
- * Placeholder for Sprint 10 - User Management.
+ * Renders inline within the Admin Console page.
  *
- * Created as part of Sprint 9A Phase 4 corrections.
+ * Sprint 11 Phase 3: User Management UI
  */
 
 'use client';
 
 import * as React from 'react';
-import { Card } from '@/components/ui/card';
-import { Shield, Users, UserPlus, Settings } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import type { UserWithStats } from '@/lib/types/user-management';
+import { listUsers } from '@/lib/actions/user-management';
+import {
+  UsersDataTable,
+  UserPanelRenderer,
+} from '@/components/users';
+import { Button } from '@/components/ui/button';
+import { Plus, Loader2 } from 'lucide-react';
 
 export default function UserManagement() {
-  return (
-    <div className="space-y-6">
-      {/* Coming Soon Notice */}
-      <Card className="p-6 bg-purple-50 border-purple-200">
-        <div className="flex items-center gap-3 mb-3">
-          <Shield className="h-6 w-6 text-purple-600" />
-          <h2 className="text-xl font-semibold text-purple-900">User Management - Coming in Sprint 10</h2>
+  const [users, setUsers] = useState<UserWithStats[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch users on mount
+  useEffect(() => {
+    async function fetchUsers() {
+      setIsLoading(true);
+      const result = await listUsers({ page: 1, pageSize: 50 });
+
+      if (result.success) {
+        setUsers(result.data.users);
+        setError(null);
+      } else {
+        setError(result.error);
+      }
+
+      setIsLoading(false);
+    }
+
+    fetchUsers();
+  }, []);
+
+  /**
+   * Refresh users data after mutations
+   */
+  const handleRefreshData = useCallback(async () => {
+    const result = await listUsers({
+      page: 1,
+      pageSize: 50,
+    });
+
+    if (result.success) {
+      setUsers(result.data.users);
+    }
+  }, []);
+
+  /**
+   * Open create user form
+   */
+  const handleCreateUser = () => {
+    setIsCreating(true);
+  };
+
+  /**
+   * Select user for detail view
+   */
+  const handleSelectUser = (userId: number | null) => {
+    setSelectedUserId(userId);
+  };
+
+  /**
+   * Handle edit user action
+   */
+  const handleEditUser = (userId: number) => {
+    setSelectedUserId(userId);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <p className="text-destructive font-medium">Error loading users</p>
+          <p className="text-sm text-muted-foreground mt-2">{error}</p>
         </div>
-        <p className="text-sm text-purple-700">
-          This section will allow Super Admins to manage users, assign roles, and configure permissions.
-        </p>
-        <p className="text-xs text-purple-600 mt-2">
-          Only Super Admin users can access this feature.
-        </p>
-      </Card>
+      </div>
+    );
+  }
 
-      {/* Feature Preview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="p-6 text-center">
-          <Users className="h-8 w-8 mx-auto text-gray-400 mb-3" />
-          <h3 className="font-semibold text-sm mb-2">View All Users</h3>
-          <p className="text-xs text-muted-foreground">
-            Browse and search all system users
+  return (
+    <div className="space-y-4">
+      {/* Header with Create Button */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold">Users</h2>
+          <p className="text-sm text-muted-foreground">
+            Manage user accounts, roles, and permissions
           </p>
-        </Card>
-
-        <Card className="p-6 text-center">
-          <UserPlus className="h-8 w-8 mx-auto text-gray-400 mb-3" />
-          <h3 className="font-semibold text-sm mb-2">Add New Users</h3>
-          <p className="text-xs text-muted-foreground">
-            Create new user accounts
-          </p>
-        </Card>
-
-        <Card className="p-6 text-center">
-          <Shield className="h-8 w-8 mx-auto text-gray-400 mb-3" />
-          <h3 className="font-semibold text-sm mb-2">Manage Roles</h3>
-          <p className="text-xs text-muted-foreground">
-            Assign and modify user roles
-          </p>
-        </Card>
-
-        <Card className="p-6 text-center">
-          <Settings className="h-8 w-8 mx-auto text-gray-400 mb-3" />
-          <h3 className="font-semibold text-sm mb-2">Permissions</h3>
-          <p className="text-xs text-muted-foreground">
-            Configure role-based permissions
-          </p>
-        </Card>
+        </div>
+        <Button onClick={handleCreateUser}>
+          <Plus className="h-4 w-4 mr-2" />
+          Create User
+        </Button>
       </div>
 
-      {/* Planned Features */}
-      <Card className="p-6">
-        <h3 className="text-lg font-semibold mb-4">Planned Features</h3>
-        <ul className="space-y-2 text-sm text-muted-foreground">
-          <li className="flex items-start gap-2">
-            <span className="text-purple-600 mt-0.5">•</span>
-            <span>User list with search, filter, and pagination</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="text-purple-600 mt-0.5">•</span>
-            <span>Create, edit, and deactivate user accounts</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="text-purple-600 mt-0.5">•</span>
-            <span>Role assignment (Standard User, Admin, Super Admin)</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="text-purple-600 mt-0.5">•</span>
-            <span>Permission matrix for granular access control</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="text-purple-600 mt-0.5">•</span>
-            <span>User activity logs and audit trail</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="text-purple-600 mt-0.5">•</span>
-            <span>Bulk user operations (import, export, update)</span>
-          </li>
-        </ul>
-      </Card>
+      {/* Users Table */}
+      <UsersDataTable
+        initialUsers={users}
+        onSelectUser={handleSelectUser}
+        onEditUser={handleEditUser}
+      />
+
+      {/* Stacked Panels */}
+      <UserPanelRenderer
+        selectedUserId={selectedUserId}
+        onSelectUser={setSelectedUserId}
+        onRefreshData={handleRefreshData}
+        showCreateForm={isCreating}
+        onCloseCreateForm={() => setIsCreating(false)}
+      />
     </div>
   );
 }

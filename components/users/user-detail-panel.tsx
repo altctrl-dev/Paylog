@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { getUserById, deactivateUser, reactivateUser } from '@/lib/actions/user-management';
 import type { UserDetailed } from '@/lib/types/user-management';
-import { UserStatusBadge } from '@/components/users';
+import { UserStatusBadge, LastSuperAdminWarningDialog } from '@/components/users';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -28,6 +28,7 @@ export function UserDetailPanel({
   const [isLoading, setIsLoading] = useState(true);
   const [isDeactivating, setIsDeactivating] = useState(false);
   const [isLastSuperAdmin, setIsLastSuperAdmin] = useState(false);
+  const [showLastSuperAdminWarning, setShowLastSuperAdminWarning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -64,6 +65,12 @@ export function UserDetailPanel({
 
   async function handleToggleStatus() {
     if (!user) return;
+
+    // Show warning dialog if trying to deactivate last super admin
+    if (user.is_active && isLastSuperAdmin) {
+      setShowLastSuperAdminWarning(true);
+      return;
+    }
 
     setIsDeactivating(true);
 
@@ -204,7 +211,7 @@ export function UserDetailPanel({
                 variant={user.is_active ? 'destructive' : 'default'}
                 className="w-full justify-start"
                 onClick={handleToggleStatus}
-                disabled={isDeactivating || isLastSuperAdmin}
+                disabled={isDeactivating}
               >
                 {isDeactivating ? (
                   <>
@@ -227,16 +234,20 @@ export function UserDetailPanel({
                   </>
                 )}
               </Button>
-
-              {isLastSuperAdmin && (
-                <p className="text-xs text-muted-foreground text-center mt-2">
-                  Cannot deactivate the last super admin
-                </p>
-              )}
             </div>
           </>
         )}
       </div>
+
+      {/* Last Super Admin Warning Dialog */}
+      {user && (
+        <LastSuperAdminWarningDialog
+          open={showLastSuperAdminWarning}
+          onClose={() => setShowLastSuperAdminWarning(false)}
+          action="deactivate"
+          userName={user.full_name}
+        />
+      )}
     </div>
   );
 }

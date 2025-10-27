@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createUser, updateUser, getUserById } from '@/lib/actions/user-management';
+import { createUser, updateUser, getUserById, validateRoleChange } from '@/lib/actions/user-management';
 import type { UserRole } from '@/lib/types/user-management';
-import { RoleSelector } from '@/components/users';
+import { RoleSelector, RoleChangeConfirmationDialog, LastSuperAdminWarningDialog } from '@/components/users';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,8 +22,11 @@ export function UserFormPanel({ userId, onClose, onSuccess }: UserFormPanelProps
     email: '',
     role: 'standard_user' as UserRole,
   });
+  const [originalRole, setOriginalRole] = useState<UserRole | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingUser, setIsLoadingUser] = useState(false);
+  const [showRoleChangeConfirmation, setShowRoleChangeConfirmation] = useState(false);
+  const [showLastSuperAdminWarning, setShowLastSuperAdminWarning] = useState(false);
   const [errors, setErrors] = useState<{
     email?: string;
     form?: string;
@@ -38,11 +41,13 @@ export function UserFormPanel({ userId, onClose, onSuccess }: UserFormPanelProps
         const result = await getUserById(userId as number);
 
         if (result.success) {
+          const role = result.data.role as UserRole;
           setFormData({
             full_name: result.data.full_name,
             email: result.data.email,
-            role: result.data.role as UserRole,
+            role,
           });
+          setOriginalRole(role); // Save original role for comparison
         } else {
           toast({
             title: 'Error',
@@ -72,6 +77,28 @@ export function UserFormPanel({ userId, onClose, onSuccess }: UserFormPanelProps
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErrors({});
+
+    // Check for role change in edit mode
+    if (userId && originalRole && formData.role !== originalRole) {
+      // Validate role change
+      const validation = await validateRoleChange(userId, formData.role);
+
+      if (validation.success && !validation.data.can_change) {
+        // Last super admin - show warning dialog
+        setShowLastSuperAdminWarning(true);
+        return;
+      }
+
+      // Role change is allowed - show confirmation dialog
+      setShowRoleChangeConfirmation(true);
+      return;
+    }
+
+    // No role change or create mode - proceed directly
+    await performSave();
+  }
+
+  async function performSave() {
     setIsSaving(true);
 
     const result = userId
@@ -117,6 +144,11 @@ export function UserFormPanel({ userId, onClose, onSuccess }: UserFormPanelProps
     }
 
     setIsSaving(false);
+  }
+
+  function handleConfirmRoleChange() {
+    setShowRoleChangeConfirmation(false);
+    performSave();
   }
 
   return (
@@ -215,6 +247,27 @@ export function UserFormPanel({ userId, onClose, onSuccess }: UserFormPanelProps
           </div>
         </form>
       )}
+
+      {/* Role Change Confirmation Dialog */}
+      {originalRole && (
+        <RoleChangeConfirmationDialog
+          open={showRoleChangeConfirmation}
+          onClose={() => setShowRoleChangeConfirmation(false)}
+          onConfirm={handleConfirmRoleChange}
+          userName={formData.full_name}
+          currentRole={originalRole}
+          newRole={formData.role}
+          isLoading={isSaving}
+        />
+      )}
+
+      {/* Last Super Admin Warning Dialog */}
+      <LastSuperAdminWarningDialog
+        open={showLastSuperAdminWarning}
+        onClose={() => setShowLastSuperAdminWarning(false)}
+        action="demote"
+        userName={formData.full_name}
+      />
     </div>
   );
 }

@@ -1,9 +1,9 @@
 # PayLog Sprint Plan (Revised)
 
-**Last Updated**: October 26, 2025
+**Last Updated**: October 27, 2025
 **Total Story Points**: 202 SP
-**Completed**: 173 SP (85.6%)
-**Remaining**: 29 SP (14.4%)
+**Completed**: 176 SP (87.1%)
+**Remaining**: 26 SP (12.9%)
 
 ---
 
@@ -23,7 +23,7 @@
 | Sprint 9B | ✅ Complete | 12 SP | Invoice Profile Enhancement |
 | Sprint 9C | ✅ Complete | 3 SP | UX Polish (URL Routing) |
 | Sprint 10 | ✅ Complete | 16 SP | Design System & Styling Refactor |
-| **Sprint 11** | **🚧 In Progress** | **4/12 SP** | **User Management & RBAC (Phases 1-2 Done)** |
+| **Sprint 11** | **🚧 In Progress** | **7/12 SP** | **User Management & RBAC (Phases 1-3 Done)** |
 | Sprint 12 | 🔲 Planned | 14 SP | Dashboard & Analytics |
 | Sprint 13 | 🔲 Planned | 9 SP | Polish, Testing & Production Prep |
 
@@ -509,12 +509,12 @@
 
 ## 🚧 Sprint 11: User Management & RBAC (12 SP) - IN PROGRESS
 
-**Status**: 🚧 **IN PROGRESS** (33% Complete - 4 SP / 12 SP)
+**Status**: 🚧 **IN PROGRESS** (58% Complete - 7 SP / 12 SP)
 **Started**: October 26, 2025
 **Goal**: Complete user management and permissions system
-**Progress**: Phases 1-2 Complete, Phase 3 Next
+**Progress**: Phases 1-3 Complete, Phase 4 Next
 
-### ✅ Completed Phases (2/6)
+### ✅ Completed Phases (3/6)
 
 #### **Phase 1: Database & Contracts (1 SP)** - COMPLETE ✅
 - ✅ Created `UserAuditLog` model for user management audit trail
@@ -557,17 +557,33 @@
   - Bcrypt hashing (cost 12)
   - Comprehensive audit trail
 
-### 🔲 Remaining Phases (4/6)
+#### **Phase 3: User Management UI (3 SP)** - COMPLETE ✅
+- ✅ Created User Management page integrated within Admin Console
+  - Renders inline at `/admin?tab=users`
+  - Super admin only access (role-based filtering in sidebar)
+- ✅ Built 7 reusable UI components:
+  - `UserStatusBadge`: Active/inactive status badges
+  - `RoleSelector`: Type-safe role dropdown
+  - `PasswordResetDialog`: Modal with copy-to-clipboard
+  - `UsersDataTable`: Search, filter, sort with native HTML table
+  - `UserDetailPanel`: 350px stacked panel (z-40) with stats and audit history
+  - `UserFormPanel`: 500px stacked panel (z-50) for create/edit modes
+  - `UserPanelRenderer`: Orchestrates panel state management
+- ✅ Integrated all 8 Server Actions from Phase 2
+  - Create, update, deactivate, reactivate, reset password
+  - List with pagination, getUserById for detail view
+- ✅ Applied Sprint 10 design system tokens consistently
+- ✅ Fixed 3 bugs during implementation:
+  - Create User flow (prop wiring issue)
+  - Sidebar menu cleanup (removed standalone Users link)
+  - User Management tab integration (inline rendering)
+- ✅ Admin panel restructuring (per user request):
+  - Moved "Master Data Requests" under "Master Data" tab as "All Requests" sub-tab
+  - Cleaner navigation (3/4 tabs → 2/3 tabs for admins)
+  - Backwards compatibility redirect for old URLs
+- ✅ Quality gates passed (TypeScript, ESLint, Build)
 
-#### **Phase 3: User Management UI (3 SP)** - NEXT
-- [ ] User management page (`/admin/users`)
-- [ ] Users DataTable component
-- [ ] User detail panel (stacked, level 1)
-- [ ] User form panel (create/edit, stacked, level 2)
-- [ ] Password reset dialog
-- [ ] User status badge component
-- [ ] Role selector component
-- [ ] Navigation updates (add Users link for super admins)
+### 🔲 Remaining Phases (3/6)
 
 #### **Phase 4: Role & Permission Guards (2 SP)**
 - [ ] Route protection middleware for `/admin/users`
@@ -597,47 +613,65 @@
 - `28b1113` - Phase 1: Database & Contracts
 - `4b5e442` - Phase 2: Server Actions & API
 - `03b3bed` - Railway deployment fix (postinstall script)
+- `fa7e603` - docs: Update SPRINTS_REVISED.md with correct story point totals
+- `c4d348b` - docs: Add comprehensive troubleshooting timeline and context restoration checklist
+- `68e5be6` - docs: Document Sprint 11 Phase 3 attempt and revert
+- (Multiple commits) - Phase 3: User Management UI Complete (October 27, 2025)
 
-### ⚠️ Phase 3 Attempt & Revert
-
-**Date**: October 26, 2025 (continuation session)
-
-**What Happened**: Phase 3 was attempted and implemented (1,042 lines across 10 files), but was reverted due to build errors and misaligned session continuation.
-
-**Reverted Commits**:
-- `95b38a3` - "feat: Sprint 11 Phase 3 - User Management UI" (reverted)
-- `b2909ec` - "fix: Remove 'server-only' import from lib/auth.ts" (reverted)
-
-**Reason for Revert**:
-1. Session continuation proceeded without explicit user instruction
-2. Exposed latent bug: `import 'server-only'` in lib/auth.ts caused Next.js build failures
-3. Local site showed blank white page, Railway deployment failed
-4. User requested revert to last stable state
-
-**Current Status**: Clean revert to commit `03b3bed`. Phase 3 will be reimplemented in future session.
-
-**Known Issue**: The `import 'server-only'` statement in `lib/auth.ts:1` may cause build errors. If encountered, remove this line (functions are already server-only via NextAuth).
-
-See **docs/SESSION_SUMMARY_2025_10_26.md Section 5** for full revert details.
-
-### Files Created
+### Files Created (Phases 1-3)
+**Phase 1-2 (Backend)**:
 - `lib/types/user-management.ts` - TypeScript contracts (187 lines)
 - `lib/utils/password-generator.ts` - Password utilities (152 lines)
 - `lib/utils/audit-logger.ts` - Audit logging (144 lines)
 - `lib/actions/user-management.ts` - Server Actions (697 lines)
-- `docs/SESSION_SUMMARY_2025_10_26.md` - Session documentation
 
-### Files Modified
+**Phase 3 (UI Components)**:
+- `components/users/user-status-badge.tsx` - Status badges (43 lines)
+- `components/users/role-selector.tsx` - Role dropdown (66 lines)
+- `components/users/password-reset-dialog.tsx` - Reset password modal (272 lines)
+- `components/users/users-data-table.tsx` - Main table with search/filter/sort (298 lines)
+- `components/users/user-detail-panel.tsx` - User details panel (276 lines)
+- `components/users/user-form-panel.tsx` - Create/edit form (220 lines)
+- `components/users/user-panel-renderer.tsx` - Panel orchestration (179 lines)
+- `components/users/index.ts` - Barrel exports (13 lines)
+
+**Documentation**:
+- `docs/SESSION_SUMMARY_2025_10_26.md` - Session documentation (Oct 26)
+- `docs/SESSION_SUMMARY_2025_10_27.md` - Session documentation (Oct 27)
+
+### Files Modified (Phases 1-3)
+**Phase 1-2 (Backend)**:
 - `schema.prisma` - Added UserAuditLog model + User relations
 - `lib/auth.ts` - Added 7 permission helper functions (+87 lines)
+
+**Phase 3 (UI Integration)**:
+- `components/layout/sidebar.tsx` - Role-based filtering (removed standalone Users link)
+- `components/admin/user-management.tsx` - Complete rewrite for inline rendering (136 lines)
+- `app/(dashboard)/admin/page.tsx` - Restored UserManagement component rendering
+- `components/admin/master-data-management.tsx` - Added "All Requests" sub-tab
 - `docs/SPRINTS_REVISED.md` - Updated Sprint 11 status
 
 ### Acceptance Criteria
+**Phase 1-2 (Backend)**:
 - ✅ Only super admins can create/edit users (backend complete)
 - ✅ Last super admin cannot be deactivated (backend complete)
-- Password reset sends email (Sprint 5 integration)
-- Profile visibility grants work correctly
-- Audit trail captures all user actions
+- ✅ Password generation works with secure and memorable options
+- ✅ Audit trail captures all user management events
+- ✅ Server Actions return type-safe results
+
+**Phase 3 (UI)**:
+- ✅ User Management accessible at `/admin?tab=users` (super admins only)
+- ✅ Users list displays with search, filter, sort capabilities
+- ✅ Create/Edit user flow works correctly with proper validation
+- ✅ Password reset dialog shows temporary password with copy button
+- ✅ Deactivate/Reactivate buttons work with last admin protection
+- ✅ Stacked panels function correctly (350px detail + 500px form)
+- ✅ Admin panel restructured ("All Requests" sub-tab created)
+
+**Pending (Phase 4-6)**:
+- ⏳ Password reset sends email (Sprint 5 integration pending)
+- ⏳ Profile visibility grants work correctly (Phase 5)
+- ⏳ Route-level protection middleware (Phase 4)
 
 ---
 
@@ -734,8 +768,8 @@ See **docs/SESSION_SUMMARY_2025_10_26.md Section 5** for full revert details.
 
 **Average SP per Sprint**: 15.4 SP (169 SP / 11 sprints completed)
 **Estimated Completion**: 14 sprints total (revised from 13)
-**Current Progress**: Sprint 10 Complete, Sprint 11 Phase 2 Complete (4/12 SP)
-**Story Point Progress**: 173/202 SP (85.6% complete)
+**Current Progress**: Sprint 10 Complete, Sprint 11 Phase 3 Complete (7/12 SP)
+**Story Point Progress**: 176/202 SP (87.1% complete)
 
 **Sprint Completions**:
 - Sprint 1: 13 SP ✅
@@ -758,19 +792,18 @@ See **docs/SESSION_SUMMARY_2025_10_26.md Section 5** for full revert details.
 
 ---
 
-## 🎯 Current Focus: Sprint 11 Phase 3
+## 🎯 Current Focus: Sprint 11 Phase 4
 
-**Priority**: User Management UI (User CRUD interface)
-**Blockers**: Known issue - `import 'server-only'` in lib/auth.ts may cause build errors
-**Dependencies**: Phases 1-2 complete ✅
+**Priority**: Role & Permission Guards (2 SP)
+**Dependencies**: Phases 1-3 complete ✅
+**Status**: Ready to begin
 
-**Sprint 11 Phase 3 Goals**:
-1. Build user management page at `/admin/users` (super admin only)
-2. Create Users DataTable with search, filters, sorting
-3. Implement user detail panel (stacked, level 1)
-4. Build user form panel for create/edit (stacked, level 2)
-5. Add password reset dialog
-6. Update navigation (add Users link for super admins)
+**Sprint 11 Phase 4 Goals**:
+1. Implement route protection middleware for `/admin/users`
+2. Add super admin UI visibility controls
+3. Implement last super admin protection dialogs
+4. Add role change confirmation dialog
+5. Conduct permission boundary testing
 
 ---
 
@@ -823,7 +856,7 @@ See **docs/SESSION_SUMMARY_2025_10_26.md Section 5** for full revert details.
 
 ---
 
-**Last Updated**: October 26, 2025 (Updated after session restoration)
-**Next Review**: After Sprint 11 Phase 3 completion
-**Status**: Active Development - Sprint 11 Phases 1-2 Complete 🚀
-**Current Focus**: User Management UI (Phase 3) - Ready to implement after 'server-only' fix
+**Last Updated**: October 27, 2025 (Sprint 11 Phase 3 Complete)
+**Next Review**: After Sprint 11 Phase 4 completion
+**Status**: Active Development - Sprint 11 Phases 1-3 Complete 🚀
+**Current Focus**: Role & Permission Guards (Phase 4) - Ready to implement

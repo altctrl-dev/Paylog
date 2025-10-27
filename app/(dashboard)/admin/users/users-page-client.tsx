@@ -35,6 +35,7 @@ export function UsersPageClient({ initialUsers }: UsersPageClientProps) {
   // State management
   const [users, setUsers] = useState<UserWithStats[]>(initialUsers);
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
 
   /**
    * Refresh users data after mutations
@@ -56,8 +57,7 @@ export function UsersPageClient({ initialUsers }: UsersPageClientProps) {
    * Triggered by "Create User" button
    */
   const handleCreateUser = () => {
-    // Set selectedUserId to -1 to trigger create mode
-    setSelectedUserId(-1);
+    setIsCreating(true);
   };
 
   /**
@@ -108,6 +108,8 @@ export function UsersPageClient({ initialUsers }: UsersPageClientProps) {
         selectedUserId={selectedUserId}
         onSelectUser={setSelectedUserId}
         onRefreshData={handleRefreshData}
+        showCreateForm={isCreating}
+        onCloseCreateForm={() => setIsCreating(false)}
       />
     </div>
   );

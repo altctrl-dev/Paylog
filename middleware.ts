@@ -10,17 +10,9 @@ export default auth((req) => {
 
     // Check if user has admin or super_admin role
     if (!role || (role !== 'admin' && role !== 'super_admin')) {
-      // Return 403 Forbidden with JSON error message
-      return new NextResponse(
-        JSON.stringify({
-          error: 'Forbidden',
-          message: 'Access denied - Admin access required'
-        }),
-        {
-          status: 403,
-          headers: { 'content-type': 'application/json' }
-        }
-      );
+      // Redirect to forbidden page (Phase 4: Route Protection)
+      const url = new URL('/forbidden', req.url);
+      return NextResponse.redirect(url);
     }
   }
 

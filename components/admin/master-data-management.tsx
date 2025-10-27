@@ -1,7 +1,8 @@
 /**
  * Master Data Management Component
  *
- * Contains 6 sub-tabs for managing different master data types:
+ * Contains 7 sub-tabs for managing master data:
+ * - All Requests (master data change requests)
  * - Vendors
  * - Categories
  * - Entities
@@ -16,6 +17,7 @@
 'use client';
 
 import { useSearchParams, useRouter } from 'next/navigation';
+import MasterDataRequests from '@/components/admin/master-data-requests';
 import VendorManagement from '@/components/master-data/vendor-management';
 import CategoryManagement from '@/components/master-data/category-management';
 import EntityManagement from '@/components/master-data/entity-management';
@@ -23,14 +25,15 @@ import PaymentTypeManagement from '@/components/master-data/payment-type-managem
 import CurrencyManagement from '@/components/master-data/currency-management';
 import InvoiceProfileManagement from '@/components/master-data/invoice-profile-management';
 
-type TabValue = 'vendors' | 'categories' | 'entities' | 'payment-types' | 'currencies' | 'profiles';
+type TabValue = 'requests' | 'vendors' | 'categories' | 'entities' | 'payment-types' | 'currencies' | 'profiles';
 
 export default function MasterDataManagement() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const activeTab = (searchParams.get('subtab') as TabValue) || 'vendors';
+  const activeTab = (searchParams.get('subtab') as TabValue) || 'requests';
 
   const tabs: { value: TabValue; label: string }[] = [
+    { value: 'requests', label: 'All Requests' },
     { value: 'vendors', label: 'Vendors' },
     { value: 'categories', label: 'Categories' },
     { value: 'entities', label: 'Entities' },
@@ -77,6 +80,7 @@ export default function MasterDataManagement() {
 
       {/* Tab Content */}
       <div>
+        {activeTab === 'requests' && <MasterDataRequests />}
         {activeTab === 'vendors' && <VendorManagement />}
         {activeTab === 'categories' && <CategoryManagement />}
         {activeTab === 'entities' && <EntityManagement />}

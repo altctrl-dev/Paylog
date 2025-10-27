@@ -11,6 +11,8 @@ interface UserPanelRendererProps {
   selectedUserId: number | null;
   onSelectUser: (userId: number | null) => void;
   onRefreshData: () => void;
+  showCreateForm?: boolean;
+  onCloseCreateForm?: () => void;
 }
 
 /**
@@ -35,6 +37,8 @@ export function UserPanelRenderer({
   selectedUserId,
   onSelectUser,
   onRefreshData,
+  showCreateForm = false,
+  onCloseCreateForm,
 }: UserPanelRendererProps) {
   // Form panel state
   // - formUserId: The user ID being edited (null when creating new user)
@@ -144,11 +148,19 @@ export function UserPanelRenderer({
       {/* Form Panel - Level 2 (500px wide, z-50) */}
       {/* Slides over detail panel when editing or creating */}
       {/* Can coexist with detail panel (stacked UX) */}
-      {isFormOpen && (
+      {/* Show form if: (1) explicitly opened via edit, or (2) create mode from parent */}
+      {(isFormOpen || showCreateForm) && (
         <UserFormPanel
-          userId={formMode === 'edit' ? (formUserId ?? undefined) : undefined}
-          onClose={handleFormClose}
-          onSuccess={handleFormSuccess}
+          userId={showCreateForm ? undefined : formMode === 'edit' ? (formUserId ?? undefined) : undefined}
+          onClose={showCreateForm && onCloseCreateForm ? onCloseCreateForm : handleFormClose}
+          onSuccess={() => {
+            if (showCreateForm) {
+              onCloseCreateForm?.();
+            } else {
+              handleFormSuccess();
+            }
+            onRefreshData();
+          }}
         />
       )}
 
