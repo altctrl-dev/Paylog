@@ -23,7 +23,6 @@ import {
   getRequestById,
   submitRequest,
   deleteRequest,
-  resubmitRequest,
   type MasterDataRequestWithDetails,
   type MasterDataEntityType,
 } from '@/app/actions/master-data-requests';
@@ -104,7 +103,7 @@ export function MasterDataRequestDetailPanel({
   const [isActionInProgress, setIsActionInProgress] = React.useState(false);
 
   // Fetch request details
-  const { data: requestResult, isLoading } = useQuery({
+  const { data: requestResult, isLoading, isError, error } = useQuery({
     queryKey: ['master-data-request', requestId],
     queryFn: async () => {
       const result = await getRequestById(requestId);
@@ -113,6 +112,9 @@ export function MasterDataRequestDetailPanel({
       }
       return result.data;
     },
+    retry: 1, // Only retry once on failure
+    staleTime: 30000, // Consider data fresh for 30 seconds
+    refetchOnWindowFocus: false, // Don't refetch when window regains focus
   });
 
   const request = requestResult as MasterDataRequestWithDetails | undefined;
@@ -228,6 +230,28 @@ export function MasterDataRequestDetailPanel({
       >
         <div className="flex items-center justify-center p-8">
           <div className="text-sm text-muted-foreground">Loading request...</div>
+        </div>
+      </PanelLevel>
+    );
+  }
+
+  if (isError) {
+    return (
+      <PanelLevel
+        config={config}
+        title="Error"
+        onClose={onClose}
+        footer={
+          <Button variant="outline" onClick={onClose}>
+            Close
+          </Button>
+        }
+      >
+        <div className="flex flex-col items-center justify-center p-8 space-y-2">
+          <div className="text-sm text-destructive font-medium">Failed to load request</div>
+          <div className="text-xs text-muted-foreground">
+            {error instanceof Error ? error.message : 'Unknown error'}
+          </div>
         </div>
       </PanelLevel>
     );
