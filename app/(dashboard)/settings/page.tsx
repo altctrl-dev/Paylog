@@ -170,29 +170,13 @@ export default function SettingsPage() {
                 >
                   <option value="all">All Types</option>
                   <option value="vendor">Vendors</option>
-                  <option value="category">Categories</option>
                   <option value="invoice_profile">Invoice Profiles</option>
-                  <option value="payment_type">Payment Types</option>
                 </select>
                 <Button variant="outline" size="sm" onClick={loadRequests}>
                   Refresh
                 </Button>
               </div>
               <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleNewRequest('vendor')}
-                >
-                  Request Vendor
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleNewRequest('category')}
-                >
-                  Request Category
-                </Button>
                 <Button
                   variant="outline"
                   size="sm"
@@ -203,9 +187,9 @@ export default function SettingsPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => handleNewRequest('payment_type')}
+                  onClick={() => handleNewRequest('vendor')}
                 >
-                  Request Payment Type
+                  Request Vendor
                 </Button>
               </div>
             </div>
