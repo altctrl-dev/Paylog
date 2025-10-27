@@ -8,6 +8,7 @@ import {
   FileText,
   BarChart3,
   Settings,
+  Users,
   Shield,
   ChevronLeft,
   ChevronRight,
@@ -28,6 +29,7 @@ const navigation: SidebarItem[] = [
   { name: 'Invoices', href: '/invoices', icon: FileText },
   { name: 'Reports', href: '/reports', icon: BarChart3 },
   { name: 'Settings', href: '/settings', icon: Settings },
+  { name: 'Users', href: '/admin/users', icon: Users },
   { name: 'Admin', href: '/admin', icon: Shield },
 ];
 
@@ -62,8 +64,12 @@ export function Sidebar({ collapsed, onToggle, user }: SidebarProps) {
 
   // Filter navigation items based on user role
   // Only show Admin menu item for admin and super_admin roles
+  // Only show Users menu item for super_admin role
   const filteredNavigation = React.useMemo(() => {
     return navigation.filter(item => {
+      if (item.href === '/admin/users') {
+        return user.role === 'super_admin';
+      }
       if (item.href.startsWith('/admin')) {
         return user.role === 'admin' || user.role === 'super_admin';
       }
