@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { createUser, updateUser, getUserById, validateRoleChange } from '@/lib/actions/user-management';
 import type { UserRole } from '@/lib/types/user-management';
-import { RoleSelector, RoleChangeConfirmationDialog, LastSuperAdminWarningDialog } from '@/components/users';
+import { RoleSelector, RoleChangeConfirmationDialog, LastSuperAdminWarningDialog, UserCreatedConfirmationDialog } from '@/components/users';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,6 +27,8 @@ export function UserFormPanel({ userId, onClose, onSuccess }: UserFormPanelProps
   const [isLoadingUser, setIsLoadingUser] = useState(false);
   const [showRoleChangeConfirmation, setShowRoleChangeConfirmation] = useState(false);
   const [showLastSuperAdminWarning, setShowLastSuperAdminWarning] = useState(false);
+  const [showUserCreatedConfirmation, setShowUserCreatedConfirmation] = useState(false);
+  const [createdUserPassword, setCreatedUserPassword] = useState<string>('');
   const [errors, setErrors] = useState<{
     email?: string;
     form?: string;
@@ -111,14 +113,12 @@ export function UserFormPanel({ userId, onClose, onSuccess }: UserFormPanelProps
       if (!userId && result.message) {
         const passwordMatch = result.message.match(/Temporary password: (.+)$/);
         if (passwordMatch) {
-          toast({
-            title: 'User Created',
-            description: `${result.data.full_name} created successfully`,
-          });
-          toast({
-            title: 'Temporary Password',
-            description: passwordMatch[1],
-          });
+          // Show password confirmation dialog instead of toasts
+          setCreatedUserPassword(passwordMatch[1]);
+          setShowUserCreatedConfirmation(true);
+          setIsSaving(false);
+          onSuccess(); // Refresh the user list
+          return; // Don't close the panel yet - dialog will close it
         } else {
           toast({
             title: 'Success',
@@ -267,6 +267,19 @@ export function UserFormPanel({ userId, onClose, onSuccess }: UserFormPanelProps
         onClose={() => setShowLastSuperAdminWarning(false)}
         action="demote"
         userName={formData.full_name}
+      />
+
+      {/* User Created Confirmation Dialog */}
+      <UserCreatedConfirmationDialog
+        open={showUserCreatedConfirmation}
+        onClose={() => {
+          setShowUserCreatedConfirmation(false);
+          setCreatedUserPassword('');
+          onClose(); // Close the form panel after acknowledging
+        }}
+        userName={formData.full_name}
+        userEmail={formData.email}
+        temporaryPassword={createdUserPassword}
       />
     </div>
   );
