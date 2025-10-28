@@ -38,6 +38,9 @@ import {
   type InvoiceProfileFormData,
 } from '@/lib/validations/master-data';
 import { useToast } from '@/hooks/use-toast';
+import { usePanel } from '@/hooks/use-panel';
+import { usePanelStore } from '@/lib/store/panel-store';
+import { ProfilePanelRenderer } from './profile-panel-renderer';
 
 // ============================================================================
 // TYPES
@@ -81,6 +84,10 @@ export default function InvoiceProfileManagement() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProfile, setEditingProfile] = useState<InvoiceProfile | null>(null);
   const { toast } = useToast();
+
+  // Panel state management
+  const { openPanel, closePanel, closeTopPanel, closeAllPanels, hasOpenPanels } = usePanel();
+  const panels = usePanelStore((state) => state.panels);
 
   // Load profiles
   const loadProfiles = async () => {
@@ -149,6 +156,55 @@ export default function InvoiceProfileManagement() {
     }
   };
 
+  // Panel handlers (new panel-based workflow)
+  const handleViewPanel = (profile: InvoiceProfile) => {
+    closeAllPanels(); // Clear any existing panels
+    openPanel(
+      'profile-detail',
+      {
+        profileId: profile.id,
+        onEdit: (id: number) => handleEditPanel(id),
+        onDelete: (id: number) => {
+          closeAllPanels();
+          loadProfiles();
+        },
+      },
+      { width: 350 }
+    );
+  };
+
+  const handleEditPanel = (profileIdOrObject: number | InvoiceProfile) => {
+    const profileId = typeof profileIdOrObject === 'number'
+      ? profileIdOrObject
+      : profileIdOrObject.id;
+
+    openPanel(
+      'profile-edit',
+      {
+        profileId,
+        onSuccess: () => {
+          closeTopPanel(); // Close form panel
+          loadProfiles(); // Refresh list (and detail panel if open)
+        },
+      },
+      { width: 500 }
+    );
+  };
+
+  const handleCreatePanel = () => {
+    closeAllPanels(); // Clear any existing panels
+    openPanel(
+      'profile-form',
+      {
+        onSuccess: () => {
+          closeTopPanel();
+          loadProfiles();
+        },
+      },
+      { width: 500 }
+    );
+  };
+
   return (
     <div className="space-y-4">
       {/* Actions Bar */}
@@ -174,6 +230,7 @@ export default function InvoiceProfileManagement() {
           profiles={profiles}
           onEdit={handleEdit}
           onDelete={handleDelete}
+          onView={handleViewPanel}
         />
       )}
 
@@ -191,6 +248,17 @@ export default function InvoiceProfileManagement() {
           loadProfiles();
         }}
       />
+
+      {/* Panel Renderer (panels render in parallel with dialog for now) */}
+      {panels.map((panel) => (
+        <ProfilePanelRenderer
+          key={panel.id}
+          id={panel.id}
+          type={panel.type}
+          props={panel.props}
+          onClose={() => closePanel(panel.id)}
+        />
+      ))}
     </div>
   );
 }
@@ -203,9 +271,10 @@ interface ProfileTableProps {
   profiles: InvoiceProfile[];
   onEdit: (profile: InvoiceProfile) => void;
   onDelete: (id: number) => void;
+  onView: (profile: InvoiceProfile) => void;
 }
 
-function ProfileTable({ profiles, onEdit, onDelete }: ProfileTableProps) {
+function ProfileTable({ profiles, onEdit, onDelete, onView }: ProfileTableProps) {
   const formatTDS = (profile: InvoiceProfile) => {
     if (!profile.tds_applicable) return 'No TDS';
     return `${profile.tds_percentage || 0}%`;
@@ -227,7 +296,11 @@ function ProfileTable({ profiles, onEdit, onDelete }: ProfileTableProps) {
         </thead>
         <tbody>
           {profiles.map((profile) => (
-            <tr key={profile.id} className="border-b transition-colors hover:bg-muted/50">
+            <tr
+              key={profile.id}
+              className="cursor-pointer border-b transition-colors hover:bg-muted/50"
+              onClick={() => onView(profile)}
+            >
               <td className="p-3">
                 <div className="text-sm font-medium">{profile.name}</div>
                 {profile.description && (
