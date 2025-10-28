@@ -21,6 +21,9 @@ export type MasterDataRequestStatus = 'draft' | 'pending_approval' | 'approved' 
 
 export interface VendorRequestData {
   name: string;
+  address?: string | null;
+  gst_exemption?: boolean;
+  bank_details?: string | null;
   is_active?: boolean;
 }
 
@@ -57,7 +60,7 @@ export interface MasterDataRequestWithDetails {
   reviewer_id: number | null;
   reviewed_at: Date | null;
   rejection_reason: string | null;
-  admin_edits: Record<string, any> | null;
+  admin_edits: Record<string, unknown> | null;
   admin_notes: string | null;
   resubmission_count: number;
   previous_attempt_id: number | null;
@@ -105,7 +108,7 @@ async function getCurrentUser() {
 /**
  * Validate entity-specific request data
  */
-function validateRequestData(entityType: MasterDataEntityType, data: any): RequestData {
+function validateRequestData(entityType: MasterDataEntityType, data: unknown): RequestData {
   switch (entityType) {
     case 'vendor':
       return vendorRequestSchema.parse(data);
@@ -126,6 +129,9 @@ function validateRequestData(entityType: MasterDataEntityType, data: any): Reque
 
 const vendorRequestSchema = z.object({
   name: z.string().min(1, 'Vendor name is required').max(255, 'Name too long'),
+  address: z.string().max(500, 'Address too long').optional().nullable(),
+  gst_exemption: z.boolean().default(false),
+  bank_details: z.string().max(1000, 'Bank details too long').optional().nullable(),
   is_active: z.boolean().default(true),
 });
 
@@ -199,7 +205,7 @@ export async function createRequest(
           requestType: getEntityDisplayName(request.entity_type as MasterDataEntityType),
           requesterName: request.requester.full_name,
           requesterEmail: request.requester.email,
-          description: (validatedData as any).name || 'N/A',
+          description: (validatedData as { name?: string }).name || 'N/A',
           submittedAt: new Date(),
         })
       ).catch((error) => {
@@ -301,13 +307,24 @@ export async function getUserRequests(
  * Get a single request by ID
  */
 export async function getRequestById(
-  requestId: number
+  requestId: number | string
 ): Promise<ServerActionResult<MasterDataRequestWithDetails>> {
   try {
+    // Normalize ID to integer (handles Next.js Server Action serialization)
+    const id = typeof requestId === 'string' ? parseInt(requestId, 10) : requestId;
+
+    // Validate ID
+    if (!Number.isFinite(id) || id <= 0) {
+      return {
+        success: false,
+        error: 'Invalid request ID',
+      };
+    }
+
     const user = await getCurrentUser();
 
     const request = await db.masterDataRequest.findUnique({
-      where: { id: requestId },
+      where: { id },
       include: {
         requester: {
           select: {
@@ -522,7 +539,7 @@ export async function submitRequest(
         requestType: getEntityDisplayName(request.entity_type as MasterDataEntityType),
         requesterName: request.requester.full_name,
         requesterEmail: request.requester.email,
-        description: (parsedData as any).name || 'N/A',
+        description: (parsedData as { name?: string }).name || 'N/A',
         submittedAt: new Date(),
       })
     ).catch((error) => {
@@ -695,7 +712,7 @@ export async function resubmitRequest(
         requestType: getEntityDisplayName(request.entity_type as MasterDataEntityType),
         requesterName: request.requester.full_name,
         requesterEmail: request.requester.email,
-        description: (validatedData as any).name || 'N/A',
+        description: (validatedData as { name?: string }).name || 'N/A',
         submittedAt: new Date(),
       })
     ).catch((error) => {

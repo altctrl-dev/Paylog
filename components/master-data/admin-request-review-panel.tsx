@@ -35,17 +35,23 @@ export function AdminRequestReviewPanel({ config, onClose, requestId }: AdminReq
   const [isSaving, setIsSaving] = React.useState(false);
   const [adminEdits, setAdminEdits] = React.useState<Record<string, unknown>>({});
   const [adminNotes, setAdminNotes] = React.useState('');
-  const { openPanel } = usePanel();
+  const { openPanel} = usePanel();
   const { toast } = useToast();
+  const loadingRef = React.useRef(false);
 
   const loadRequest = React.useCallback(async () => {
+    // Guard against concurrent calls using ref
+    if (loadingRef.current) return;
+    loadingRef.current = true;
+
     setIsLoading(true);
     setError(null);
 
     // Add timeout to prevent infinite loading
-    const timeoutId = setTimeout(() => {
+    let timeoutId: NodeJS.Timeout | null = setTimeout(() => {
       setIsLoading(false);
       setError('Request timed out. Please try again.');
+      loadingRef.current = false;
       toast({
         title: 'Timeout',
         description: 'Failed to load request. Please try again.',
@@ -55,7 +61,10 @@ export function AdminRequestReviewPanel({ config, onClose, requestId }: AdminReq
 
     try {
       const result = await getRequestById(requestId);
-      clearTimeout(timeoutId);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
 
       if (result.success) {
         setRequest(result.data);
@@ -76,7 +85,10 @@ export function AdminRequestReviewPanel({ config, onClose, requestId }: AdminReq
         });
       }
     } catch (error) {
-      clearTimeout(timeoutId);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
       const errorMessage = error instanceof Error ? error.message : 'Failed to load request';
       console.error('Failed to load request:', error);
       setError(errorMessage);
@@ -86,14 +98,24 @@ export function AdminRequestReviewPanel({ config, onClose, requestId }: AdminReq
         variant: 'destructive',
       });
     } finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
       setIsLoading(false);
+      loadingRef.current = false;
     }
-  }, [requestId, toast]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestId]);
+  // Note: toast is intentionally excluded from dependencies to prevent infinite re-render loop
+  // toast is a stable reference from useToast hook and doesn't need to trigger re-fetch
 
-  // Load request on mount
+  // Load request on mount and when requestId changes
   React.useEffect(() => {
     loadRequest();
-  }, [loadRequest]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestId]);
+  // Note: loadRequest is intentionally excluded to prevent infinite loop
+  // We only want to re-fetch when requestId changes
 
   const handleEditField = (field: string, value: unknown) => {
     setAdminEdits((prev) => ({
@@ -319,6 +341,94 @@ export function AdminRequestReviewPanel({ config, onClose, requestId }: AdminReq
                   )}
                 </div>
 
+                {/* Vendor-specific fields */}
+                {request.entity_type === 'vendor' && (
+                  <>
+                    {/* Address */}
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 mb-1 block">Address</label>
+                      {isEditing ? (
+                        <Textarea
+                          value={(getFinalValue('address') as string | undefined) ?? ''}
+                          onChange={(e) => handleEditField('address', e.target.value)}
+                          placeholder="Enter address"
+                          rows={3}
+                        />
+                      ) : (
+                        <div className="text-sm p-2 bg-gray-50 rounded border border-gray-200 min-h-[60px]">
+                          {(getFinalValue('address') as string | undefined) || '-'}
+                        </div>
+                      )}
+                      {(() => {
+                        const originalAddress =
+                          'address' in request.request_data
+                            ? (request.request_data as { address?: string }).address
+                            : undefined;
+                        return (
+                          adminEdits.address !== undefined &&
+                          adminEdits.address !== originalAddress && (
+                            <p className="text-xs text-blue-600 mt-1">
+                              Original: {originalAddress || 'None'}
+                            </p>
+                          )
+                        );
+                      })()}
+                    </div>
+
+                    {/* GST/VAT Exempt */}
+                    <div>
+                      <label className="flex items-center gap-2">
+                        {isEditing ? (
+                          <input
+                            type="checkbox"
+                            checked={
+                              (getFinalValue('gst_exemption') as boolean | undefined) ?? false
+                            }
+                            onChange={(e) => handleEditField('gst_exemption', e.target.checked)}
+                            className="h-4 w-4"
+                          />
+                        ) : (
+                          <div className="h-4 w-4 border rounded flex items-center justify-center bg-gray-50">
+                            {(getFinalValue('gst_exemption') as boolean | undefined) ? '✓' : ''}
+                          </div>
+                        )}
+                        <span className="text-sm font-medium">GST/VAT Exempt</span>
+                      </label>
+                    </div>
+
+                    {/* Bank Details */}
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 mb-1 block">Bank Details</label>
+                      {isEditing ? (
+                        <Textarea
+                          value={(getFinalValue('bank_details') as string | undefined) ?? ''}
+                          onChange={(e) => handleEditField('bank_details', e.target.value)}
+                          placeholder="Enter bank details"
+                          rows={4}
+                        />
+                      ) : (
+                        <div className="text-sm p-2 bg-gray-50 rounded border border-gray-200 min-h-[80px]">
+                          {(getFinalValue('bank_details') as string | undefined) || '-'}
+                        </div>
+                      )}
+                      {(() => {
+                        const originalBankDetails =
+                          'bank_details' in request.request_data
+                            ? (request.request_data as { bank_details?: string }).bank_details
+                            : undefined;
+                        return (
+                          adminEdits.bank_details !== undefined &&
+                          adminEdits.bank_details !== originalBankDetails && (
+                            <p className="text-xs text-blue-600 mt-1">
+                              Original: {originalBankDetails || 'None'}
+                            </p>
+                          )
+                        );
+                      })()}
+                    </div>
+                  </>
+                )}
+
                 {/* Description Field (invoice_profile, payment_type) */}
                 {(request.entity_type === 'invoice_profile' || request.entity_type === 'payment_type') && (
                   <div>
@@ -396,31 +506,6 @@ export function AdminRequestReviewPanel({ config, onClose, requestId }: AdminReq
                         </div>
                       )}
                       <span className="text-sm font-medium">Requires Reference</span>
-                    </label>
-                  </div>
-                )}
-
-                {/* Is Active (vendor, category, payment_type) */}
-                {(request.entity_type === 'vendor' ||
-                  request.entity_type === 'category' ||
-                  request.entity_type === 'payment_type') && (
-                  <div>
-                    <label className="flex items-center gap-2">
-                      {isEditing ? (
-                        <input
-                          type="checkbox"
-                          checked={
-                            (getFinalValue('is_active') as boolean | undefined) ?? true
-                          }
-                          onChange={(e) => handleEditField('is_active', e.target.checked)}
-                          className="h-4 w-4"
-                        />
-                      ) : (
-                        <div className="h-4 w-4 border rounded flex items-center justify-center bg-gray-50">
-                          {(getFinalValue('is_active') as boolean | undefined) ? '✓' : ''}
-                        </div>
-                      )}
-                      <span className="text-sm font-medium">Is Active</span>
                     </label>
                   </div>
                 )}

@@ -32,7 +32,7 @@ interface MasterDataRequestFormPanelProps {
   config: PanelConfig;
   onClose: () => void;
   entityType: MasterDataEntityType;
-  initialData?: Record<string, any>; // For resubmission
+  initialData?: Record<string, unknown>; // For resubmission
   isResubmit?: boolean;
 }
 
@@ -157,15 +157,16 @@ export function MasterDataRequestFormPanel({
       loadMasterData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    // Note: loadMasterData intentionally excluded to prevent infinite loop.
-    // Only re-fetch when entityType changes, not when loadMasterData function changes.
-    // The loadMasterData callback depends on toast, which is recreated on every render,
-    // causing an infinite cycle if included in dependency array. This is the same pattern
-    // as the October 28 fix in admin-request-review-panel.tsx.
   }, [entityType]);
+  // Note: loadMasterData intentionally excluded to prevent infinite loop.
+  // Only re-fetch when entityType changes, not when loadMasterData function changes.
+  // The loadMasterData callback depends on toast, which is recreated on every render,
+  // causing an infinite cycle if included in dependency array. This is the same pattern
+  // as the October 28 fix in admin-request-review-panel.tsx.
 
   // Form setup with entity-specific defaults
-  // Using any for form data type due to TypeScript limitations with dynamic schemas
+  // Note: Using 'any' for form data type due to TypeScript limitations with dynamic schemas
+  // Each entity type has different schema, making strict typing impractical here
   const {
     register,
     handleSubmit,
@@ -173,12 +174,15 @@ export function MasterDataRequestFormPanel({
     watch,
     setValue,
     formState: { errors },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } = useForm<any>({
-    resolver: zodResolver(getSchema(entityType) as any),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    resolver: zodResolver(getSchema(entityType)) as any,
     defaultValues: initialData || getDefaultValues(entityType),
   });
 
   // Handle form submission
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleFormSubmit = async (data: any, status: 'draft' | 'pending_approval') => {
     setIsSubmitting(true);
     try {
@@ -214,6 +218,7 @@ export function MasterDataRequestFormPanel({
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const onSubmit = (data: any) => {
     handleFormSubmit(data, 'pending_approval');
   };
@@ -305,7 +310,7 @@ export function MasterDataRequestFormPanel({
 }
 
 // Default values by entity type
-function getDefaultValues(entityType: MasterDataEntityType): any {
+function getDefaultValues(entityType: MasterDataEntityType): Record<string, unknown> {
   switch (entityType) {
     case 'vendor':
       return {
@@ -338,6 +343,7 @@ function getDefaultValues(entityType: MasterDataEntityType): any {
 }
 
 // Vendor-specific form fields (matching admin form)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function VendorForm({ register, control, errors }: any) {
   return (
     <>
@@ -410,7 +416,8 @@ function VendorForm({ register, control, errors }: any) {
 }
 
 // Category-specific form fields
-function CategoryForm({ register, control, errors }: any) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function CategoryForm({ register, errors }: any) {
   return (
     <>
       <div className="space-y-2">
@@ -432,6 +439,7 @@ function CategoryForm({ register, control, errors }: any) {
 }
 
 // Invoice Profile-specific form fields (matching admin form)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function InvoiceProfileForm({ register, errors, masterData, isLoadingMasterData, watch, setValue }: any) {
   const tdsApplicable = watch('tds_applicable');
 
@@ -686,6 +694,7 @@ function InvoiceProfileForm({ register, errors, masterData, isLoadingMasterData,
 }
 
 // Payment Type-specific form fields
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function PaymentTypeForm({ register, control, errors }: any) {
   return (
     <>

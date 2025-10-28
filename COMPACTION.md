@@ -1,8 +1,8 @@
-# Compaction Summary — 2025-10-28 16:21:34 IST
+# Compaction Summary — 2025-10-28 23:35:21 IST
 
 ## Executive Summary
 - Agents active: Main Agent (Direct Work)
-- Files modified: 3
+- Files modified: 6
 - Contracts affected: 0
 - Open questions: 0
 
@@ -14,7 +14,10 @@
 
 ## Critical Paths (for JIT retrieval)
 - `OMPACTION.md`
+- `app/actions/master-data-requests.ts`
 - `compaction-summary.json`
+- `components/master-data/admin-request-review-panel.tsx`
+- `components/master-data/master-data-request-form-panel.tsx`
 - `logs/context-metrics.jsonl`
 
 ## Contracts Touched (verify stability)

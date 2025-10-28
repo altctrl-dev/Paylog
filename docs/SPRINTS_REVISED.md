@@ -583,6 +583,64 @@
   - Backwards compatibility redirect for old URLs
 - ✅ Quality gates passed (TypeScript, ESLint, Build)
 
+### 🔧 Maintenance Work (October 28-29, 2025)
+
+**Note**: Bug fixes are maintenance work (0 SP) and do not count toward sprint story points, but were necessary blockers before continuing Phase 4.
+
+#### **October 28, 2025 - Master Data Request System Bug Fixes**
+- ✅ Fixed infinite loading loop in admin request review panel
+  - Root cause: React Hook `useEffect` depending on callback with unstable dependencies
+  - Fix: Extracted stable dependencies, excluded callback from deps array
+  - Impact: Super admins can now review pending requests (was completely broken)
+  - File: `components/master-data/admin-request-review-panel.tsx`
+- ✅ Fixed request ID normalization issue
+- ✅ Added timeout and error handling to admin review panel
+- ✅ Fixed Activity Log TypeScript issues (implicit any)
+- ✅ Created comprehensive troubleshooting documentation
+
+**Documentation**: See `docs/SESSION_SUMMARY_2025_10_28.md` for detailed analysis
+
+#### **October 29, 2025 - Invoice Profile Management Bug Fixes**
+- ✅ Fixed infinite loading loop in user request form panel (Bug 1)
+  - **Same pattern as October 28 infinite loop bug** (React Hook issue)
+  - Root cause: `useEffect` depending on `loadMasterData` callback with unstable `toast` dependency
+  - Fix: Changed deps from `[entityType, loadMasterData]` to `[entityType]` only
+  - Impact: Standard users can now create invoice profile requests (was completely broken)
+  - Network requests reduced from 400+ to 4 (99% reduction)
+  - File: `components/master-data/master-data-request-form-panel.tsx`
+
+- ✅ Refactored Invoice Profile CRUD to use stacked panels (Bug 2)
+  - **Architectural improvement for UX consistency**
+  - Replaced centered modal dialog with stacked side panels (Sprint 2 pattern)
+  - Created 3 reusable panel components following invoice pattern:
+    - `profile-detail-panel.tsx` (334 lines) - Read-only view, Level 1, 350px, z-40
+    - `profile-form-panel.tsx` (499 lines) - Create/edit form, Level 2, 500px, z-50
+    - `profile-panel-renderer.tsx` (65 lines) - Orchestration and routing
+  - Simplified `invoice-profile-management.tsx` from 708 lines to 297 lines (58% reduction)
+  - Incremental refactor approach: create panels → integrate alongside dialog → remove dialog
+  - Impact: Admin UX now consistent with invoices (table → detail panel → form panel)
+  - All CRUD operations work identically, ESC closes panels, row click opens detail
+
+**Documentation**: See `docs/SESSION_SUMMARY_2025_10_29.md` for detailed analysis
+
+**Lessons Learned**:
+- React Hook infinite loop pattern appeared **twice** (Oct 28 + Oct 29)
+- Consider creating ESLint rule to prevent future occurrences
+- Incremental refactoring reduces risk (3-phase approach worked well)
+- Following established patterns (Sprint 2 invoices) saved ~2 hours
+
+**Files Created** (October 29):
+- `components/master-data/profile-detail-panel.tsx` (334 lines)
+- `components/master-data/profile-form-panel.tsx` (499 lines)
+- `components/master-data/profile-panel-renderer.tsx` (65 lines)
+
+**Files Modified** (October 28-29):
+- `components/master-data/admin-request-review-panel.tsx` (infinite loop fix, Oct 28)
+- `components/master-data/master-data-request-form-panel.tsx` (infinite loop fix, Oct 29)
+- `components/master-data/invoice-profile-management.tsx` (708 → 297 lines, Oct 29)
+- `app/actions/master-data-requests.ts` (ID normalization, Oct 28)
+- `lib/activity-log.ts` (TypeScript fixes, Oct 28)
+
 ### 🔲 Remaining Phases (3/6)
 
 #### **Phase 4: Role & Permission Guards (2 SP)**
@@ -617,6 +675,19 @@
 - `c4d348b` - docs: Add comprehensive troubleshooting timeline and context restoration checklist
 - `68e5be6` - docs: Document Sprint 11 Phase 3 attempt and revert
 - (Multiple commits) - Phase 3: User Management UI Complete (October 27, 2025)
+
+**October 28, 2025 - Bug Fixes (Maintenance, 0 SP)**:
+- `dcf0983` - fix: Resolve React Hook dependency and unused variable issues
+- `46db1b9` - fix: Add timeout and better error handling to admin request review panel
+- `6cbfd59` - fix: normalise admin request ids before loading
+- `e2fc06c` - fix(activity-log): annotate entries in activity-log.ts to remove implicit any; build passed
+- `ac59fff` - docs: Add comprehensive troubleshooting and context restoration guides
+
+**October 29, 2025 - Bug Fixes (Maintenance, 0 SP)**:
+- `d7f0f25` - fix(master-data): remove loadMasterData from useEffect deps to prevent infinite loop
+- `a2073d7` - feat(master-data): add invoice profile panel components (dialog still active)
+- `e23f73b` - feat(master-data): add panel state management alongside dialog
+- `9f77668` - refactor(master-data): replace invoice profile dialog with stacked panels
 
 ### Files Created (Phases 1-3)
 **Phase 1-2 (Backend)**:
@@ -860,28 +931,111 @@
 
 ### October 28, 2025 - Production Bug Fixes (Maintenance)
 **Type**: Bug fixes (not sprint work, 0 SP)
-**Issues Fixed**: 7 critical production bugs in Master Data Request system
+**Issues Fixed**: 4 critical production bugs in Master Data Request system
 **Status**: All fixes deployed to Railway production ✅
 
 **Issues Fixed**:
-1. Settings My Requests filter showing non-requestable types
-2. Master data request detail panel infinite loading
-3. Vendor request form missing 5 fields (only had name)
-4. Invoice profile request form missing 10 fields (only had name + description)
-5. Railway build error (React Hook dependencies)
-6. Admin request review panel infinite loading
-7. Admin request ID normalization
+1. **Infinite loading loop in admin review panel** (P0 - Critical)
+   - React Hook infinite loop caused by useEffect depending on callback
+   - User discovered via slow-motion video showing "blinking" behavior
+   - Fixed by changing useEffect to depend only on requestId, not loadRequest callback
+   - File: `components/master-data/admin-request-review-panel.tsx`
 
-**Commits**: 7 commits (`0f59b4a` through `6cbfd59`)
-**Files Modified**: 5 components
-**Impact**: All standard user and admin workflows now functional
-**Documentation**: See `docs/SESSION_SUMMARY_2025_10_28.md` for complete details
+2. **Unwanted Active checkbox in user request forms** (P2 - Medium)
+   - Standard users saw internal "Active" system control field
+   - Removed is_active from vendor, category, payment type request forms
+   - Cleaner UX: Admin-only controls hidden from end users
+   - File: `components/master-data/master-data-request-form-panel.tsx`
 
-**Sprint Status**: Unchanged (maintenance work, not feature development)
+3. **Missing vendor fields in admin review panel** (P1 - High)
+   - Admin only saw Name field, missing Address, GST Exempt, Bank Details
+   - Added all 3 missing fields to complete admin review experience
+   - Faster approvals: Admin sees complete data without contacting user
+   - File: `components/master-data/admin-request-review-panel.tsx`
+
+4. **Vendor request data not saving to database** (P0 - Critical)
+   - Server-side Zod schema stripping unknown fields (75% data loss)
+   - Client sent 4 fields, server validated only 2, dropped 2 silently
+   - Fixed by updating VendorRequestData interface and vendorRequestSchema
+   - File: `app/actions/master-data-requests.ts`
+
+**Files Modified**: 3 unique files
+**Lines Changed**: +180 lines (added), -45 lines (removed), +135 net
+**Commits to Create**: 4 commits (in priority order: data persistence → infinite loop → admin fields → UX cleanup)
+**Impact**: All standard user and admin workflows restored to full functionality
+**Documentation**: See `docs/SESSION_SUMMARY_2025_10_28.md` for complete debugging journey and technical patterns
+
+**Key Lessons Learned**:
+1. Visual debugging (slow-motion video) revealed React Hook render loop
+2. React Hook pattern: Depend on values, not callbacks in useEffect
+3. Schema parity critical: Client and server Zod schemas must match exactly
+4. Field visibility: Hide internal controls from end users (UX improvement)
+5. Complete information: Review panels need all submitted fields for fast approvals
+
+**Sprint Status**: Unchanged at 7/12 SP (maintenance work, not feature development)
 
 ---
 
-**Last Updated**: October 28, 2025 (Production Bug Fixes Complete)
+### October 29, 2025 - Invoice Profile Management Bug Fixes (Maintenance)
+**Type**: Bug fixes (not sprint work, 0 SP)
+**Issues Fixed**: 2 bugs in Invoice Profile management (1 user-facing, 1 architectural)
+**Status**: All fixes committed, ready to push ✅
+
+**Issues Fixed**:
+1. **Infinite loading loop in user request form panel** (P0 - Critical)
+   - Standard users stuck on "Loading master data options..." when creating invoice profile requests
+   - **Same React Hook pattern as October 28 infinite loop bug**
+   - Root cause: useEffect depending on loadMasterData callback with unstable toast dependency
+   - Fixed by changing deps from `[entityType, loadMasterData]` to `[entityType]` only
+   - Network requests reduced from 400+ to 4 (99% reduction)
+   - File: `components/master-data/master-data-request-form-panel.tsx`
+   - Impact: Standard users can now create invoice profile requests (was completely broken)
+
+2. **Invoice Profile CRUD using modal instead of stacked panels** (P2 - Medium)
+   - Admin invoice profile management used centered modal dialog
+   - Inconsistent with Sprint 2 invoice pattern (stacked side panels)
+   - **Architectural refactor**: Replaced Dialog with 3 panel components
+   - Created: `profile-detail-panel.tsx`, `profile-form-panel.tsx`, `profile-panel-renderer.tsx`
+   - Simplified: `invoice-profile-management.tsx` from 708 lines to 297 lines (58% reduction)
+   - Incremental approach: Create panels → integrate alongside dialog → remove dialog
+   - Impact: Admin UX now consistent with invoices (table → 350px detail → 500px form)
+   - Pattern: Same as Sprint 2 invoices (z-40 for detail, z-50 for form)
+
+**Files Created**: 3 panel components (898 lines total)
+- `components/master-data/profile-detail-panel.tsx` (334 lines)
+- `components/master-data/profile-form-panel.tsx` (499 lines)
+- `components/master-data/profile-panel-renderer.tsx` (65 lines)
+
+**Files Modified**: 2 files
+- `components/master-data/master-data-request-form-panel.tsx` (infinite loop fix)
+- `components/master-data/invoice-profile-management.tsx` (708 → 297 lines)
+
+**Commits Created**: 4 commits (incremental refactor)
+1. `d7f0f25` - fix(master-data): remove loadMasterData from useEffect deps to prevent infinite loop
+2. `a2073d7` - feat(master-data): add invoice profile panel components (dialog still active)
+3. `e23f73b` - feat(master-data): add panel state management alongside dialog
+4. `9f77668` - refactor(master-data): replace invoice profile dialog with stacked panels
+
+**Quality Gates**: All passed ✅ (TypeScript, Build, Manual Testing)
+
+**Key Lessons Learned**:
+1. React Hook infinite loop pattern appeared **twice** (Oct 28 + Oct 29) - consider ESLint rule
+2. Incremental refactoring reduces risk (3-phase approach: build → integrate → switch → delete)
+3. Following established patterns (Sprint 2 invoices) saved ~2 hours of design time
+4. Pattern library emerging: Same stacked panel pattern could apply to vendors, categories, currencies
+
+**Sprint Status**: Unchanged at 7/12 SP (maintenance work, not feature development)
+
+**Future Opportunities**:
+- Apply same stacked panel pattern to: Vendor CRUD, Category CRUD, Currency CRUD, Entity CRUD
+- Estimated ~3 hours per entity refactor, ~12 hours total for all 4
+- Benefit: Consistent UX across all master data CRUD operations
+
+**Documentation**: See `docs/SESSION_SUMMARY_2025_10_29.md` for complete technical analysis
+
+---
+
+**Last Updated**: October 29, 2025 (Invoice Profile Bug Fixes Complete)
 **Next Review**: After Sprint 11 Phase 4 completion
 **Status**: Active Development - Sprint 11 Phases 1-3 Complete, Production Stable 🚀
 **Current Focus**: Role & Permission Guards (Phase 4) - Ready to implement
