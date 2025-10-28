@@ -42,12 +42,12 @@ const vendorRequestSchema = z.object({
   address: z.string().max(500, 'Address too long').optional().nullable(),
   gst_exemption: z.boolean().default(false),
   bank_details: z.string().max(1000, 'Bank details too long').optional().nullable(),
-  is_active: z.boolean().default(true),
+  // Note: is_active is controlled by admin during approval, not by requester
 });
 
 const categoryRequestSchema = z.object({
   name: z.string().min(1, 'Category name is required').max(255, 'Name too long'),
-  is_active: z.boolean().default(true),
+  // Note: is_active is controlled by admin during approval, not by requester
 });
 
 const invoiceProfileRequestSchema = z.object({
@@ -66,7 +66,7 @@ const paymentTypeRequestSchema = z.object({
   name: z.string().min(1, 'Payment type name is required').max(255, 'Name too long'),
   description: z.string().max(1000, 'Description too long').optional().nullable(),
   requires_reference: z.boolean().default(false),
-  is_active: z.boolean().default(true),
+  // Note: is_active is controlled by admin during approval, not by requester
 });
 
 // Get schema based on entity type
@@ -156,7 +156,13 @@ export function MasterDataRequestFormPanel({
     if (entityType === 'invoice_profile') {
       loadMasterData();
     }
-  }, [entityType, loadMasterData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Note: loadMasterData intentionally excluded to prevent infinite loop.
+    // Only re-fetch when entityType changes, not when loadMasterData function changes.
+    // The loadMasterData callback depends on toast, which is recreated on every render,
+    // causing an infinite cycle if included in dependency array. This is the same pattern
+    // as the October 28 fix in admin-request-review-panel.tsx.
+  }, [entityType]);
 
   // Form setup with entity-specific defaults
   // Using any for form data type due to TypeScript limitations with dynamic schemas
@@ -307,10 +313,9 @@ function getDefaultValues(entityType: MasterDataEntityType): any {
         address: '',
         gst_exemption: false,
         bank_details: '',
-        is_active: true,
       };
     case 'category':
-      return { name: '', is_active: true };
+      return { name: '' };
     case 'invoice_profile':
       return {
         name: '',
@@ -328,7 +333,6 @@ function getDefaultValues(entityType: MasterDataEntityType): any {
         name: '',
         description: '',
         requires_reference: false,
-        is_active: true,
       };
   }
 }
@@ -401,27 +405,6 @@ function VendorForm({ register, control, errors }: any) {
           Max 1000 characters
         </p>
       </div>
-
-      <div className="space-y-2">
-        <Label className="flex items-center space-x-2">
-          <Controller
-            name="is_active"
-            control={control}
-            render={({ field }) => (
-              <input
-                type="checkbox"
-                checked={field.value}
-                onChange={(e) => field.onChange(e.target.checked)}
-                className="h-4 w-4"
-              />
-            )}
-          />
-          <span>Active</span>
-        </Label>
-        <p className="text-xs text-muted-foreground">
-          Inactive vendors won&apos;t appear in dropdown lists
-        </p>
-      </div>
     </>
   );
 }
@@ -443,27 +426,6 @@ function CategoryForm({ register, control, errors }: any) {
         {errors.name && (
           <p className="text-xs text-destructive">{errors.name.message}</p>
         )}
-      </div>
-
-      <div className="space-y-2">
-        <Label className="flex items-center space-x-2">
-          <Controller
-            name="is_active"
-            control={control}
-            render={({ field }) => (
-              <input
-                type="checkbox"
-                checked={field.value}
-                onChange={(e) => field.onChange(e.target.checked)}
-                className="h-4 w-4"
-              />
-            )}
-          />
-          <span>Active</span>
-        </Label>
-        <p className="text-xs text-muted-foreground">
-          Inactive categories won&apos;t appear in dropdown lists
-        </p>
       </div>
     </>
   );
@@ -783,27 +745,6 @@ function PaymentTypeForm({ register, control, errors }: any) {
         </Label>
         <p className="text-xs text-muted-foreground">
           If checked, payment reference number is mandatory
-        </p>
-      </div>
-
-      <div className="space-y-2">
-        <Label className="flex items-center space-x-2">
-          <Controller
-            name="is_active"
-            control={control}
-            render={({ field }) => (
-              <input
-                type="checkbox"
-                checked={field.value}
-                onChange={(e) => field.onChange(e.target.checked)}
-                className="h-4 w-4"
-              />
-            )}
-          />
-          <span>Active</span>
-        </Label>
-        <p className="text-xs text-muted-foreground">
-          Inactive payment types won&apos;t appear in dropdown lists
         </p>
       </div>
     </>
