@@ -34,7 +34,20 @@ export function AdminRequestPanelRenderer({ id, type, props, onClose }: AdminReq
 
   switch (type) {
     case 'admin-request-review':
-      return <AdminRequestReviewPanel config={config} onClose={onClose} requestId={props.requestId as number} />;
+      {
+        const numericRequestId = Number(props.requestId);
+        if (!Number.isFinite(numericRequestId)) {
+          console.error('[AdminRequestPanelRenderer] Invalid requestId provided:', props.requestId);
+          return null;
+        }
+        return (
+          <AdminRequestReviewPanel
+            config={config}
+            onClose={onClose}
+            requestId={numericRequestId}
+          />
+        );
+      }
 
     case 'admin-rejection-modal':
       return <RejectionReasonModal config={config} onClose={onClose} requestId={props.requestId as number} />;
