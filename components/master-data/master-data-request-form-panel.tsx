@@ -15,6 +15,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Select } from '@/components/ui/select';
 import { PanelLevel } from '@/components/panels/panel-level';
 import { usePanel } from '@/hooks/use-panel';
 import { useToast } from '@/hooks/use-toast';
@@ -22,6 +24,8 @@ import {
   createRequest,
   type MasterDataEntityType,
 } from '@/app/actions/master-data-requests';
+import { getEntities } from '@/app/actions/admin/entities';
+import { getVendors, getCategories } from '@/app/actions/master-data';
 import type { PanelConfig } from '@/types/panel';
 
 interface MasterDataRequestFormPanelProps {
@@ -49,7 +53,13 @@ const categoryRequestSchema = z.object({
 const invoiceProfileRequestSchema = z.object({
   name: z.string().min(1, 'Profile name is required').max(255, 'Name too long'),
   description: z.string().max(1000, 'Description too long').optional().nullable(),
-  visible_to_all: z.boolean().default(true),
+  entity_id: z.number().min(1, 'Entity is required'),
+  vendor_id: z.number().min(1, 'Vendor is required'),
+  category_id: z.number().min(1, 'Category is required'),
+  currency_id: z.number().min(1, 'Currency is required'),
+  prepaid_postpaid: z.enum(['prepaid', 'postpaid']).optional().nullable(),
+  tds_applicable: z.boolean().default(false),
+  tds_percentage: z.number().min(0).max(100).optional().nullable(),
 });
 
 const paymentTypeRequestSchema = z.object({
@@ -97,6 +107,56 @@ export function MasterDataRequestFormPanel({
   const { closeTopPanel } = usePanel();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [masterData, setMasterData] = React.useState<{
+    entities: Array<{ id: number; name: string }>;
+    vendors: Array<{ id: number; name: string }>;
+    categories: Array<{ id: number; name: string }>;
+    currencies: Array<{ id: number; code: string; name: string }>;
+  }>({
+    entities: [],
+    vendors: [],
+    categories: [],
+    currencies: [],
+  });
+  const [isLoadingMasterData, setIsLoadingMasterData] = React.useState(false);
+
+  // Load master data for invoice profile forms
+  React.useEffect(() => {
+    if (entityType === 'invoice_profile') {
+      loadMasterData();
+    }
+  }, [entityType]);
+
+  const loadMasterData = async () => {
+    setIsLoadingMasterData(true);
+    try {
+      const [entitiesRes, vendorsRes, categoriesRes, currenciesRes] = await Promise.all([
+        getEntities({ is_active: true, per_page: 1000 }),
+        getVendors({ is_active: true, per_page: 1000 }),
+        getCategories({ is_active: true, per_page: 1000 }),
+        fetch('/api/admin/currencies').then((r) => r.json()),
+      ]);
+
+      setMasterData({
+        entities: entitiesRes.success ? entitiesRes.data.entities : [],
+        vendors: vendorsRes.success ? vendorsRes.data.vendors : [],
+        categories: categoriesRes.success ? categoriesRes.data.categories : [],
+        currencies:
+          currenciesRes.success
+            ? currenciesRes.data.filter((c: { is_active: boolean }) => c.is_active)
+            : [],
+      });
+    } catch (error) {
+      console.error('Failed to load master data:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load master data options',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoadingMasterData(false);
+    }
+  };
 
   // Form setup with entity-specific defaults
   // Using any for form data type due to TypeScript limitations with dynamic schemas
@@ -104,6 +164,8 @@ export function MasterDataRequestFormPanel({
     register,
     handleSubmit,
     control,
+    watch,
+    setValue,
     formState: { errors },
   } = useForm<any>({
     resolver: zodResolver(getSchema(entityType) as any),
@@ -203,6 +265,10 @@ export function MasterDataRequestFormPanel({
             register={register}
             control={control}
             errors={errors}
+            masterData={masterData}
+            isLoadingMasterData={isLoadingMasterData}
+            watch={watch}
+            setValue={setValue}
           />
         )}
         {entityType === 'payment_type' && (
@@ -247,7 +313,17 @@ function getDefaultValues(entityType: MasterDataEntityType): any {
     case 'category':
       return { name: '', is_active: true };
     case 'invoice_profile':
-      return { name: '', description: '', visible_to_all: true };
+      return {
+        name: '',
+        description: '',
+        entity_id: 0,
+        vendor_id: 0,
+        category_id: 0,
+        currency_id: 0,
+        prepaid_postpaid: undefined,
+        tds_applicable: false,
+        tds_percentage: undefined,
+      };
     case 'payment_type':
       return {
         name: '',
@@ -394,10 +470,46 @@ function CategoryForm({ register, control, errors }: any) {
   );
 }
 
-// Invoice Profile-specific form fields
-function InvoiceProfileForm({ register, control, errors }: any) {
+// Invoice Profile-specific form fields (matching admin form)
+function InvoiceProfileForm({ register, control, errors, masterData, isLoadingMasterData, watch, setValue }: any) {
+  const tdsApplicable = watch('tds_applicable');
+
+  // Check if required master data is missing
+  const hasMissingMasterData =
+    !isLoadingMasterData &&
+    (masterData.entities.length === 0 ||
+      masterData.vendors.length === 0 ||
+      masterData.categories.length === 0 ||
+      masterData.currencies.length === 0);
+
+  if (isLoadingMasterData) {
+    return (
+      <div className="py-8 text-center text-sm text-muted-foreground">
+        Loading master data options...
+      </div>
+    );
+  }
+
+  if (hasMissingMasterData) {
+    return (
+      <div className="rounded-md border border-destructive bg-destructive/10 p-4">
+        <p className="text-sm font-semibold text-destructive">Missing Required Master Data</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          You need at least one active entity, vendor, category, and currency to request an invoice profile.
+        </p>
+        <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
+          {masterData.entities.length === 0 && <li>• No active entities found</li>}
+          {masterData.vendors.length === 0 && <li>• No active vendors found</li>}
+          {masterData.categories.length === 0 && <li>• No active categories found</li>}
+          {masterData.currencies.length === 0 && <li>• No active currencies found</li>}
+        </ul>
+      </div>
+    );
+  }
+
   return (
     <>
+      {/* Name */}
       <div className="space-y-2">
         <Label htmlFor="name">
           Profile Name <span className="text-destructive">*</span>
@@ -405,7 +517,7 @@ function InvoiceProfileForm({ register, control, errors }: any) {
         <Input
           id="name"
           {...register('name')}
-          placeholder="Enter profile name"
+          placeholder="e.g., AWS Cloud Services, Office Supplies"
           className={errors.name ? 'border-destructive' : ''}
         />
         {errors.name && (
@@ -413,48 +525,200 @@ function InvoiceProfileForm({ register, control, errors }: any) {
         )}
       </div>
 
+      {/* Description */}
       <div className="space-y-2">
         <Label htmlFor="description">Description</Label>
-        <Controller
-          name="description"
-          control={control}
-          render={({ field }) => (
-            <Textarea
-              id="description"
-              value={field.value || ''}
-              onChange={(e) => field.onChange(e.target.value || null)}
-              placeholder="Optional description"
-              rows={3}
-              className="resize-none"
-            />
-          )}
+        <Textarea
+          id="description"
+          {...register('description')}
+          placeholder="Optional description of this invoice profile"
+          rows={2}
+          className={errors.description ? 'border-destructive' : ''}
         />
         {errors.description && (
-          <p className="text-xs text-destructive">
-            {errors.description.message}
-          </p>
+          <p className="text-xs text-destructive">{errors.description.message}</p>
         )}
       </div>
 
+      {/* Entity Dropdown */}
+      <div className="space-y-2">
+        <Label htmlFor="entity_id">
+          Entity <span className="text-destructive">*</span>
+        </Label>
+        <Select
+          id="entity_id"
+          {...register('entity_id', { valueAsNumber: true })}
+          className={errors.entity_id ? 'border-destructive' : ''}
+        >
+          <option value="">Select entity</option>
+          {masterData.entities.map((entity: { id: number; name: string }) => (
+            <option key={entity.id} value={entity.id}>
+              {entity.name}
+            </option>
+          ))}
+        </Select>
+        {errors.entity_id && (
+          <p className="text-xs text-destructive">{errors.entity_id.message}</p>
+        )}
+      </div>
+
+      {/* Vendor Dropdown */}
+      <div className="space-y-2">
+        <Label htmlFor="vendor_id">
+          Vendor <span className="text-destructive">*</span>
+        </Label>
+        <Select
+          id="vendor_id"
+          {...register('vendor_id', { valueAsNumber: true })}
+          className={errors.vendor_id ? 'border-destructive' : ''}
+        >
+          <option value="">Select vendor</option>
+          {masterData.vendors.map((vendor: { id: number; name: string }) => (
+            <option key={vendor.id} value={vendor.id}>
+              {vendor.name}
+            </option>
+          ))}
+        </Select>
+        {errors.vendor_id && (
+          <p className="text-xs text-destructive">{errors.vendor_id.message}</p>
+        )}
+      </div>
+
+      {/* Category Dropdown */}
+      <div className="space-y-2">
+        <Label htmlFor="category_id">
+          Category <span className="text-destructive">*</span>
+        </Label>
+        <Select
+          id="category_id"
+          {...register('category_id', { valueAsNumber: true })}
+          className={errors.category_id ? 'border-destructive' : ''}
+        >
+          <option value="">Select category</option>
+          {masterData.categories.map((category: { id: number; name: string }) => (
+            <option key={category.id} value={category.id}>
+              {category.name}
+            </option>
+          ))}
+        </Select>
+        {errors.category_id && (
+          <p className="text-xs text-destructive">{errors.category_id.message}</p>
+        )}
+      </div>
+
+      {/* Currency Dropdown */}
+      <div className="space-y-2">
+        <Label htmlFor="currency_id">
+          Currency <span className="text-destructive">*</span>
+        </Label>
+        <Select
+          id="currency_id"
+          {...register('currency_id', { valueAsNumber: true })}
+          className={errors.currency_id ? 'border-destructive' : ''}
+        >
+          <option value="">Select currency</option>
+          {masterData.currencies.map((currency: { id: number; code: string; name: string }) => (
+            <option key={currency.id} value={currency.id}>
+              {currency.code} - {currency.name}
+            </option>
+          ))}
+        </Select>
+        {errors.currency_id && (
+          <p className="text-xs text-destructive">{errors.currency_id.message}</p>
+        )}
+      </div>
+
+      {/* Prepaid/Postpaid Radio */}
+      <div className="space-y-2">
+        <Label>Payment Type</Label>
+        <div className="space-y-2">
+          <label className="flex items-center space-x-2">
+            <input
+              type="radio"
+              value="prepaid"
+              checked={watch('prepaid_postpaid') === 'prepaid'}
+              onChange={() => setValue('prepaid_postpaid', 'prepaid')}
+              className="h-4 w-4"
+            />
+            <span className="text-sm">Prepaid</span>
+          </label>
+          <label className="flex items-center space-x-2">
+            <input
+              type="radio"
+              value="postpaid"
+              checked={watch('prepaid_postpaid') === 'postpaid'}
+              onChange={() => setValue('prepaid_postpaid', 'postpaid')}
+              className="h-4 w-4"
+            />
+            <span className="text-sm">Postpaid</span>
+          </label>
+          <label className="flex items-center space-x-2">
+            <input
+              type="radio"
+              value=""
+              checked={!watch('prepaid_postpaid')}
+              onChange={() => setValue('prepaid_postpaid', undefined)}
+              className="h-4 w-4"
+            />
+            <span className="text-sm">Not specified</span>
+          </label>
+        </div>
+        {errors.prepaid_postpaid && (
+          <p className="text-xs text-destructive">{errors.prepaid_postpaid.message}</p>
+        )}
+      </div>
+
+      {/* TDS Applicable Checkbox */}
       <div className="space-y-2">
         <Label className="flex items-center space-x-2">
-          <Controller
-            name="visible_to_all"
-            control={control}
-            render={({ field }) => (
-              <input
-                type="checkbox"
-                checked={field.value}
-                onChange={(e) => field.onChange(e.target.checked)}
-                className="h-4 w-4"
-              />
-            )}
+          <Checkbox
+            id="tds_applicable"
+            checked={tdsApplicable}
+            onCheckedChange={(checked) => {
+              setValue('tds_applicable', !!checked);
+              if (!checked) {
+                setValue('tds_percentage', undefined);
+              }
+            }}
           />
-          <span>Visible to All</span>
+          <span>TDS Applicable (Tax Deducted at Source)</span>
         </Label>
-        <p className="text-xs text-muted-foreground">
-          If unchecked, only assigned users can see this profile
-        </p>
+      </div>
+
+      {/* TDS Percentage - Conditional */}
+      {tdsApplicable && (
+        <div className="space-y-2">
+          <Label htmlFor="tds_percentage">
+            TDS Percentage <span className="text-destructive">*</span>
+          </Label>
+          <Input
+            id="tds_percentage"
+            type="number"
+            step="0.01"
+            min="0"
+            max="100"
+            {...register('tds_percentage', { valueAsNumber: true })}
+            placeholder="e.g., 10.5"
+            className={errors.tds_percentage ? 'border-destructive' : ''}
+          />
+          {errors.tds_percentage && (
+            <p className="text-xs text-destructive">{errors.tds_percentage.message}</p>
+          )}
+          <p className="text-xs text-muted-foreground">
+            Enter percentage (0-100). Example: 10 for 10%
+          </p>
+        </div>
+      )}
+
+      {/* Requirements Box */}
+      <div className="rounded-md border border-border bg-muted p-3 text-xs">
+        <p className="mb-1 font-semibold">Requirements:</p>
+        <ul className="space-y-1 text-muted-foreground">
+          <li>• Profile name must be unique</li>
+          <li>• All fields marked with * are required</li>
+          <li>• TDS percentage required if TDS applicable</li>
+          <li>• TDS percentage must be between 0 and 100</li>
+        </ul>
       </div>
     </>
   );
