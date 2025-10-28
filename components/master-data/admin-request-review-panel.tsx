@@ -30,6 +30,7 @@ interface AdminRequestReviewPanelProps {
 export function AdminRequestReviewPanel({ config, onClose, requestId }: AdminRequestReviewPanelProps) {
   const [request, setRequest] = React.useState<MasterDataRequestWithDetails | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
   const [isEditing, setIsEditing] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
   const [adminEdits, setAdminEdits] = React.useState<Record<string, unknown>>({});
@@ -39,8 +40,23 @@ export function AdminRequestReviewPanel({ config, onClose, requestId }: AdminReq
 
   const loadRequest = React.useCallback(async () => {
     setIsLoading(true);
+    setError(null);
+
+    // Add timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      setIsLoading(false);
+      setError('Request timed out. Please try again.');
+      toast({
+        title: 'Timeout',
+        description: 'Failed to load request. Please try again.',
+        variant: 'destructive',
+      });
+    }, 10000); // 10 second timeout
+
     try {
       const result = await getRequestById(requestId);
+      clearTimeout(timeoutId);
+
       if (result.success) {
         setRequest(result.data);
         // Pre-fill admin edits if they exist
@@ -52,6 +68,7 @@ export function AdminRequestReviewPanel({ config, onClose, requestId }: AdminReq
           setAdminNotes(result.data.admin_notes);
         }
       } else {
+        setError(result.error || 'Failed to load request');
         toast({
           title: 'Error',
           description: result.error,
@@ -59,10 +76,13 @@ export function AdminRequestReviewPanel({ config, onClose, requestId }: AdminReq
         });
       }
     } catch (error) {
+      clearTimeout(timeoutId);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load request';
       console.error('Failed to load request:', error);
+      setError(errorMessage);
       toast({
         title: 'Error',
-        description: 'Failed to load request',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
@@ -203,8 +223,17 @@ export function AdminRequestReviewPanel({ config, onClose, requestId }: AdminReq
       }
     >
       {isLoading ? (
-        <div className="flex h-full items-center justify-center">
+        <div className="flex h-full flex-col items-center justify-center gap-4">
           <p className="text-muted-foreground">Loading request...</p>
+          <p className="text-xs text-muted-foreground">If this takes too long, try closing and reopening the panel</p>
+        </div>
+      ) : error ? (
+        <div className="flex h-full flex-col items-center justify-center gap-4">
+          <p className="text-destructive font-medium">Failed to load request</p>
+          <p className="text-sm text-muted-foreground">{error}</p>
+          <Button onClick={loadRequest} variant="outline">
+            Retry
+          </Button>
         </div>
       ) : !request ? (
         <div className="flex h-full items-center justify-center">
