@@ -121,13 +121,7 @@ export function MasterDataRequestFormPanel({
   const [isLoadingMasterData, setIsLoadingMasterData] = React.useState(false);
 
   // Load master data for invoice profile forms
-  React.useEffect(() => {
-    if (entityType === 'invoice_profile') {
-      loadMasterData();
-    }
-  }, [entityType]);
-
-  const loadMasterData = async () => {
+  const loadMasterData = React.useCallback(async () => {
     setIsLoadingMasterData(true);
     try {
       const [entitiesRes, vendorsRes, categoriesRes, currenciesRes] = await Promise.all([
@@ -156,7 +150,13 @@ export function MasterDataRequestFormPanel({
     } finally {
       setIsLoadingMasterData(false);
     }
-  };
+  }, [toast]);
+
+  React.useEffect(() => {
+    if (entityType === 'invoice_profile') {
+      loadMasterData();
+    }
+  }, [entityType, loadMasterData]);
 
   // Form setup with entity-specific defaults
   // Using any for form data type due to TypeScript limitations with dynamic schemas
@@ -263,7 +263,6 @@ export function MasterDataRequestFormPanel({
         {entityType === 'invoice_profile' && (
           <InvoiceProfileForm
             register={register}
-            control={control}
             errors={errors}
             masterData={masterData}
             isLoadingMasterData={isLoadingMasterData}
@@ -471,7 +470,7 @@ function CategoryForm({ register, control, errors }: any) {
 }
 
 // Invoice Profile-specific form fields (matching admin form)
-function InvoiceProfileForm({ register, control, errors, masterData, isLoadingMasterData, watch, setValue }: any) {
+function InvoiceProfileForm({ register, errors, masterData, isLoadingMasterData, watch, setValue }: any) {
   const tdsApplicable = watch('tds_applicable');
 
   // Check if required master data is missing
