@@ -60,6 +60,11 @@ const customJestConfig = {
     '/coverage/',
   ],
 
+  // Transform ESM modules
+  transformIgnorePatterns: [
+    'node_modules/(?!(next-auth|@auth)/)',
+  ],
+
   // Transform files
   transform: {
     '^.+\\.(ts|tsx)$': ['ts-jest', {

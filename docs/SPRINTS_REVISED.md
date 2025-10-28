@@ -509,12 +509,12 @@
 
 ## 🚧 Sprint 11: User Management & RBAC (12 SP) - IN PROGRESS
 
-**Status**: 🚧 **IN PROGRESS** (58% Complete - 7 SP / 12 SP)
+**Status**: 🚧 **IN PROGRESS** (75% Complete - 9 SP / 12 SP)
 **Started**: October 26, 2025
 **Goal**: Complete user management and permissions system
-**Progress**: Phases 1-3 Complete, Phase 4 Next
+**Progress**: Phases 1-4 Complete, Phase 5 Next
 
-### ✅ Completed Phases (3/6)
+### ✅ Completed Phases (4/6)
 
 #### **Phase 1: Database & Contracts (1 SP)** - COMPLETE ✅
 - ✅ Created `UserAuditLog` model for user management audit trail
@@ -641,14 +641,20 @@
 - `app/actions/master-data-requests.ts` (ID normalization, Oct 28)
 - `lib/activity-log.ts` (TypeScript fixes, Oct 28)
 
-### 🔲 Remaining Phases (3/6)
+### ✅ Completed Phases (4/6)
 
-#### **Phase 4: Role & Permission Guards (2 SP)**
-- [ ] Route protection middleware for `/admin/users`
-- [ ] Super admin UI visibility controls
-- [ ] Last super admin protection in UI
-- [ ] Role change confirmation dialog
-- [ ] Permission boundary testing
+#### **Phase 4: Role & Permission Guards (2 SP)** - COMPLETE ✅ (October 29, 2025)
+- ✅ Route protection middleware for `/admin/*` routes (middleware.ts)
+- ✅ Super admin UI visibility controls (sidebar filtering)
+- ✅ Last super admin protection in UI (warning dialogs)
+- ✅ Last super admin protection in backend (server actions)
+- ✅ Role change confirmation dialog with validation
+- ✅ Permission boundary testing (manual + test files created)
+- ✅ Test documentation (`__tests__/SPRINT_11_PHASE_4_TEST_SUMMARY.md`)
+
+**Story Points Completed**: 2 SP
+
+### 🔲 Remaining Phases (2/6)
 
 #### **Phase 5: Profile Visibility Management (2 SP)**
 - [ ] Profile access grant/revoke Server Actions
@@ -688,6 +694,13 @@
 - `a2073d7` - feat(master-data): add invoice profile panel components (dialog still active)
 - `e23f73b` - feat(master-data): add panel state management alongside dialog
 - `9f77668` - refactor(master-data): replace invoice profile dialog with stacked panels
+- `502cf50` - docs: Update session summaries and fix TypeScript/ESLint issues
+
+**October 29, 2025 - Sprint 11 Phase 4 (2 SP)**:
+- Phase 4: Role & Permission Guards - All features implemented and manually tested
+- Created comprehensive test files (middleware, server actions)
+- Test documentation in `__tests__/SPRINT_11_PHASE_4_TEST_SUMMARY.md`
+- All permission boundaries enforced and validated
 
 ### Files Created (Phases 1-3)
 **Phase 1-2 (Backend)**:
