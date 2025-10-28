@@ -21,10 +21,6 @@ import { useToast } from '@/hooks/use-toast';
 import {
   createRequest,
   type MasterDataEntityType,
-  type VendorRequestData,
-  type CategoryRequestData,
-  type InvoiceProfileRequestData,
-  type PaymentTypeRequestData,
 } from '@/app/actions/master-data-requests';
 import type { PanelConfig } from '@/types/panel';
 
@@ -34,12 +30,14 @@ interface MasterDataRequestFormPanelProps {
   entityType: MasterDataEntityType;
   initialData?: Record<string, any>; // For resubmission
   isResubmit?: boolean;
-  originalRequestId?: number;
 }
 
 // Validation schemas matching server-side schemas
 const vendorRequestSchema = z.object({
   name: z.string().min(1, 'Vendor name is required').max(255, 'Name too long'),
+  address: z.string().max(500, 'Address too long').optional().nullable(),
+  gst_exemption: z.boolean().default(false),
+  bank_details: z.string().max(1000, 'Bank details too long').optional().nullable(),
   is_active: z.boolean().default(true),
 });
 
@@ -60,13 +58,6 @@ const paymentTypeRequestSchema = z.object({
   requires_reference: z.boolean().default(false),
   is_active: z.boolean().default(true),
 });
-
-type FormDataMap = {
-  vendor: VendorRequestData;
-  category: CategoryRequestData;
-  invoice_profile: InvoiceProfileRequestData;
-  payment_type: PaymentTypeRequestData;
-};
 
 // Get schema based on entity type
 function getSchema(entityType: MasterDataEntityType) {
@@ -102,7 +93,6 @@ export function MasterDataRequestFormPanel({
   entityType,
   initialData,
   isResubmit = false,
-  originalRequestId,
 }: MasterDataRequestFormPanelProps) {
   const { closeTopPanel } = usePanel();
   const { toast } = useToast();
@@ -247,7 +237,13 @@ export function MasterDataRequestFormPanel({
 function getDefaultValues(entityType: MasterDataEntityType): any {
   switch (entityType) {
     case 'vendor':
-      return { name: '', is_active: true };
+      return {
+        name: '',
+        address: '',
+        gst_exemption: false,
+        bank_details: '',
+        is_active: true,
+      };
     case 'category':
       return { name: '', is_active: true };
     case 'invoice_profile':
@@ -262,7 +258,7 @@ function getDefaultValues(entityType: MasterDataEntityType): any {
   }
 }
 
-// Vendor-specific form fields
+// Vendor-specific form fields (matching admin form)
 function VendorForm({ register, control, errors }: any) {
   return (
     <>
@@ -279,6 +275,56 @@ function VendorForm({ register, control, errors }: any) {
         {errors.name && (
           <p className="text-xs text-destructive">{errors.name.message}</p>
         )}
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="address">Address</Label>
+        <Textarea
+          id="address"
+          {...register('address')}
+          placeholder="Vendor physical or mailing address"
+          rows={3}
+          className={errors.address ? 'border-destructive' : ''}
+        />
+        {errors.address && (
+          <p className="text-xs text-destructive">{errors.address.message}</p>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <Label className="flex items-center space-x-2">
+          <Controller
+            name="gst_exemption"
+            control={control}
+            render={({ field }) => (
+              <input
+                type="checkbox"
+                checked={field.value}
+                onChange={(e) => field.onChange(e.target.checked)}
+                className="h-4 w-4"
+              />
+            )}
+          />
+          <span>GST/VAT Exempt</span>
+        </Label>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="bank_details">Bank Details</Label>
+        <Textarea
+          id="bank_details"
+          {...register('bank_details')}
+          placeholder="Bank account details for payment processing"
+          rows={3}
+          maxLength={1000}
+          className={errors.bank_details ? 'border-destructive' : ''}
+        />
+        {errors.bank_details && (
+          <p className="text-xs text-destructive">{errors.bank_details.message}</p>
+        )}
+        <p className="text-xs text-muted-foreground">
+          Max 1000 characters
+        </p>
       </div>
 
       <div className="space-y-2">
