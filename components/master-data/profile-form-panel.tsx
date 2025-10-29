@@ -82,6 +82,7 @@ export function ProfileFormPanel({
       prepaid_postpaid: undefined,
       tds_applicable: false,
       tds_percentage: undefined,
+      visible_to_all: true,
     },
   });
 
@@ -137,6 +138,7 @@ export function ProfileFormPanel({
             prepaid_postpaid: (profile.prepaid_postpaid as 'prepaid' | 'postpaid' | undefined) || undefined,
             tds_applicable: profile.tds_applicable,
             tds_percentage: profile.tds_percentage || undefined,
+            visible_to_all: profile.visible_to_all ?? true,
           });
         } else {
           toast({
@@ -493,6 +495,26 @@ export function ProfileFormPanel({
               </p>
             </div>
           )}
+
+          {/* Visible to All */}
+          <div className="flex items-start space-x-3 rounded-lg border p-4">
+            <div className="flex items-center h-5">
+              <Checkbox
+                id="visible_to_all"
+                checked={watch('visible_to_all') ?? true}
+                onCheckedChange={(checked) => setValue('visible_to_all', !!checked)}
+              />
+            </div>
+            <div className="flex-1">
+              <Label htmlFor="visible_to_all" className="text-sm font-medium cursor-pointer">
+                Visible to All Users
+              </Label>
+              <p className="text-sm text-muted-foreground mt-1">
+                When unchecked, only users with explicit access grants can see and use this profile.
+                Super admins can manage access in the profile detail panel.
+              </p>
+            </div>
+          </div>
 
           {/* Requirements Info */}
           <div className="rounded-md border border-border bg-muted p-3 text-xs">

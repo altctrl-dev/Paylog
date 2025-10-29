@@ -144,6 +144,7 @@ export type EntityFilters = z.infer<typeof entityFiltersSchema>;
  * - Prepaid/Postpaid: optional enum ('prepaid' | 'postpaid')
  * - TDS Applicable: boolean, default false
  * - TDS Percentage: 0-100, required if tds_applicable=true
+ * - Visible to All: boolean, default true (public by default)
  */
 export const invoiceProfileFormSchema = z
   .object({
@@ -180,6 +181,7 @@ export const invoiceProfileFormSchema = z
       .min(0, 'TDS percentage cannot be negative')
       .max(100, 'TDS percentage cannot exceed 100')
       .optional(),
+    visible_to_all: z.boolean(),
   })
   .refine(
     (data) => {

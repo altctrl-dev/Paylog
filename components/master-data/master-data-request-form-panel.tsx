@@ -60,6 +60,7 @@ const invoiceProfileRequestSchema = z.object({
   prepaid_postpaid: z.enum(['prepaid', 'postpaid']).optional().nullable(),
   tds_applicable: z.boolean().default(false),
   tds_percentage: z.number().min(0).max(100).optional().nullable(),
+  visible_to_all: z.boolean().default(true),
 });
 
 const paymentTypeRequestSchema = z.object({
@@ -332,6 +333,7 @@ function getDefaultValues(entityType: MasterDataEntityType): Record<string, unkn
         prepaid_postpaid: undefined,
         tds_applicable: false,
         tds_percentage: undefined,
+        visible_to_all: true,
       };
     case 'payment_type':
       return {
@@ -678,6 +680,26 @@ function InvoiceProfileForm({ register, errors, masterData, isLoadingMasterData,
           </p>
         </div>
       )}
+
+      {/* Visible to All */}
+      <div className="flex items-start space-x-3 rounded-lg border p-4">
+        <div className="flex items-center h-5">
+          <Checkbox
+            id="visible_to_all"
+            checked={watch('visible_to_all') ?? true}
+            onCheckedChange={(checked) => setValue('visible_to_all', !!checked)}
+          />
+        </div>
+        <div className="flex-1">
+          <Label htmlFor="visible_to_all" className="text-sm font-medium cursor-pointer">
+            Visible to All Users
+          </Label>
+          <p className="text-sm text-muted-foreground mt-1">
+            When unchecked, only users with explicit access grants can see and use this profile.
+            Super admins can manage access in the profile detail panel.
+          </p>
+        </div>
+      </div>
 
       {/* Requirements Box */}
       <div className="rounded-md border border-border bg-muted p-3 text-xs">
