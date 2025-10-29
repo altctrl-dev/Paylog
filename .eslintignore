@@ -1,0 +1,5 @@
+# Test files - allow flexible linting rules for tests
+__tests__/**/*.test.ts
+__tests__/**/*.test.tsx
+__tests__/fixtures/**/*.ts
+__tests__/integration/**/*.tsx
