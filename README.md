@@ -95,10 +95,13 @@ Internal invoice tracking and payment management system built with Next.js 14.
   - Visibility filtering in invoice forms (users only see profiles they have access to)
   - Access management UI integrated into profile detail panels
 
+### Sprint 12 (Complete) ✅
+**Dashboard & Analytics**: Real-time KPIs (6 metrics), interactive charts
+(status breakdown, payment trends, top vendors, invoice volume), activity feed
+(last 10 actions), quick actions, configurable date range (1M/3M/6M/1Y/All),
+60-second cache with manual refresh, RBAC filtering, mobile responsive design.
+
 ### Planned Features
-- Sprint 9A completion (RBAC middleware, admin UI, currency/entity/vendor management)
-- Sprint 9B: Invoice profile enhancement (12-field profiles)
-- Sprint 12: Dashboard & analytics
 - Sprint 13: Polish, testing & production prep
 
 ---
@@ -453,10 +456,10 @@ if (result.error) {
 | Sprint 9A | 🚀 In Progress | Admin Reorganization & Enhanced Master Data (14 SP) |
 | Sprint 9B | 🔲 Planned | Invoice Profile Enhancement (12 SP) |
 | Sprint 11 | ✅ Complete | User Management & RBAC (12 SP) |
-| Sprint 12 | 🔲 Planned | Dashboard & Analytics (14 SP) |
+| Sprint 12 | ✅ Complete | Dashboard & Analytics (14 SP) |
 | Sprint 13 | 🔲 Planned | Polish, Testing & Production Prep (9 SP) |
 
-**Total**: 183 Story Points | **Complete**: 142 SP (77.6%)
+**Total**: 202 Story Points | **Complete**: 195 SP (96.5%)
 
 See [docs/SPRINTS.md](docs/SPRINTS.md) for detailed sprint breakdown.
 
