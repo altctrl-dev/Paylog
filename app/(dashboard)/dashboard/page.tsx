@@ -1,33 +1,55 @@
-export default function DashboardPage() {
+/**
+ * Dashboard Page (Server Component)
+ *
+ * Fetches initial dashboard data with 60-second cache TTL,
+ * then hands off to client wrapper for interactivity.
+ *
+ * Sprint 12, Phase 3: Dashboard Integration & Real-time Updates
+ */
+
+import { DashboardWrapper } from '@/components/dashboard/dashboard-wrapper';
+import { auth } from '@/lib/auth';
+import { DATE_RANGE } from '@/types/dashboard';
+import {
+  getCachedDashboardKPIs,
+  getCachedInvoiceStatusBreakdown,
+  getCachedPaymentTrends,
+  getCachedTopVendorsBySpending,
+  getCachedMonthlyInvoiceVolume,
+  getCachedRecentActivity,
+} from '@/app/actions/dashboard';
+
+export default async function DashboardPage() {
+  // Get current user session for RBAC
+  const session = await auth();
+  const userRole = session?.user?.role ?? 'associate';
+
+  // Default to 6 months date range
+  const defaultDateRange = DATE_RANGE.SIX_MONTHS;
+
+  // Fetch initial data using cached versions (60s TTL for fast initial load)
+  const [kpis, statusData, paymentTrends, topVendors, invoiceVolume, activities] =
+    await Promise.all([
+      getCachedDashboardKPIs(defaultDateRange),
+      getCachedInvoiceStatusBreakdown(defaultDateRange),
+      getCachedPaymentTrends(defaultDateRange),
+      getCachedTopVendorsBySpending(defaultDateRange),
+      getCachedMonthlyInvoiceVolume(defaultDateRange),
+      getCachedRecentActivity(),
+    ]);
+
+  // Pass initial data to client wrapper
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Dashboard</h1>
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-lg border p-6">
-          <h3 className="text-sm font-medium text-muted-foreground">
-            Total Due
-          </h3>
-          <p className="mt-2 text-3xl font-bold">₹0</p>
-        </div>
-        <div className="rounded-lg border p-6">
-          <h3 className="text-sm font-medium text-muted-foreground">
-            Paid This Month
-          </h3>
-          <p className="mt-2 text-3xl font-bold">₹0</p>
-        </div>
-        <div className="rounded-lg border p-6">
-          <h3 className="text-sm font-medium text-muted-foreground">
-            Pending Count
-          </h3>
-          <p className="mt-2 text-3xl font-bold">0</p>
-        </div>
-        <div className="rounded-lg border p-6">
-          <h3 className="text-sm font-medium text-muted-foreground">
-            Avg Processing Time
-          </h3>
-          <p className="mt-2 text-3xl font-bold">0 days</p>
-        </div>
-      </div>
-    </div>
+    <DashboardWrapper
+      initialData={{
+        kpis,
+        statusData,
+        paymentTrends,
+        topVendors,
+        invoiceVolume,
+        activities,
+      }}
+      userRole={userRole}
+    />
   );
 }
