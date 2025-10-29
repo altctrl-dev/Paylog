@@ -34,7 +34,14 @@ export interface CategoryRequestData {
 
 export interface InvoiceProfileRequestData {
   name: string;
-  description?: string;
+  description?: string | null;
+  entity_id?: number;
+  vendor_id?: number;
+  category_id?: number;
+  currency_id?: number;
+  prepaid_postpaid?: 'prepaid' | 'postpaid' | null;
+  tds_applicable?: boolean;
+  tds_percentage?: number | null;
   visible_to_all?: boolean;
 }
 
@@ -143,6 +150,13 @@ const categoryRequestSchema = z.object({
 const invoiceProfileRequestSchema = z.object({
   name: z.string().min(1, 'Profile name is required').max(255, 'Name too long'),
   description: z.string().max(1000, 'Description too long').optional().nullable(),
+  entity_id: z.number().min(1, 'Entity is required'),
+  vendor_id: z.number().min(1, 'Vendor is required'),
+  category_id: z.number().min(1, 'Category is required'),
+  currency_id: z.number().min(1, 'Currency is required'),
+  prepaid_postpaid: z.enum(['prepaid', 'postpaid']).optional().nullable(),
+  tds_applicable: z.boolean().default(false),
+  tds_percentage: z.number().min(0).max(100).optional().nullable(),
   visible_to_all: z.boolean().default(true),
 });
 

@@ -11,10 +11,13 @@ import { PanelLevel } from '@/components/panels/panel-level';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Select } from '@/components/ui/select';
 import { Card } from '@/components/ui/card';
 import { usePanel } from '@/hooks/use-panel';
 import { getRequestById } from '@/app/actions/master-data-requests';
 import { approveRequest } from '@/app/actions/admin/master-data-approval';
+import { getEntities } from '@/app/actions/admin/entities';
+import { getVendors, getCategories } from '@/app/actions/master-data';
 import type {
   MasterDataRequestWithDetails,
 } from '@/app/actions/master-data-requests';
@@ -35,6 +38,17 @@ export function AdminRequestReviewPanel({ config, onClose, requestId }: AdminReq
   const [isSaving, setIsSaving] = React.useState(false);
   const [adminEdits, setAdminEdits] = React.useState<Record<string, unknown>>({});
   const [adminNotes, setAdminNotes] = React.useState('');
+  const [masterData, setMasterData] = React.useState<{
+    entities: Array<{ id: number; name: string }>;
+    vendors: Array<{ id: number; name: string }>;
+    categories: Array<{ id: number; name: string }>;
+    currencies: Array<{ id: number; code: string; name: string }>;
+  }>({
+    entities: [],
+    vendors: [],
+    categories: [],
+    currencies: [],
+  });
   const { openPanel} = usePanel();
   const { toast } = useToast();
   const loadingRef = React.useRef(false);
@@ -109,6 +123,26 @@ export function AdminRequestReviewPanel({ config, onClose, requestId }: AdminReq
   // Note: toast is intentionally excluded from dependencies to prevent infinite re-render loop
   // toast is a stable reference from useToast hook and doesn't need to trigger re-fetch
 
+  const loadMasterData = React.useCallback(async () => {
+    try {
+      const [entitiesRes, vendorsRes, categoriesRes, currenciesRes] = await Promise.all([
+        getEntities({ is_active: true, per_page: 1000 }),
+        getVendors({ is_active: true, per_page: 1000 }),
+        getCategories({ is_active: true, per_page: 1000 }),
+        fetch('/api/admin/currencies').then((r) => r.json()),
+      ]);
+
+      setMasterData({
+        entities: entitiesRes.success ? entitiesRes.data.entities : [],
+        vendors: vendorsRes.success ? vendorsRes.data.vendors : [],
+        categories: categoriesRes.success ? categoriesRes.data.categories : [],
+        currencies: currenciesRes.data?.filter((c: { is_active: boolean }) => c.is_active) || [],
+      });
+    } catch (error) {
+      console.error('Failed to load master data:', error);
+    }
+  }, []);
+
   // Load request on mount and when requestId changes
   React.useEffect(() => {
     loadRequest();
@@ -116,6 +150,14 @@ export function AdminRequestReviewPanel({ config, onClose, requestId }: AdminReq
   }, [requestId]);
   // Note: loadRequest is intentionally excluded to prevent infinite loop
   // We only want to re-fetch when requestId changes
+
+  // Load master data for invoice_profile entity type
+  React.useEffect(() => {
+    if (request?.entity_type === 'invoice_profile') {
+      loadMasterData();
+    }
+    // Exclude loadMasterData from deps to prevent infinite loop
+  }, [request?.entity_type]);
 
   const handleEditField = (field: string, value: unknown) => {
     setAdminEdits((prev) => ({
@@ -482,6 +524,216 @@ export function AdminRequestReviewPanel({ config, onClose, requestId }: AdminReq
                       )}
                       <span className="text-sm font-medium">Visible to All</span>
                     </label>
+                  </div>
+                )}
+
+                {/* Entity Field (invoice_profile) */}
+                {request.entity_type === 'invoice_profile' && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-1 block">
+                      Entity <span className="text-destructive">*</span>
+                    </label>
+                    {isEditing ? (
+                      <Select
+                        value={String((getFinalValue('entity_id') as number | undefined) ?? '')}
+                        onChange={(e) => handleEditField('entity_id', parseInt(e.target.value))}
+                      >
+                        <option value="">Select entity</option>
+                        {masterData.entities.map((entity) => (
+                          <option key={entity.id} value={entity.id}>
+                            {entity.name}
+                          </option>
+                        ))}
+                      </Select>
+                    ) : (
+                      <div className="text-sm p-2 bg-gray-50 rounded border border-gray-200">
+                        {masterData.entities.find((e) => e.id === (getFinalValue('entity_id') as number | undefined))?.name ||
+                          `ID ${(getFinalValue('entity_id') as number | undefined) || '-'}`}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Vendor Field (invoice_profile) */}
+                {request.entity_type === 'invoice_profile' && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-1 block">
+                      Vendor <span className="text-destructive">*</span>
+                    </label>
+                    {isEditing ? (
+                      <Select
+                        value={String((getFinalValue('vendor_id') as number | undefined) ?? '')}
+                        onChange={(e) => handleEditField('vendor_id', parseInt(e.target.value))}
+                      >
+                        <option value="">Select vendor</option>
+                        {masterData.vendors.map((vendor) => (
+                          <option key={vendor.id} value={vendor.id}>
+                            {vendor.name}
+                          </option>
+                        ))}
+                      </Select>
+                    ) : (
+                      <div className="text-sm p-2 bg-gray-50 rounded border border-gray-200">
+                        {masterData.vendors.find((v) => v.id === (getFinalValue('vendor_id') as number | undefined))?.name ||
+                          `ID ${(getFinalValue('vendor_id') as number | undefined) || '-'}`}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Category Field (invoice_profile) */}
+                {request.entity_type === 'invoice_profile' && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-1 block">
+                      Category <span className="text-destructive">*</span>
+                    </label>
+                    {isEditing ? (
+                      <Select
+                        value={String((getFinalValue('category_id') as number | undefined) ?? '')}
+                        onChange={(e) => handleEditField('category_id', parseInt(e.target.value))}
+                      >
+                        <option value="">Select category</option>
+                        {masterData.categories.map((category) => (
+                          <option key={category.id} value={category.id}>
+                            {category.name}
+                          </option>
+                        ))}
+                      </Select>
+                    ) : (
+                      <div className="text-sm p-2 bg-gray-50 rounded border border-gray-200">
+                        {masterData.categories.find((c) => c.id === (getFinalValue('category_id') as number | undefined))?.name ||
+                          `ID ${(getFinalValue('category_id') as number | undefined) || '-'}`}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Currency Field (invoice_profile) */}
+                {request.entity_type === 'invoice_profile' && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-1 block">
+                      Currency <span className="text-destructive">*</span>
+                    </label>
+                    {isEditing ? (
+                      <Select
+                        value={String((getFinalValue('currency_id') as number | undefined) ?? '')}
+                        onChange={(e) => handleEditField('currency_id', parseInt(e.target.value))}
+                      >
+                        <option value="">Select currency</option>
+                        {masterData.currencies.map((currency) => (
+                          <option key={currency.id} value={currency.id}>
+                            {currency.code} - {currency.name}
+                          </option>
+                        ))}
+                      </Select>
+                    ) : (
+                      <div className="text-sm p-2 bg-gray-50 rounded border border-gray-200">
+                        {(() => {
+                          const currency = masterData.currencies.find(
+                            (c) => c.id === (getFinalValue('currency_id') as number | undefined)
+                          );
+                          return currency ? `${currency.code} - ${currency.name}` : `ID ${(getFinalValue('currency_id') as number | undefined) || '-'}`;
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Prepaid/Postpaid (invoice_profile) */}
+                {request.entity_type === 'invoice_profile' && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-1 block">Payment Type</label>
+                    {isEditing ? (
+                      <div className="space-y-2">
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            name="prepaid_postpaid"
+                            value="prepaid"
+                            checked={(getFinalValue('prepaid_postpaid') as string | undefined) === 'prepaid'}
+                            onChange={() => handleEditField('prepaid_postpaid', 'prepaid')}
+                            className="h-4 w-4"
+                          />
+                          <span className="text-sm">Prepaid</span>
+                        </label>
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            name="prepaid_postpaid"
+                            value="postpaid"
+                            checked={(getFinalValue('prepaid_postpaid') as string | undefined) === 'postpaid'}
+                            onChange={() => handleEditField('prepaid_postpaid', 'postpaid')}
+                            className="h-4 w-4"
+                          />
+                          <span className="text-sm">Postpaid</span>
+                        </label>
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            name="prepaid_postpaid"
+                            value=""
+                            checked={!(getFinalValue('prepaid_postpaid') as string | undefined)}
+                            onChange={() => handleEditField('prepaid_postpaid', null)}
+                            className="h-4 w-4"
+                          />
+                          <span className="text-sm">Not specified</span>
+                        </label>
+                      </div>
+                    ) : (
+                      <div className="text-sm p-2 bg-gray-50 rounded border border-gray-200">
+                        {(getFinalValue('prepaid_postpaid') as string | undefined) || 'Not specified'}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* TDS Applicable (invoice_profile) */}
+                {request.entity_type === 'invoice_profile' && (
+                  <div>
+                    <label className="flex items-center gap-2">
+                      {isEditing ? (
+                        <input
+                          type="checkbox"
+                          checked={(getFinalValue('tds_applicable') as boolean | undefined) ?? false}
+                          onChange={(e) => {
+                            handleEditField('tds_applicable', e.target.checked);
+                            if (!e.target.checked) {
+                              handleEditField('tds_percentage', null);
+                            }
+                          }}
+                          className="h-4 w-4"
+                        />
+                      ) : (
+                        <div className="h-4 w-4 border rounded flex items-center justify-center bg-gray-50">
+                          {(getFinalValue('tds_applicable') as boolean | undefined) ? '✓' : ''}
+                        </div>
+                      )}
+                      <span className="text-sm font-medium">TDS Applicable</span>
+                    </label>
+                  </div>
+                )}
+
+                {/* TDS Percentage (conditional on tds_applicable) */}
+                {request.entity_type === 'invoice_profile' && (getFinalValue('tds_applicable') as boolean) && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-1 block">TDS Percentage (%)</label>
+                    {isEditing ? (
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max="100"
+                        value={(getFinalValue('tds_percentage') as number | undefined) ?? ''}
+                        onChange={(e) =>
+                          handleEditField('tds_percentage', e.target.value ? parseFloat(e.target.value) : null)
+                        }
+                        placeholder="0.00"
+                      />
+                    ) : (
+                      <div className="text-sm p-2 bg-gray-50 rounded border border-gray-200">
+                        {((getFinalValue('tds_percentage') as number | undefined) ?? 0).toFixed(2)}%
+                      </div>
+                    )}
                   </div>
                 )}
 
