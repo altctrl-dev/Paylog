@@ -1,9 +1,9 @@
 # PayLog Sprint Plan (Revised)
 
-**Last Updated**: October 27, 2025
+**Last Updated**: October 30, 2025
 **Total Story Points**: 202 SP
-**Completed**: 176 SP (87.1%)
-**Remaining**: 26 SP (12.9%)
+**Completed**: 181 SP (89.6%)
+**Remaining**: 21 SP (10.4%)
 
 ---
 
@@ -23,7 +23,7 @@
 | Sprint 9B | ✅ Complete | 12 SP | Invoice Profile Enhancement |
 | Sprint 9C | ✅ Complete | 3 SP | UX Polish (URL Routing) |
 | Sprint 10 | ✅ Complete | 16 SP | Design System & Styling Refactor |
-| **Sprint 11** | **🚧 In Progress** | **7/12 SP** | **User Management & RBAC (Phases 1-3 Done)** |
+| Sprint 11 | ✅ Complete | 12 SP | User Management & RBAC |
 | Sprint 12 | 🔲 Planned | 14 SP | Dashboard & Analytics |
 | Sprint 13 | 🔲 Planned | 9 SP | Polish, Testing & Production Prep |
 
@@ -342,44 +342,53 @@
 
 ---
 
-## 🔲 Sprint 9C: UX Polish - URL Routing (3 SP)
+## ✅ Sprint 9C: UX Polish - URL Routing (3 SP) - COMPLETE
 
-**Status**: 🔲 **PLANNED**
+**Status**: ✅ **COMPLETE**
+**Completed**: October 2025 (during Sprint 9A Phase 4 corrections)
 **Goal**: Fix URL routing inconsistencies for better bookmarkability and browser navigation
 
 ### Deliverables
 
-#### **Phase 1: Settings Tab Routing** (1 SP)
-- [ ] Add query parameter support to Settings page tabs
+#### **Phase 1: Settings Tab Routing** (1 SP) - COMPLETE ✅
+- ✅ Add query parameter support to Settings page tabs
   - Profile tab: `/settings` or `/settings?tab=profile`
   - My Requests tab: `/settings?tab=requests`
-- [ ] Update tab click handlers to update URL
-- [ ] Preserve tab state on page refresh
-- [ ] Support browser back/forward navigation
+- ✅ Update tab click handlers to update URL
+- ✅ Preserve tab state on page refresh
+- ✅ Support browser back/forward navigation
 
-#### **Phase 2: Master Data Sub-Tab Routing** (1 SP)
-- [ ] Add query parameter for Master Data sub-tabs
+#### **Phase 2: Master Data Sub-Tab Routing** (1 SP) - COMPLETE ✅
+- ✅ Add query parameter for Master Data sub-tabs
   - `/admin?tab=master-data&subtab=vendors`
   - `/admin?tab=master-data&subtab=categories`
   - `/admin?tab=master-data&subtab=entities`
   - `/admin?tab=master-data&subtab=payment-types`
   - `/admin?tab=master-data&subtab=currencies`
-  - `/admin?tab=master-data&subtab=invoice-profiles`
-- [ ] Update sub-tab navigation to use query params
-- [ ] Preserve sub-tab state on refresh
+  - `/admin?tab=master-data&subtab=profiles`
+- ✅ Update sub-tab navigation to use query params
+- ✅ Preserve sub-tab state on refresh
 
-#### **Phase 3: Testing & QA** (1 SP)
-- [ ] Test bookmarking specific tabs
-- [ ] Test browser back/forward buttons
-- [ ] Test page refresh preserves tab state
-- [ ] Test URL sharing (copy/paste)
-- [ ] Verify consistency across all tabbed interfaces
+#### **Phase 3: Testing & QA** (1 SP) - COMPLETE ✅
+- ✅ Test bookmarking specific tabs
+- ✅ Test browser back/forward buttons
+- ✅ Test page refresh preserves tab state
+- ✅ Test URL sharing (copy/paste)
+- ✅ Verify consistency across all tabbed interfaces
 
 ### Technical Highlights
-- Consistent URL routing across Settings and Admin pages
+- Consistent URL routing across Settings and Admin pages using Next.js useSearchParams and useRouter
+- Settings page: `app/(dashboard)/settings/page.tsx` (lines 21-54)
+- Admin main tabs: `app/(dashboard)/admin/page.tsx` (lines 25-40)
+- Master Data sub-tabs: `components/admin/master-data-management.tsx` (lines 31-47)
 - Improved user experience (bookmarkable, shareable URLs)
 - Browser navigation support (back/forward buttons work)
 - Tab state persistence on page refresh
+
+### Files Modified
+- `app/(dashboard)/settings/page.tsx` - Tab routing with query params
+- `app/(dashboard)/admin/page.tsx` - Main tab routing
+- `components/admin/master-data-management.tsx` - Sub-tab routing
 
 ### Acceptance Criteria
 - ✅ Settings tabs update URL with query params
