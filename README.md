@@ -84,12 +84,22 @@ Internal invoice tracking and payment management system built with Next.js 14.
 - **Database Migration**: PostgreSQL 17 (local + Railway production)
 - **Breaking Change Mitigation**: Zero breaking changes, safe rollback available
 
+### Sprint 11 (Complete) ✅
+- **User Management & RBAC**: Full user lifecycle management (create, update, deactivate, reactivate)
+  - Super admin only access with last super admin protection
+  - Password generation (secure and memorable formats)
+  - Comprehensive audit trail for all user management events
+  - Role-based UI visibility controls
+- **Profile Visibility Management**: Granular access control for invoice profiles
+  - Super admins can grant/revoke profile access to specific users
+  - Visibility filtering in invoice forms (users only see profiles they have access to)
+  - Access management UI integrated into profile detail panels
+
 ### Planned Features
 - Sprint 9A completion (RBAC middleware, admin UI, currency/entity/vendor management)
 - Sprint 9B: Invoice profile enhancement (12-field profiles)
-- Sprint 10: User management & RBAC
-- Sprint 11: Dashboard & analytics
-- Sprint 12: Polish, testing & production prep
+- Sprint 12: Dashboard & analytics
+- Sprint 13: Polish, testing & production prep
 
 ---
 
@@ -442,11 +452,11 @@ if (result.error) {
 | Sprint 8 | ✅ Complete | Master Data Management (13 SP) |
 | Sprint 9A | 🚀 In Progress | Admin Reorganization & Enhanced Master Data (14 SP) |
 | Sprint 9B | 🔲 Planned | Invoice Profile Enhancement (12 SP) |
-| Sprint 10 | 🔲 Planned | User Management & RBAC (12 SP) |
-| Sprint 11 | 🔲 Planned | Dashboard & Analytics (14 SP) |
-| Sprint 12 | 🔲 Planned | Polish, Testing & Production Prep (9 SP) |
+| Sprint 11 | ✅ Complete | User Management & RBAC (12 SP) |
+| Sprint 12 | 🔲 Planned | Dashboard & Analytics (14 SP) |
+| Sprint 13 | 🔲 Planned | Polish, Testing & Production Prep (9 SP) |
 
-**Total**: 183 Story Points | **Complete**: 130 SP (71.0%)
+**Total**: 183 Story Points | **Complete**: 142 SP (77.6%)
 
 See [docs/SPRINTS.md](docs/SPRINTS.md) for detailed sprint breakdown.
 

@@ -8,7 +8,7 @@
 'use server';
 
 import type { Prisma } from '@prisma/client';
-import { auth } from '@/lib/auth';
+import { auth, isSuperAdmin } from '@/lib/auth';
 import { db } from '@/lib/db';
 import {
   INVOICE_STATUS,
@@ -1209,7 +1209,26 @@ export async function getInvoiceFormOptions(): Promise<
   }>
 > {
   try {
-    await getCurrentUser();
+    const user = await getCurrentUser();
+    const currentUserId = user.id;
+    const isSuperAdminUser = await isSuperAdmin();
+
+    // Build where clause for invoice profiles with visibility filtering
+    const profileWhere: Prisma.InvoiceProfileWhereInput = {};
+
+    // Apply visibility filter (unless super admin)
+    if (!isSuperAdminUser) {
+      profileWhere.OR = [
+        { visible_to_all: true },
+        {
+          visibilities: {
+            some: {
+              user_id: currentUserId,
+            },
+          },
+        },
+      ];
+    }
 
     const [vendors, categories, profiles, subEntities, entities, currencies] =
       await Promise.all([
@@ -1224,6 +1243,7 @@ export async function getInvoiceFormOptions(): Promise<
           orderBy: { name: 'asc' },
         }),
         db.invoiceProfile.findMany({
+          where: profileWhere,
           select: { id: true, name: true },
           orderBy: { name: 'asc' },
         }),

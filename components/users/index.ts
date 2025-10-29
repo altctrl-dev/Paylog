@@ -13,3 +13,4 @@ export { UsersDataTable } from './users-data-table';
 export { UserDetailPanel } from './user-detail-panel';
 export { UserFormPanel } from './user-form-panel';
 export { UserPanelRenderer } from './user-panel-renderer';
+export { UserSelector } from './user-selector';
