@@ -8,7 +8,7 @@
 'use server';
 
 import type { Prisma } from '@prisma/client';
-import { auth } from '@/lib/auth';
+import { auth, isSuperAdmin } from '@/lib/auth';
 import { db } from '@/lib/db';
 import {
   vendorFormSchema,
@@ -886,6 +886,7 @@ type InvoiceProfileWithRelations = {
 /**
  * Get invoice profiles with filters and pagination
  * Accessible to all authenticated users (read-only)
+ * Non-super-admins only see profiles visible to all OR profiles they have explicit access to
  */
 export async function getInvoiceProfiles(
   filters?: {
@@ -910,37 +911,55 @@ export async function getInvoiceProfiles(
   }>
 > {
   try {
-    await getCurrentUser();
+    const user = await getCurrentUser();
+    const userId = user.id;
+    const isSuperAdminUser = await isSuperAdmin();
 
     const page = filters?.page || 1;
     const per_page = filters?.per_page || 20;
 
     const where: Prisma.InvoiceProfileWhereInput = {};
 
+    // Apply visibility filter (unless super admin)
+    if (!isSuperAdminUser) {
+      where.OR = [
+        { visible_to_all: true },
+        {
+          visibilities: {
+            some: {
+              user_id: userId,
+            },
+          },
+        },
+      ];
+    }
+
+    // Apply search filter
     if (filters?.search) {
       where.name = {
         contains: filters.search,
       };
     }
 
+    // Apply entity filter
     if (filters?.entity_id) {
       where.entity_id = filters.entity_id;
     }
 
+    // Apply vendor filter
     if (filters?.vendor_id) {
       where.vendor_id = filters.vendor_id;
     }
 
+    // Apply category filter
     if (filters?.category_id) {
       where.category_id = filters.category_id;
     }
 
+    // Apply currency filter
     if (filters?.currency_id) {
       where.currency_id = filters.currency_id;
     }
-
-    // Note: InvoiceProfile uses visible_to_all, not is_active
-    // For now, we fetch all profiles regardless of visibility
 
     const [profiles, total] = await Promise.all([
       db.invoiceProfile.findMany({

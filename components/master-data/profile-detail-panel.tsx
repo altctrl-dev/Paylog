@@ -8,12 +8,14 @@
 'use client';
 
 import * as React from 'react';
+import { useSession } from 'next-auth/react';
 import { PanelLevel } from '@/components/panels/panel-level';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Edit2, Trash2, Loader2 } from 'lucide-react';
 import { getInvoiceProfiles, archiveInvoiceProfile } from '@/app/actions/master-data';
 import { useToast } from '@/hooks/use-toast';
+import { ProfileAccessManager } from '@/components/master-data/profile-access-manager';
 import type { PanelConfig } from '@/types/panel';
 
 interface ProfileDetailPanelProps {
@@ -48,6 +50,7 @@ export function ProfileDetailPanel({
   onEdit,
   onDelete,
 }: ProfileDetailPanelProps) {
+  const { data: session } = useSession();
   const { toast } = useToast();
   const [profile, setProfile] = React.useState<Profile | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -294,6 +297,18 @@ export function ProfileDetailPanel({
           </label>
           <p className="mt-1 text-sm font-medium">{profile.invoiceCount}</p>
         </div>
+
+        {/* Access Management Section - Only for super admins */}
+        {session?.user?.role === 'super_admin' && (
+          <div className="space-y-3 border-t pt-4">
+            <h3 className="font-medium text-sm">Access Management</h3>
+            <ProfileAccessManager
+              profileId={profile.id}
+              profileName={profile.name}
+              visibleToAll={profile.visible_to_all}
+            />
+          </div>
+        )}
 
         {/* Timestamps */}
         <div className="border-t pt-4">
