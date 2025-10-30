@@ -5,9 +5,11 @@
  * then hands off to client wrapper for interactivity.
  *
  * Sprint 12, Phase 3: Dashboard Integration & Real-time Updates
+ * Sprint 13, Phase 3: Added error boundary for crash protection
  */
 
 import { DashboardWrapper } from '@/components/dashboard/dashboard-wrapper';
+import { ErrorBoundary } from '@/components/error-boundary';
 import { auth } from '@/lib/auth';
 import { DATE_RANGE } from '@/types/dashboard';
 import {
@@ -38,18 +40,20 @@ export default async function DashboardPage() {
       getCachedRecentActivity(),
     ]);
 
-  // Pass initial data to client wrapper
+  // Pass initial data to client wrapper with error boundary
   return (
-    <DashboardWrapper
-      initialData={{
-        kpis,
-        statusData,
-        paymentTrends,
-        topVendors,
-        invoiceVolume,
-        activities,
-      }}
-      userRole={userRole}
-    />
+    <ErrorBoundary section="Dashboard">
+      <DashboardWrapper
+        initialData={{
+          kpis,
+          statusData,
+          paymentTrends,
+          topVendors,
+          invoiceVolume,
+          activities,
+        }}
+        userRole={userRole}
+      />
+    </ErrorBoundary>
   );
 }

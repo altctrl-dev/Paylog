@@ -34,7 +34,9 @@ const customJestConfig = {
   collectCoverageFrom: [
     'lib/storage/**/*.ts',
     'app/actions/attachments.ts',
+    'app/actions/dashboard.ts',
     'components/attachments/**/*.{ts,tsx}',
+    'components/dashboard/**/*.{ts,tsx}',
     '!**/*.d.ts',
     '!**/node_modules/**',
     '!**/__tests__/**',

@@ -1,20 +1,15 @@
 /**
  * Dashboard Test Fixtures
- */
-
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
-/**
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable react/display-name */
-
+ *
  * Test Fixtures: Dashboard Mock Data
  *
  * Mock data for dashboard KPIs, charts, and activity feed
  * Sprint 12, Phase 4: Testing
  */
+
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable react/display-name */
 
 import {
   DashboardKPIs,
