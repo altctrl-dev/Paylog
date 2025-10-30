@@ -13,14 +13,34 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { DashboardHeader } from './dashboard-header';
 import { KPICard } from './kpi-card';
-import { StatusPieChart } from './status-pie-chart';
-import { PaymentTrendsChart } from './payment-trends-chart';
-import { TopVendorsChart } from './top-vendors-chart';
-import { InvoiceVolumeChart } from './invoice-volume-chart';
 import { ActivityFeed } from './activity-feed';
 import { QuickActions } from './quick-actions';
+import { LazyChartWrapper } from './lazy-chart-wrapper';
+
+// Lazy load chart components (600KB Recharts library loads on-demand)
+// This reduces initial bundle size and improves Time to Interactive
+const StatusPieChart = dynamic(
+  () => import('./status-pie-chart').then((mod) => ({ default: mod.StatusPieChart })),
+  { ssr: false }
+);
+
+const PaymentTrendsChart = dynamic(
+  () => import('./payment-trends-chart').then((mod) => ({ default: mod.PaymentTrendsChart })),
+  { ssr: false }
+);
+
+const TopVendorsChart = dynamic(
+  () => import('./top-vendors-chart').then((mod) => ({ default: mod.TopVendorsChart })),
+  { ssr: false }
+);
+
+const InvoiceVolumeChart = dynamic(
+  () => import('./invoice-volume-chart').then((mod) => ({ default: mod.InvoiceVolumeChart })),
+  { ssr: false }
+);
 import {
   DollarSign,
   Clock,
@@ -170,12 +190,20 @@ export function DashboardWrapper({
         />
       </div>
 
-      {/* Charts Section */}
+      {/* Charts Section - Lazy loaded for performance */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <StatusPieChart data={statusBreakdown} isLoading={isRefreshing} />
-        <PaymentTrendsChart data={paymentTrendsData} isLoading={isRefreshing} />
-        <TopVendorsChart data={topVendorsData} isLoading={isRefreshing} />
-        <InvoiceVolumeChart data={invoiceVolumeData} isLoading={isRefreshing} />
+        <LazyChartWrapper>
+          <StatusPieChart data={statusBreakdown} isLoading={isRefreshing} />
+        </LazyChartWrapper>
+        <LazyChartWrapper>
+          <PaymentTrendsChart data={paymentTrendsData} isLoading={isRefreshing} />
+        </LazyChartWrapper>
+        <LazyChartWrapper>
+          <TopVendorsChart data={topVendorsData} isLoading={isRefreshing} />
+        </LazyChartWrapper>
+        <LazyChartWrapper>
+          <InvoiceVolumeChart data={invoiceVolumeData} isLoading={isRefreshing} />
+        </LazyChartWrapper>
       </div>
 
       {/* Activity & Quick Actions Section */}
