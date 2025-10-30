@@ -36,6 +36,14 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
 
   return (
     <div className="relative flex h-screen flex-col overflow-hidden bg-background text-foreground">
+      {/* Skip to content link for accessibility */}
+      <a
+        href="#main-content"
+        className="skip-to-content"
+      >
+        Skip to main content
+      </a>
+
       <Header
         user={user}
         collapsed={collapsed}
@@ -43,7 +51,12 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
       />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar collapsed={collapsed} onToggle={toggleSidebar} user={user} />
-        <main className="flex-1 overflow-y-auto border-l border-sidebar-border bg-surface/85 px-6 pb-10 pt-12 md:pt-12">
+        <main
+          id="main-content"
+          className="flex-1 overflow-y-auto border-l border-sidebar-border bg-surface/85 px-6 pb-10 pt-12 md:pt-12"
+          role="main"
+          aria-label="Main content"
+        >
           <div
             className={cn(
               'w-full transition-all duration-200',
