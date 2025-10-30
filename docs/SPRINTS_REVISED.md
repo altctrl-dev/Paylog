@@ -1,9 +1,9 @@
 # PayLog Sprint Plan (Revised)
 
 **Last Updated**: October 30, 2025
-**Total Story Points**: 202 SP
-**Completed**: 195 SP (96.5%)
-**Remaining**: 7 SP (3.5%)
+**Total Story Points**: 208 SP (revised: +6 SP for Sprint 14)
+**Completed**: 197 SP (94.7%) - Sprint 13 Phase 1 Complete
+**Remaining**: 11 SP (5.3%) - Sprint 13 Phases 2-4 (5 SP) + Sprint 14 (6 SP)
 
 ---
 
@@ -25,7 +25,8 @@
 | Sprint 10 | ✅ Complete | 16 SP | Design System & Styling Refactor |
 | Sprint 11 | ✅ Complete | 12 SP | User Management & RBAC |
 | Sprint 12 | ✅ Complete | 14 SP | Dashboard & Analytics |
-| Sprint 13 | 📋 Planned | 7 SP | Production Prep & Launch |
+| Sprint 13 | 🚀 In Progress | 7 SP | Production Prep & Launch (Phase 1 ✅) |
+| Sprint 14 | 📋 Planned | 6 SP | Post-Launch Enhancements (Security Settings) |
 
 ---
 
@@ -952,10 +953,10 @@
 
 ---
 
-## 📋 Sprint 13: Production Prep & Launch (7 SP) - PLANNED
+## 📋 Sprint 13: Production Prep & Launch (7 SP) - IN PROGRESS
 
-**Status**: 📋 **PLANNED**
-**Planned**: October 30, 2025 via IPSA
+**Status**: 🚀 **IN PROGRESS** (Phase 1 Complete)
+**Started**: October 30, 2025
 **Goal**: Final production readiness - security audit, performance optimization, testing expansion, and launch documentation
 
 **Scope Reduction**: 9 SP → 7 SP
@@ -963,27 +964,38 @@
 - **Removed**: Comprehensive E2E tests (deferred to post-launch)
 - **Focus**: Production-critical items only for MVP launch
 
+**Progress**: 195/202 SP Complete (96.5%)
+
 ### Deliverables
 
-#### **Phase 1: Security Hardening & Audit (2 SP)** - PENDING
-- [ ] OWASP Top 10 audit (via Security Auditor agent)
-  - [ ] A01: Broken Access Control
-  - [ ] A02: Cryptographic Failures
-  - [ ] A03: Injection
-  - [ ] A04: Insecure Design
-  - [ ] A05: Security Misconfiguration
-  - [ ] A06: Vulnerable and Outdated Components
-  - [ ] A07: Identification and Authentication Failures
-  - [ ] A08: Software and Data Integrity Failures
-  - [ ] A09: Security Logging and Monitoring Failures
-  - [ ] A10: Server-Side Request Forgery (SSRF)
-- [ ] Input validation audit (all user inputs, forms, API endpoints)
-- [ ] SQL injection prevention review (verify Prisma parameterized queries)
-- [ ] XSS prevention check (user-generated content rendering)
-- [ ] RBAC enforcement audit (server actions, middleware)
-- [ ] Dependency vulnerability scan (pnpm audit)
-- [ ] Secret detection audit (hardcoded secrets, .env files)
-- [ ] Deliverable: Security audit report + fixes
+#### **Phase 1: Security Hardening & Audit (2 SP)** - ✅ COMPLETE
+**Completed**: October 30, 2025
+**Commits**: `02f18ec`, `163d52e`
+**Security Score**: 79% → 97% (A+)
+
+**OWASP Top 10 Audit**:
+- ✅ A01: Broken Access Control (PASS - comprehensive RBAC)
+- ✅ A02: Cryptographic Failures (PASS - bcrypt cost 12, NEXTAUTH_SECRET validated)
+- ✅ A03: Injection (PASS - Prisma ORM prevents SQL injection)
+- ✅ A04: Insecure Design (PASS - defense-in-depth, role separation)
+- ✅ A05: Security Misconfiguration (FIXED - next-auth vulnerability patched)
+- ✅ A06: Vulnerable and Outdated Components (FIXED - updated to beta.30)
+- ✅ A07: Identification and Authentication Failures (IMPROVED - strong password policy)
+- ✅ A08: Software and Data Integrity Failures (PASS - dependency lock file)
+- ✅ A09: Security Logging and Monitoring Failures (PASS - comprehensive audit trail)
+- ✅ A10: Server-Side Request Forgery (PASS - no external URL fetching)
+
+**Security Improvements Implemented**:
+- ✅ Updated next-auth (5.0.0-beta.29 → 5.0.0-beta.30) - Fixed GHSA-5jpx-9hw9-2fx4
+- ✅ Fixed XSS vulnerability in comment rendering (DOMPurify sanitization)
+- ✅ Strengthened password policy (12 chars minimum, complexity requirements)
+- ✅ Increased bcrypt cost (10 → 12, OWASP recommended)
+- ✅ Added login rate limiting (5 attempts/minute, prevents brute force)
+- ✅ Rotated production secrets (Railway environment variables)
+- ✅ Fixed temp password dialog bug (displays after user creation)
+- ✅ Zero vulnerabilities remaining (pnpm audit clean)
+
+**Deliverable**: Security audit report + all fixes deployed to production ✅
 
 #### **Phase 2: Performance Optimization (2 SP)** - PENDING
 - [ ] Lighthouse audit (all major pages)
@@ -1034,7 +1046,47 @@
 - ✅ Deployment guide tested and verified
 - ✅ v1.0.0 release notes ready
 
-### Deferred to Post-Launch
+### Deferred to Sprint 14 (Post-Launch Enhancements)
+The following user management security features have been deferred to Sprint 14:
+
+#### **Feature 1: Force Password Change on First Login** (1.5 SP)
+- Add `force_password_change` boolean field to User model
+- Add checkbox in user creation form (admin can enable/disable)
+- Check on login: if true, redirect to password change page before dashboard
+- Reset flag to false after successful password change
+- Database migration required
+
+#### **Feature 2: 15-Day Temporary Password Expiration** (1.5 SP)
+- Add `password_expires_at` timestamp field to User model
+- Set to `created_at + 15 days` when admin creates user or resets password
+- Check on login: if expired, block login and force password reset
+- Display expiration countdown in user detail panel
+- Database migration required
+
+#### **Feature 3: Security Settings Page** (3 SP) - **REVISED SCOPE**
+- Add "Security" tab under Settings menu (sidebar navigation)
+- **Location**: `/settings/security` route (alongside Profile, My Requests)
+- **User View** (standard_user, admin, super_admin):
+  - Personal security settings only
+  - Change Password form
+  - Two-Factor Authentication (2FA) toggle (placeholder for future)
+  - Active Sessions list (view and revoke)
+  - Login History (last 10 logins with IP, device, timestamp)
+- **Admin View** (admin + super_admin ONLY):
+  - All user settings above +
+  - Organization-wide security policies (form with save button)
+    - Password Policy: Min length (8-20 chars), Complexity (toggle: uppercase, lowercase, numbers, special)
+    - Password Expiration: Days until expiration (0 = never, 15-90 days)
+    - Session Timeout: Minutes of inactivity (15-120 minutes)
+    - Login Rate Limiting: Attempts per minute (3-10 attempts)
+    - Bcrypt Cost Factor: Hashing strength (10-14)
+    - Force 2FA: Require for all users (toggle)
+  - Settings stored in new `SecuritySettings` table (singleton row)
+  - Fallback to environment variables if table not configured
+
+**Total Sprint 14 Effort**: 6 SP (Features 1-3)
+
+**Additional Deferred Items**:
 - Load testing (simulate 100+ concurrent users)
 - Comprehensive E2E test suite (Playwright/Cypress)
 - Advanced performance optimizations (beyond Lighthouse >90)
@@ -1051,6 +1103,164 @@
 - **Duration**: 2-3 work sessions (~20-28 hours total)
 - **Target Completion**: Early November 2025
 - **v1.0.0 Launch**: Mid-November 2025
+
+---
+
+## 📋 Sprint 14: Post-Launch Enhancements (6 SP) - PLANNED
+
+**Status**: 📋 **PLANNED** (After v1.0.0 Launch)
+**Goal**: Enhanced user management security features and Settings page improvements
+**Dependencies**: Sprint 13 Phase 4 complete (v1.0.0 launched)
+
+### Deliverables
+
+#### **Phase 1: Database Schema Changes (1 SP)** - PLANNED
+**Database Migrations**:
+- [ ] Add `force_password_change` boolean field to User model (default: false)
+- [ ] Add `password_expires_at` timestamp field to User model (nullable)
+- [ ] Create `SecuritySettings` table (singleton):
+  ```prisma
+  model SecuritySettings {
+    id                      Int      @id @default(1) // Singleton row
+    password_min_length     Int      @default(12)
+    password_require_upper  Boolean  @default(true)
+    password_require_lower  Boolean  @default(true)
+    password_require_number Boolean  @default(true)
+    password_require_special Boolean @default(true)
+    password_expiry_days    Int      @default(0) // 0 = never expires
+    session_timeout_minutes Int      @default(480) // 8 hours
+    login_rate_limit        Int      @default(5) // attempts per minute
+    bcrypt_cost             Int      @default(12)
+    force_2fa               Boolean  @default(false)
+    updated_at              DateTime @updatedAt
+    updated_by              Int      // User ID who last updated settings
+  }
+  ```
+- [ ] Create `LoginHistory` table:
+  ```prisma
+  model LoginHistory {
+    id         Int      @id @default(autoincrement())
+    user_id    Int
+    ip_address String
+    user_agent String
+    device     String   // Parsed from user agent
+    location   String?  // Optional: City, Country from IP
+    success    Boolean  // true = successful login, false = failed attempt
+    created_at DateTime @default(now())
+    user       User     @relation(fields: [user_id], references: [id])
+  }
+  ```
+- [ ] Run migration script (DME agent)
+- [ ] Verify zero breaking changes
+
+**Deliverable**: Schema updated, migrations tested ✅
+
+#### **Phase 2: Force Password Change Feature (1.5 SP)** - PLANNED
+**User Creation Enhancement**:
+- [ ] Add "Force password change on first login" checkbox to user creation form
+- [ ] Set `force_password_change = true` when checkbox enabled
+- [ ] Update `createUser` server action to support new field
+- [ ] Update `resetUserPassword` to set `force_password_change = true`
+
+**Login Flow Update**:
+- [ ] Check `force_password_change` in NextAuth authorize callback
+- [ ] If true, redirect to `/settings/change-password?force=true`
+- [ ] Create `/settings/change-password` page (dedicated password change form)
+- [ ] After successful password change, set `force_password_change = false`
+- [ ] Prevent skipping (no navigation until password changed)
+
+**Testing**:
+- [ ] Test user creation with checkbox enabled/disabled
+- [ ] Test login redirect flow
+- [ ] Test password change success and flag reset
+- [ ] Test navigation blocking
+
+**Deliverable**: Force password change feature fully functional ✅
+
+#### **Phase 3: Password Expiration Feature (1.5 SP)** - PLANNED
+**Password Expiration Logic**:
+- [ ] Set `password_expires_at = now() + 15 days` in `createUser`
+- [ ] Set `password_expires_at = now() + 15 days` in `resetUserPassword`
+- [ ] Check `password_expires_at` in NextAuth authorize callback
+- [ ] If expired, block login with error: "Password expired. Contact admin."
+- [ ] Admin can manually reset password (sets new 15-day expiration)
+
+**UI Enhancements**:
+- [ ] Show expiration countdown in user detail panel (e.g., "Expires in 12 days")
+- [ ] Show warning badge if expiring soon (<3 days)
+- [ ] Show "Expired" badge if `password_expires_at` < now()
+
+**Testing**:
+- [ ] Test expiration calculation (15 days from creation)
+- [ ] Test login blocking when expired
+- [ ] Test expiration UI display
+- [ ] Test expiration reset after password change
+
+**Deliverable**: Password expiration feature fully functional ✅
+
+#### **Phase 4: Security Settings Page (2 SP)** - PLANNED
+**Route Setup**:
+- [ ] Create `/settings/security` route (new page)
+- [ ] Add "Security" tab to Settings sidebar navigation
+- [ ] Protect route with authentication middleware
+
+**User View (All Users)**:
+- [ ] Change Password form (current password + new password + confirm)
+- [ ] Two-Factor Authentication section (placeholder: "Coming soon")
+- [ ] Active Sessions list (read-only for now, placeholder for session management)
+- [ ] Login History (last 10 logins: timestamp, IP, device, location)
+
+**Admin View (Admin + Super Admin ONLY)**:
+- [ ] Conditional rendering: if user.role === 'admin' || 'super_admin'
+- [ ] Organization-wide Security Policies section (form)
+- [ ] Password Policy fields:
+  - Min Length slider (8-20 chars)
+  - Complexity toggles (uppercase, lowercase, numbers, special)
+- [ ] Password Expiration: days selector (0 = never, 15/30/60/90 days)
+- [ ] Session Timeout: minutes selector (15/30/60/120/240 minutes)
+- [ ] Login Rate Limiting: attempts slider (3-10 per minute)
+- [ ] Bcrypt Cost: slider (10-14)
+- [ ] Force 2FA: toggle (all users required to enable 2FA)
+- [ ] Save button: updates `SecuritySettings` table
+- [ ] Success/error toast notifications
+
+**Server Actions**:
+- [ ] `getSecuritySettings()` - fetch current settings or fallback to env vars
+- [ ] `updateSecuritySettings(data)` - admin/super_admin only
+- [ ] `getLoginHistory(userId, limit)` - fetch last N logins
+- [ ] `changePassword(currentPassword, newPassword)` - all users
+
+**Testing**:
+- [ ] Test user view (all users can access)
+- [ ] Test admin view (only admin/super_admin see policies)
+- [ ] Test settings save (updates database)
+- [ ] Test settings fallback (env vars if table empty)
+- [ ] Test password change validation
+
+**Deliverable**: Security Settings page fully functional ✅
+
+### Acceptance Criteria
+- ✅ All database migrations run successfully with zero downtime
+- ✅ Force password change works for new users and password resets
+- ✅ Password expiration blocks login after 15 days
+- ✅ Security Settings page accessible via Settings sidebar
+- ✅ User view shows personal security settings only
+- ✅ Admin view shows organization-wide policies
+- ✅ Settings persist in database and apply system-wide
+- ✅ Login history logs all login attempts (success and failure)
+- ✅ Test coverage >85% on new features
+
+### Technical Highlights
+- **Schema Evolution**: Safe migrations with rollback plan
+- **RBAC Enforcement**: Admin-only settings with UI conditional rendering
+- **Backward Compatibility**: Env var fallback if settings table empty
+- **User Experience**: Clear separation between personal and org-wide settings
+- **Security First**: All settings validated and sanitized
+
+### Estimated Timeline
+- **Duration**: 2 work sessions (~14-16 hours total)
+- **Target Completion**: Late November 2025
+- **v1.1.0 Release**: Early December 2025
 
 ---
 
