@@ -4,6 +4,7 @@ import Credentials from 'next-auth/providers/credentials';
 import { db } from '@/lib/db';
 import { z } from 'zod';
 import { verifyPassword } from '@/lib/crypto';
+import { loginRateLimiter } from '@/lib/rate-limit';
 
 // Validate required environment variables
 if (!process.env.NEXTAUTH_SECRET) {
@@ -40,6 +41,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
       authorize: async (credentials) => {
         const { email, password } = loginSchema.parse(credentials);
+
+        // Rate limiting: 5 login attempts per minute per email
+        const rateLimitResult = await loginRateLimiter.check(email, 5);
+        if (!rateLimitResult.success) {
+          throw new Error(
+            `Too many login attempts. Please try again in ${Math.ceil((rateLimitResult.reset - Date.now()) / 1000)} seconds.`
+          );
+        }
 
         const user = await db.user.findUnique({
           where: { email },

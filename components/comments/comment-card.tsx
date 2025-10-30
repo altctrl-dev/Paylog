@@ -15,6 +15,7 @@
 'use client';
 
 import * as React from 'react';
+import DOMPurify from 'dompurify';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -58,14 +59,21 @@ function formatTimeAgo(date: Date): string {
 /**
  * Render Markdown content as HTML
  * Simple implementation - supports bold, italic, lists, links
+ * Security: Sanitizes HTML with DOMPurify to prevent XSS attacks
  */
 function renderMarkdown(content: string): string {
-  return content
+  const html = content
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
     .replace(/^- (.*)$/gm, '• $1')
     .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" class="text-primary underline hover:text-primary/80" target="_blank" rel="noopener noreferrer">$1</a>')
     .replace(/\n/g, '<br />');
+
+  // Sanitize HTML to prevent XSS attacks
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ['strong', 'em', 'a', 'br'],
+    ALLOWED_ATTR: ['href', 'target', 'rel', 'class'],
+  });
 }
 
 export function CommentCard({

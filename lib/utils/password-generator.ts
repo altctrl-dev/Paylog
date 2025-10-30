@@ -81,8 +81,8 @@ export function generateSecurePassword(
 
 /**
  * Generate a memorable password using dictionary words
- * Format: Word1-Word2-1234
- * @returns Memorable password
+ * Format: Word1word2@1234 (meets strong password requirements: 12+ chars, upper, lower, number, special)
+ * @returns Memorable password that meets OWASP complexity requirements
  */
 export function generateMemorablePassword(): string {
   const words = [
@@ -93,11 +93,20 @@ export function generateMemorablePassword(): string {
     'Galaxy', 'Star', 'Moon', 'Comet', 'Meteor',
   ];
 
-  const word1 = words[Math.floor(Math.random() * words.length)];
-  const word2 = words[Math.floor(Math.random() * words.length)];
+  const specialChars = ['@', '#', '!', '$', '%', '&', '*'];
+
+  const word1 = words[Math.floor(Math.random() * words.length)]; // Uppercase first letter
+  const word2 = words[Math.floor(Math.random() * words.length)].toLowerCase(); // Lowercase
+  const special = specialChars[Math.floor(Math.random() * specialChars.length)]; // Special char
   const number = Math.floor(1000 + Math.random() * 9000); // 4-digit number
 
-  return `${word1}-${word2}-${number}`;
+  // Format: Word1word2@1234 (e.g., Oceangalaxy@5432)
+  // - Has uppercase (Word1)
+  // - Has lowercase (word2)
+  // - Has special (@#!$%&*)
+  // - Has number (1234)
+  // - Length: typically 12-18 characters
+  return `${word1}${word2}${special}${number}`;
 }
 
 /**
