@@ -117,7 +117,8 @@ export function UserFormPanel({ userId, onClose, onSuccess }: UserFormPanelProps
           setCreatedUserPassword(passwordMatch[1]);
           setShowUserCreatedConfirmation(true);
           setIsSaving(false);
-          onSuccess(); // Refresh the user list
+          // Don't call onSuccess() yet - will be called when dialog closes
+          // This prevents parent re-render from unmounting the panel before dialog shows
           return; // Don't close the panel yet - dialog will close it
         } else {
           toast({
@@ -275,6 +276,7 @@ export function UserFormPanel({ userId, onClose, onSuccess }: UserFormPanelProps
         onClose={() => {
           setShowUserCreatedConfirmation(false);
           setCreatedUserPassword('');
+          onSuccess(); // Refresh the user list after user acknowledges
           onClose(); // Close the form panel after acknowledging
         }}
         userName={formData.full_name}

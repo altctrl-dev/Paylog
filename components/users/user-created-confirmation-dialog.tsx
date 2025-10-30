@@ -113,9 +113,9 @@ export function UserCreatedConfirmationDialog({
             <div className="rounded-md border border-border p-3 text-sm text-muted-foreground">
               <p className="font-medium text-foreground">Next Steps:</p>
               <ul className="mt-2 space-y-1 list-disc list-inside">
-                <li>Share this password with the user securely</li>
-                <li>User must change password on first login</li>
-                <li>Password expires in 7 days if not used</li>
+                <li>Share this password with the user securely (email, chat, etc.)</li>
+                <li>User will be prompted to change password on first login</li>
+                <li>Temporary password expires in 15 days if not used</li>
               </ul>
             </div>
           </DialogDescription>
