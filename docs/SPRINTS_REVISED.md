@@ -25,7 +25,7 @@
 | Sprint 10 | ✅ Complete | 16 SP | Design System & Styling Refactor |
 | Sprint 11 | ✅ Complete | 12 SP | User Management & RBAC |
 | Sprint 12 | ✅ Complete | 14 SP | Dashboard & Analytics |
-| Sprint 13 | 🔲 Planned | 9 SP | Polish, Testing & Production Prep |
+| Sprint 13 | 📋 Planned | 7 SP | Production Prep & Launch |
 
 ---
 
@@ -952,52 +952,105 @@
 
 ---
 
-## 🔲 Sprint 13: Polish, Testing & Production Prep (9 SP)
+## 📋 Sprint 13: Production Prep & Launch (7 SP) - PLANNED
 
-**Status**: 🔲 **PLANNED**
-**Goal**: Final polish and production readiness
+**Status**: 📋 **PLANNED**
+**Planned**: October 30, 2025 via IPSA
+**Goal**: Final production readiness - security audit, performance optimization, testing expansion, and launch documentation
+
+**Scope Reduction**: 9 SP → 7 SP
+- **Removed**: Load testing (deferred to post-launch)
+- **Removed**: Comprehensive E2E tests (deferred to post-launch)
+- **Focus**: Production-critical items only for MVP launch
 
 ### Deliverables
-- [ ] Testing
-  - [ ] Unit tests (key functions, 80% coverage)
-  - [ ] Integration tests (API routes)
-  - [ ] E2E tests (critical user flows)
-  - [ ] Load testing (simulate 100 concurrent users)
-- [ ] Performance optimization
-  - [ ] Database query optimization
-  - [ ] Image optimization
-  - [ ] Code splitting
-  - [ ] Caching strategy
-- [ ] Security audit
-  - [ ] OWASP Top 10 checklist
-  - [ ] SQL injection prevention
-  - [ ] XSS prevention
-  - [ ] CSRF protection
-  - [ ] Rate limiting
-- [ ] Production setup
-  - [ ] Environment variables documentation
-  - [ ] Database migration strategy
-  - [ ] Backup and restore procedures
-  - [ ] Monitoring setup (logging, alerts)
-  - [ ] Deployment guide (Docker, Railway, Vercel)
-- [ ] Documentation
-  - [ ] User guide
-  - [ ] Admin guide
-  - [ ] API documentation
-  - [ ] Troubleshooting guide
-- [ ] Polish
-  - [ ] Loading states everywhere
-  - [ ] Error boundaries
-  - [ ] Empty states
-  - [ ] 404/500 pages
-  - [ ] Favicon and branding
+
+#### **Phase 1: Security Hardening & Audit (2 SP)** - PENDING
+- [ ] OWASP Top 10 audit (via Security Auditor agent)
+  - [ ] A01: Broken Access Control
+  - [ ] A02: Cryptographic Failures
+  - [ ] A03: Injection
+  - [ ] A04: Insecure Design
+  - [ ] A05: Security Misconfiguration
+  - [ ] A06: Vulnerable and Outdated Components
+  - [ ] A07: Identification and Authentication Failures
+  - [ ] A08: Software and Data Integrity Failures
+  - [ ] A09: Security Logging and Monitoring Failures
+  - [ ] A10: Server-Side Request Forgery (SSRF)
+- [ ] Input validation audit (all user inputs, forms, API endpoints)
+- [ ] SQL injection prevention review (verify Prisma parameterized queries)
+- [ ] XSS prevention check (user-generated content rendering)
+- [ ] RBAC enforcement audit (server actions, middleware)
+- [ ] Dependency vulnerability scan (pnpm audit)
+- [ ] Secret detection audit (hardcoded secrets, .env files)
+- [ ] Deliverable: Security audit report + fixes
+
+#### **Phase 2: Performance Optimization (2 SP)** - PENDING
+- [ ] Lighthouse audit (all major pages)
+  - [ ] Target: Performance >90, Accessibility >95, Best Practices >95, SEO >90
+- [ ] Core Web Vitals optimization
+  - [ ] LCP (Largest Contentful Paint): <2.5s
+  - [ ] FID (First Input Delay): <100ms
+  - [ ] CLS (Cumulative Layout Shift): <0.1
+- [ ] Database query optimization (N+1 problems, missing indexes, <100ms target)
+- [ ] Bundle size reduction (<500KB initial bundle, gzipped)
+- [ ] Image optimization (Next.js Image component, WebP format)
+- [ ] Cache strategy review (verify TTLs, cache warming)
+- [ ] Monitoring setup (Railway metrics: CPU, memory, response times, errors)
+- [ ] Deliverable: Performance report + optimizations
+
+#### **Phase 3: Testing Expansion & Polish (2 SP)** - PENDING
+- [ ] Test coverage expansion (86% → 90%+)
+  - [ ] Invoice CRUD server actions
+  - [ ] Master Data approval workflow
+  - [ ] Payment processing
+  - [ ] RBAC enforcement
+- [ ] Loading states (all async operations)
+  - [ ] Invoice list, detail panel, form submission, search/filter
+- [ ] Error boundaries (major sections: Dashboard, Invoice list, Admin, Settings)
+- [ ] UX polish
+  - [ ] Animations (smooth transitions, 200-300ms)
+  - [ ] Micro-interactions (button feedback, toasts, optimistic updates)
+  - [ ] Empty states ("No invoices yet" with CTA)
+- [ ] Accessibility improvements (ARIA labels, keyboard nav, focus states, screen reader)
+- [ ] Deliverable: Test coverage report + UX improvements
+
+#### **Phase 4: Documentation & Release Prep (1 SP)** - PENDING
+- [ ] Production deployment guide (env vars, database setup, migrations, build, deploy)
+- [ ] Complete USER_GUIDE.md (remaining sections: Invoices, Master Data, Users)
+- [ ] API documentation (all server actions with examples)
+- [ ] Changelog generation (Sprints 1-12, v1.0.0 entry)
+- [ ] v1.0.0 release notes (features list, known limitations, upgrade path)
+- [ ] Migration guide (if schema changes needed)
+- [ ] Deliverable: Complete documentation package
 
 ### Acceptance Criteria
-- 80%+ test coverage
-- Lighthouse score >90 (performance, accessibility)
-- Security audit passes
-- Production deployment successful
-- Documentation complete and accurate
+- ✅ Zero critical/high security vulnerabilities
+- ✅ Lighthouse Performance score >90 on all major pages
+- ✅ Test coverage >90% on critical modules
+- ✅ All async operations have loading states
+- ✅ Error boundaries prevent white screen of death
+- ✅ USER_GUIDE.md complete (all 8 sections)
+- ✅ Deployment guide tested and verified
+- ✅ v1.0.0 release notes ready
+
+### Deferred to Post-Launch
+- Load testing (simulate 100+ concurrent users)
+- Comprehensive E2E test suite (Playwright/Cypress)
+- Advanced performance optimizations (beyond Lighthouse >90)
+- Additional documentation (video tutorials, advanced guides)
+
+### Technical Highlights
+- **Security-first**: OWASP Top 10 audit mandatory before launch
+- **Performance budget**: Hard limits (LCP <2.5s, bundle <500KB)
+- **Test-driven**: 90%+ coverage on critical paths
+- **User-focused**: Complete documentation for admins and users
+- **Production-ready**: Deployment guide, monitoring, rollback strategy
+
+### Estimated Timeline
+- **Duration**: 2-3 work sessions (~20-28 hours total)
+- **Target Completion**: Early November 2025
+- **v1.0.0 Launch**: Mid-November 2025
 
 ---
 
