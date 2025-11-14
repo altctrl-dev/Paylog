@@ -105,14 +105,22 @@ export const MoreFiltersPopover = React.memo(function MoreFiltersPopover({
               value={vendorId === '' || vendorId === null || vendorId === undefined ? '' : String(vendorId)}
               onChange={handleVendorChange}
               className="w-full"
+              disabled={vendors.length === 0}
             >
-              <option value="">All Vendors</option>
+              <option value="">
+                {vendors.length === 0 ? 'Loading vendors...' : 'All Vendors'}
+              </option>
               {vendors.map((vendor) => (
                 <option key={vendor.id} value={vendor.id}>
                   {vendor.name}
                 </option>
               ))}
             </Select>
+            {vendors.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                Check database connection if vendors don&apos;t load
+              </p>
+            )}
           </div>
 
           {/* Category dropdown */}
@@ -125,14 +133,22 @@ export const MoreFiltersPopover = React.memo(function MoreFiltersPopover({
               value={categoryId === '' || categoryId === null || categoryId === undefined ? '' : String(categoryId)}
               onChange={handleCategoryChange}
               className="w-full"
+              disabled={categories.length === 0}
             >
-              <option value="">All Categories</option>
+              <option value="">
+                {categories.length === 0 ? 'Loading categories...' : 'All Categories'}
+              </option>
               {categories.map((category) => (
                 <option key={category.id} value={category.id}>
                   {category.name}
                 </option>
               ))}
             </Select>
+            {categories.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                Check database connection if categories don&apos;t load
+              </p>
+            )}
           </div>
         </div>
       </PopoverContent>

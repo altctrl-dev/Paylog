@@ -5,7 +5,7 @@
  * and calculating date range presets.
  */
 
-import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths, subYears } from 'date-fns';
+import { format } from 'date-fns';
 import type { InvoiceFilters } from '@/types/invoice';
 
 interface FormatFilterOptions {
@@ -129,52 +129,62 @@ export function getActiveFilterCount(filters: Partial<InvoiceFilters>): number {
 
 /**
  * Calculate date range for "This Month" preset.
+ * Uses local timezone to avoid off-by-one display issues.
  *
  * @returns Object with start and end Date objects
  */
 export function getThisMonth(): { start: Date; end: Date } {
   const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
   return {
-    start: startOfMonth(now),
-    end: endOfMonth(now),
+    start: new Date(year, month, 1, 0, 0, 0, 0),
+    end: new Date(year, month + 1, 0, 23, 59, 59, 999),
   };
 }
 
 /**
  * Calculate date range for "Last Month" preset.
+ * Uses local timezone to avoid off-by-one display issues.
  *
  * @returns Object with start and end Date objects
  */
 export function getLastMonth(): { start: Date; end: Date } {
-  const lastMonth = subMonths(new Date(), 1);
+  const now = new Date();
+  const year = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+  const month = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
   return {
-    start: startOfMonth(lastMonth),
-    end: endOfMonth(lastMonth),
+    start: new Date(year, month, 1, 0, 0, 0, 0),
+    end: new Date(year, month + 1, 0, 23, 59, 59, 999),
   };
 }
 
 /**
  * Calculate date range for "This Year" preset.
+ * Uses local timezone to avoid off-by-one display issues.
  *
  * @returns Object with start and end Date objects
  */
 export function getThisYear(): { start: Date; end: Date } {
   const now = new Date();
+  const year = now.getFullYear();
   return {
-    start: startOfYear(now),
-    end: endOfYear(now),
+    start: new Date(year, 0, 1, 0, 0, 0, 0),
+    end: new Date(year, 11, 31, 23, 59, 59, 999),
   };
 }
 
 /**
  * Calculate date range for "Last Year" preset.
+ * Uses local timezone to avoid off-by-one display issues.
  *
  * @returns Object with start and end Date objects
  */
 export function getLastYear(): { start: Date; end: Date } {
-  const lastYear = subYears(new Date(), 1);
+  const now = new Date();
+  const year = now.getFullYear() - 1;
   return {
-    start: startOfYear(lastYear),
-    end: endOfYear(lastYear),
+    start: new Date(year, 0, 1, 0, 0, 0, 0),
+    end: new Date(year, 11, 31, 23, 59, 59, 999),
   };
 }
