@@ -142,7 +142,17 @@ export const DateRangeFilter = React.memo(function DateRangeFilter({
           {displayText}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
+      <PopoverContent
+        className="w-auto p-0"
+        align="start"
+        onInteractOutside={(e) => {
+          // Prevent closing when clicking on calendar elements
+          const target = e.target as Element;
+          if (target.closest('.rdp') || target.closest('[role="button"]')) {
+            e.preventDefault();
+          }
+        }}
+      >
         <div className="space-y-2 p-3">
           {/* Preset buttons */}
           <div className="grid grid-cols-2 gap-2">
