@@ -266,7 +266,7 @@ export function useUrlFilters(
         return newFilters;
       });
     },
-    [updateUrl, debounceTimeoutRef]
+    [updateUrl]
   );
 
   // Clear all filters
@@ -285,12 +285,14 @@ export function useUrlFilters(
     return () => {
       window.removeEventListener('popstate', handlePopState);
     };
-  }, [parseFiltersFromUrl]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Update filters when searchParams change (direct URL change)
   useEffect(() => {
     setFilters(parseFiltersFromUrl());
-  }, [parseFiltersFromUrl]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   // Cleanup debounce timeout on unmount
   useEffect(() => {
