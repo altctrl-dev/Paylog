@@ -24,6 +24,17 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { InvoiceFilters, InvoiceStatus } from '@/types/invoice';
 
+/**
+ * Format a date to YYYY-MM-DD in local timezone
+ * Avoids toISOString() which converts to UTC
+ */
+function formatDateLocal(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export interface UseUrlFiltersOptions {
   defaultFilters?: Partial<InvoiceFilters>;
 }
@@ -205,14 +216,14 @@ export function useUrlFilters(
         params.set('per_page', String(newFilters.per_page));
       }
 
-      // Add start_date param (Date → ISO date string YYYY-MM-DD)
+      // Add start_date param (Date → local date string YYYY-MM-DD)
       if (newFilters.start_date instanceof Date && !isNaN(newFilters.start_date.getTime())) {
-        params.set('start_date', newFilters.start_date.toISOString().split('T')[0]);
+        params.set('start_date', formatDateLocal(newFilters.start_date));
       }
 
-      // Add end_date param (Date → ISO date string YYYY-MM-DD)
+      // Add end_date param (Date → local date string YYYY-MM-DD)
       if (newFilters.end_date instanceof Date && !isNaN(newFilters.end_date.getTime())) {
-        params.set('end_date', newFilters.end_date.toISOString().split('T')[0]);
+        params.set('end_date', formatDateLocal(newFilters.end_date));
       }
 
       // Add sort_by param
