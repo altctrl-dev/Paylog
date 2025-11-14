@@ -14,6 +14,7 @@
 import * as React from 'react';
 import { format } from 'date-fns';
 import { Calendar as CalendarIcon } from 'lucide-react';
+import { DateRange } from 'react-day-picker';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -41,6 +42,9 @@ export const DateRangeFilter = React.memo(function DateRangeFilter({
   onDateChange,
 }: DateRangeFilterProps) {
   const [isOpen, setIsOpen] = React.useState(false);
+
+  // Local state to track intermediate range selection (before both dates are picked)
+  const [tempRange, setTempRange] = React.useState<DateRange | undefined>(undefined);
 
   // Format the display text for the trigger button
   const displayText = React.useMemo(() => {
@@ -82,8 +86,15 @@ export const DateRangeFilter = React.memo(function DateRangeFilter({
 
   // Handle calendar date selection (range mode)
   const handleCalendarSelect = React.useCallback(
-    (range: { from?: Date; to?: Date } | undefined) => {
-      // Only update when both dates are selected
+    (range: DateRange | undefined) => {
+      // Update local state to show selection in calendar (only if 'from' is set)
+      if (range?.from) {
+        setTempRange(range);
+      } else {
+        setTempRange(undefined);
+      }
+
+      // Only update parent and close when both dates are selected
       if (range?.from && range?.to) {
         let startDate = range.from;
         let endDate = range.to;
@@ -94,9 +105,10 @@ export const DateRangeFilter = React.memo(function DateRangeFilter({
         }
 
         onDateChange(startDate, endDate);
+        setTempRange(undefined); // Reset temp state
         setIsOpen(false);
       }
-      // If only 'from' is selected, do nothing - keep calendar open for end date selection
+      // If only 'from' is selected, tempRange is updated and calendar stays open
     },
     [onDateChange]
   );
@@ -104,8 +116,16 @@ export const DateRangeFilter = React.memo(function DateRangeFilter({
   // Handle clear button
   const handleClear = React.useCallback(() => {
     onDateChange(null, null);
+    setTempRange(undefined); // Reset temp state
     setIsOpen(false);
   }, [onDateChange]);
+
+  // Reset temp range when popover closes without completing selection
+  React.useEffect(() => {
+    if (!isOpen) {
+      setTempRange(undefined);
+    }
+  }, [isOpen]);
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -162,10 +182,9 @@ export const DateRangeFilter = React.memo(function DateRangeFilter({
           {/* Calendar component */}
           <Calendar
             mode="range"
-            selected={{
-              from: startDate || undefined,
-              to: endDate || undefined,
-            }}
+            selected={
+              tempRange || (startDate ? { from: startDate, to: endDate || undefined } : undefined)
+            }
             onSelect={handleCalendarSelect}
             numberOfMonths={2}
             className="rounded-md"
