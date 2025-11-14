@@ -212,6 +212,10 @@ export interface InvoiceFilters {
   vendor_id?: number;
   category_id?: number;
   profile_id?: number;
+  start_date?: Date;
+  end_date?: Date;
+  sort_by?: 'invoice_date' | 'due_date' | 'invoice_amount' | 'status' | 'created_at';
+  sort_order?: 'asc' | 'desc';
   page: number;
   per_page: number;
 }

@@ -22,7 +22,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import type { InvoiceFilters } from '@/types/invoice';
+import type { InvoiceFilters, InvoiceStatus } from '@/types/invoice';
 
 export interface UseUrlFiltersOptions {
   defaultFilters?: Partial<InvoiceFilters>;
@@ -73,49 +73,37 @@ export function useUrlFilters(
       filters.search = searchParam;
     }
 
-    // Parse status param (string or array)
+    // Parse status param (single value only)
     const statusParam = searchParams.get('status');
     if (statusParam) {
-      const statusValues = statusParam.split(',').filter(Boolean);
-      // If single value, keep as string for backward compatibility
-      // If multiple values, convert to array (future multi-select support)
-      filters.status = statusValues.length === 1 ? statusValues[0] as any : statusValues as any;
+      filters.status = statusParam as InvoiceStatus;
     }
 
-    // Parse vendor_id param (number or array)
+    // Parse vendor_id param (single number only)
     const vendorParam = searchParams.get('vendor_id');
     if (vendorParam) {
-      const vendorValues = vendorParam
-        .split(',')
-        .map(Number)
-        .filter((n) => !isNaN(n));
-      // If single value, keep as number for backward compatibility
-      // If multiple values, convert to array (future multi-select support)
-      filters.vendor_id = vendorValues.length === 1 ? vendorValues[0] : vendorValues as any;
+      const vendorId = parseInt(vendorParam, 10);
+      if (!isNaN(vendorId)) {
+        filters.vendor_id = vendorId;
+      }
     }
 
-    // Parse category_id param (number or array)
+    // Parse category_id param (single number only)
     const categoryParam = searchParams.get('category_id');
     if (categoryParam) {
-      const categoryValues = categoryParam
-        .split(',')
-        .map(Number)
-        .filter((n) => !isNaN(n));
-      // If single value, keep as number for backward compatibility
-      // If multiple values, convert to array (future multi-select support)
-      filters.category_id = categoryValues.length === 1 ? categoryValues[0] : categoryValues as any;
+      const categoryId = parseInt(categoryParam, 10);
+      if (!isNaN(categoryId)) {
+        filters.category_id = categoryId;
+      }
     }
 
-    // Parse profile_id param (number or array)
+    // Parse profile_id param (single number only)
     const profileParam = searchParams.get('profile_id');
     if (profileParam) {
-      const profileValues = profileParam
-        .split(',')
-        .map(Number)
-        .filter((n) => !isNaN(n));
-      // If single value, keep as number for backward compatibility
-      // If multiple values, convert to array (future multi-select support)
-      filters.profile_id = profileValues.length === 1 ? profileValues[0] : profileValues as any;
+      const profileId = parseInt(profileParam, 10);
+      if (!isNaN(profileId)) {
+        filters.profile_id = profileId;
+      }
     }
 
     // Parse page param (number)
@@ -134,6 +122,36 @@ export function useUrlFilters(
       if (!isNaN(perPageNum) && perPageNum > 0) {
         filters.per_page = perPageNum;
       }
+    }
+
+    // Parse start_date param (ISO date string → Date)
+    const startDateParam = searchParams.get('start_date');
+    if (startDateParam) {
+      const date = new Date(startDateParam);
+      if (!isNaN(date.getTime())) {
+        filters.start_date = date;
+      }
+    }
+
+    // Parse end_date param (ISO date string → Date)
+    const endDateParam = searchParams.get('end_date');
+    if (endDateParam) {
+      const date = new Date(endDateParam);
+      if (!isNaN(date.getTime())) {
+        filters.end_date = date;
+      }
+    }
+
+    // Parse sort_by param
+    const sortByParam = searchParams.get('sort_by');
+    if (sortByParam) {
+      filters.sort_by = sortByParam as 'invoice_date' | 'due_date' | 'invoice_amount' | 'status' | 'created_at';
+    }
+
+    // Parse sort_order param (asc/desc)
+    const sortOrderParam = searchParams.get('sort_order');
+    if (sortOrderParam === 'asc' || sortOrderParam === 'desc') {
+      filters.sort_order = sortOrderParam;
     }
 
     return filters;
@@ -157,36 +175,24 @@ export function useUrlFilters(
         params.set('search', newFilters.search);
       }
 
-      // Add status param (handle both single and array)
+      // Add status param (single value only)
       if (newFilters.status) {
-        const statusValue = Array.isArray(newFilters.status)
-          ? newFilters.status.join(',')
-          : newFilters.status;
-        params.set('status', statusValue);
+        params.set('status', newFilters.status);
       }
 
-      // Add vendor_id param (handle both single and array)
+      // Add vendor_id param (single number only)
       if (newFilters.vendor_id !== undefined) {
-        const vendorValue = Array.isArray(newFilters.vendor_id)
-          ? newFilters.vendor_id.join(',')
-          : String(newFilters.vendor_id);
-        params.set('vendor_id', vendorValue);
+        params.set('vendor_id', String(newFilters.vendor_id));
       }
 
-      // Add category_id param (handle both single and array)
+      // Add category_id param (single number only)
       if (newFilters.category_id !== undefined) {
-        const categoryValue = Array.isArray(newFilters.category_id)
-          ? newFilters.category_id.join(',')
-          : String(newFilters.category_id);
-        params.set('category_id', categoryValue);
+        params.set('category_id', String(newFilters.category_id));
       }
 
-      // Add profile_id param (handle both single and array)
+      // Add profile_id param (single number only)
       if (newFilters.profile_id !== undefined) {
-        const profileValue = Array.isArray(newFilters.profile_id)
-          ? newFilters.profile_id.join(',')
-          : String(newFilters.profile_id);
-        params.set('profile_id', profileValue);
+        params.set('profile_id', String(newFilters.profile_id));
       }
 
       // Add page param
@@ -197,6 +203,26 @@ export function useUrlFilters(
       // Add per_page param
       if (newFilters.per_page) {
         params.set('per_page', String(newFilters.per_page));
+      }
+
+      // Add start_date param (Date → ISO date string YYYY-MM-DD)
+      if (newFilters.start_date instanceof Date && !isNaN(newFilters.start_date.getTime())) {
+        params.set('start_date', newFilters.start_date.toISOString().split('T')[0]);
+      }
+
+      // Add end_date param (Date → ISO date string YYYY-MM-DD)
+      if (newFilters.end_date instanceof Date && !isNaN(newFilters.end_date.getTime())) {
+        params.set('end_date', newFilters.end_date.toISOString().split('T')[0]);
+      }
+
+      // Add sort_by param
+      if (newFilters.sort_by) {
+        params.set('sort_by', newFilters.sort_by);
+      }
+
+      // Add sort_order param
+      if (newFilters.sort_order) {
+        params.set('sort_order', newFilters.sort_order);
       }
 
       const queryString = params.toString();
@@ -217,14 +243,16 @@ export function useUrlFilters(
       setFilters((prev) => {
         const newFilters = { ...prev };
 
-        // Remove filter if value is undefined or empty array
-        if (
-          value === undefined ||
-          (Array.isArray(value) && value.length === 0)
-        ) {
+        // Remove filter if value is undefined
+        if (value === undefined) {
           delete newFilters[key];
         } else {
           newFilters[key] = value;
+        }
+
+        // Reset page to 1 when non-pagination filters change
+        if (key !== 'page' && key !== 'per_page') {
+          newFilters.page = 1;
         }
 
         // Debounce URL update (100ms)
