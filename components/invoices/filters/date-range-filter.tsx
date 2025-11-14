@@ -83,9 +83,10 @@ export const DateRangeFilter = React.memo(function DateRangeFilter({
   // Handle calendar date selection (range mode)
   const handleCalendarSelect = React.useCallback(
     (range: { from?: Date; to?: Date } | undefined) => {
-      if (range?.from) {
+      // Only update when both dates are selected
+      if (range?.from && range?.to) {
         let startDate = range.from;
-        let endDate = range.to || range.from;
+        let endDate = range.to;
 
         // Validate: swap dates if end < start
         if (endDate < startDate) {
@@ -93,11 +94,9 @@ export const DateRangeFilter = React.memo(function DateRangeFilter({
         }
 
         onDateChange(startDate, endDate);
-        // Close popover only if both dates are selected
-        if (range.to) {
-          setIsOpen(false);
-        }
+        setIsOpen(false);
       }
+      // If only 'from' is selected, do nothing - keep calendar open for end date selection
     },
     [onDateChange]
   );
