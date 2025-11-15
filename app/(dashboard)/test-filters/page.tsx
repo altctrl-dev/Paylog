@@ -49,7 +49,7 @@ export default function TestFiltersPage() {
   }, [filters]); // Re-run when filters change
 
   // Status options from INVOICE_STATUS constant
-  const statusOptions = Object.entries(INVOICE_STATUS).map(([key, value]) => ({
+  const statusOptions = Object.entries(INVOICE_STATUS).map(([, value]) => ({
     label: INVOICE_STATUS_CONFIG[value].label,
     value,
   }));
@@ -71,6 +71,7 @@ export default function TestFiltersPage() {
   ];
 
   // Helper to convert filter value to array
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const toArray = (value: any): string[] => {
     if (Array.isArray(value)) return value;
     if (value !== undefined && value !== null) return [String(value)];
@@ -97,6 +98,7 @@ export default function TestFiltersPage() {
             options={statusOptions}
             value={toArray(filters.status)}
             onChange={(values) =>
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               setFilter('status', values.length ? (values as any) : undefined)
             }
             placeholder="Select statuses"
@@ -110,6 +112,7 @@ export default function TestFiltersPage() {
             onChange={(values) =>
               setFilter(
                 'vendor_id',
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 values.length ? (values.map(Number) as any) : undefined
               )
             }
@@ -124,6 +127,7 @@ export default function TestFiltersPage() {
             onChange={(values) =>
               setFilter(
                 'category_id',
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 values.length ? (values.map(Number) as any) : undefined
               )
             }

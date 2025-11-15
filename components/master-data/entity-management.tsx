@@ -102,6 +102,7 @@ export default function EntityManagement() {
   // Fetch entities on mount
   useEffect(() => {
     fetchEntities();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchEntities = async () => {

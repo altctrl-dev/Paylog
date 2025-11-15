@@ -16,7 +16,6 @@
 import type { Prisma } from '@prisma/client';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { revalidatePath } from 'next/cache';
 import type {
   ActivityLogInput,
   ActivityLogFilters,
@@ -27,7 +26,6 @@ import type {
 import type { ActivityAction } from '@/docs/SPRINT7_ACTIVITY_ACTIONS';
 import {
   getActivityActionLabel,
-  ACTIVITY_ACTION,
 } from '@/docs/SPRINT7_ACTIVITY_ACTIONS';
 
 // ============================================================================

@@ -51,7 +51,7 @@ export function BulkActionBar({
     try {
       await bulkApproveMutation.mutateAsync(selectedInvoiceIds);
       onClearSelection();
-    } catch (error) {
+    } catch {
       // Error handling done in mutation hook
     }
   };
@@ -66,7 +66,7 @@ export function BulkActionBar({
       });
       setShowRejectionDialog(false);
       onClearSelection();
-    } catch (error) {
+    } catch {
       // Error handling done in mutation hook
     }
   };
@@ -80,7 +80,7 @@ export function BulkActionBar({
         columnIds,
       });
       setShowColumnSelector(false);
-    } catch (error) {
+    } catch {
       // Error handling done in mutation hook
     }
   };

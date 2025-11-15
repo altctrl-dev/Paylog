@@ -143,7 +143,8 @@ export async function getPaymentSummary(
  * @param invoiceId - Invoice ID
  * @returns Calculated invoice status
  */
-async function calculateInvoiceStatus(invoiceId: number): Promise<string> {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+async function _calculateInvoiceStatus(invoiceId: number): Promise<string> {
   const summaryResult = await getPaymentSummary(invoiceId);
 
   if (!summaryResult.success) {

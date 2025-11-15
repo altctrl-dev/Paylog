@@ -37,6 +37,7 @@ export default function CurrencyManagement() {
   // Fetch currencies on mount
   useEffect(() => {
     fetchCurrencies();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchCurrencies = async () => {

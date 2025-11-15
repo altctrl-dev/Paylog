@@ -10,7 +10,6 @@ import type {
   PanelConfig,
   PanelId,
   PanelStackStore,
-  PanelType,
   PanelLevel,
 } from '@/types/panel';
 import {

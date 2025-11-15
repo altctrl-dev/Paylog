@@ -60,7 +60,6 @@ function insertMarkdown(
 }
 
 export function CommentForm({
-  invoiceId,
   existingComment,
   onSubmit,
   onCancel,

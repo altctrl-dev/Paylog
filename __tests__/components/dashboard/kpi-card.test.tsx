@@ -1,21 +1,13 @@
 /**
  * KPI Card Component Tests
- */
-
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable react/display-name */
-
-/**
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable react/display-name */
-
- * KPI Card Component Tests
  *
  * Tests for dashboard KPI card rendering, formatting, and loading states
  * Sprint 12, Phase 4: Testing
  */
+
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable react/display-name */
 
 import React from 'react';
 import { render, screen } from '@testing-library/react';

@@ -157,6 +157,7 @@ export function AdminRequestReviewPanel({ config, onClose, requestId }: AdminReq
       loadMasterData();
     }
     // Exclude loadMasterData from deps to prevent infinite loop
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [request?.entity_type]);
 
   const handleEditField = (field: string, value: unknown) => {

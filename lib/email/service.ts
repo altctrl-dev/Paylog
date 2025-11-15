@@ -4,7 +4,7 @@
  */
 
 import { Resend } from 'resend';
-import { emailConfig, validateEmailConfig } from './config';
+import { emailConfig } from './config';
 import type {
   EmailOptions,
   EmailResult,

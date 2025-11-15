@@ -20,13 +20,11 @@ import { formatDistanceToNow } from 'date-fns';
 import * as Icons from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Select } from '@/components/ui/select';
 import { useActivityLog } from '@/hooks/use-activity-log';
 import {
   ACTIVITY_ACTION,
   ACTIVITY_ACTION_LABELS,
-  ACTIVITY_ACTION_ICONS,
   getActivityActionLabel,
   getActivityActionIcon,
   type ActivityAction,
@@ -45,7 +43,9 @@ interface ActivityLogViewerProps {
 
 interface DataDiffField {
   field: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   oldValue: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   newValue: any;
 }
 
@@ -57,6 +57,7 @@ interface DataDiffField {
  * Parse JSON old_data/new_data safely
  * Returns null if parsing fails or data is null
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseLogData(jsonString: string | null): Record<string, any> | null {
   if (!jsonString) return null;
 
@@ -72,8 +73,11 @@ function parseLogData(jsonString: string | null): Record<string, any> | null {
  * Format old vs new data comparison
  * Returns array of changed fields with old and new values
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function formatDataDiff(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   oldData: Record<string, any> | null,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   newData: Record<string, any> | null
 ): DataDiffField[] {
   if (!oldData && !newData) return [];
@@ -126,6 +130,7 @@ function formatFieldName(field: string): string {
  * Format value for display
  * Handle various data types (string, number, boolean, date, null)
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function formatValue(value: any): string {
   if (value === null || value === undefined) return 'N/A';
   if (typeof value === 'boolean') return value ? 'Yes' : 'No';
@@ -138,7 +143,9 @@ function formatValue(value: any): string {
  * Get Lucide icon component by name
  * Fallback to Info icon if not found
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getIconComponent(iconName: string): React.ComponentType<any> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const IconComponent = (Icons as any)[iconName];
   return IconComponent || Icons.Info;
 }
@@ -341,8 +348,6 @@ function ErrorState({ error, onRetry }: ErrorStateProps) {
 
 export function ActivityLogViewer({
   invoiceId,
-  currentUserId,
-  currentUserRole,
 }: ActivityLogViewerProps) {
   // Filters state
   const [actionFilter, setActionFilter] = React.useState<ActivityAction | 'all'>('all');
@@ -417,7 +422,7 @@ export function ActivityLogViewer({
                 onChange={(e) => setActionFilter(e.target.value as ActivityAction | 'all')}
               >
                 <option value="all">All actions</option>
-                {Object.entries(ACTIVITY_ACTION).map(([key, value]) => (
+                {Object.entries(ACTIVITY_ACTION).map(([, value]) => (
                   <option key={value} value={value}>
                     {ACTIVITY_ACTION_LABELS[value]}
                   </option>

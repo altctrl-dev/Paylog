@@ -16,7 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { PanelLevel } from '@/components/panels/panel-level';
 import { usePanel } from '@/hooks/use-panel';
-import { useRejectInvoice, useInvoice } from '@/hooks/use-invoices';
+import { useRejectInvoice } from '@/hooks/use-invoices';
 import { type RejectInvoiceData } from '@/types/invoice';
 import { rejectInvoiceSchema } from '@/lib/validations/invoice';
 import type { PanelConfig } from '@/types/panel';
@@ -35,7 +35,6 @@ export function InvoiceRejectPanel({
   invoiceNumber,
 }: InvoiceRejectPanelProps) {
   const { closeAllPanels } = usePanel();
-  const { data: invoice } = useInvoice(invoiceId);
   const rejectMutation = useRejectInvoice();
 
   const {

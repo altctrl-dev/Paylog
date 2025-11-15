@@ -126,7 +126,8 @@ export function AttachmentList({
   };
 
   // Handle download attachment
-  const handleDownload = (attachmentId: string, fileName: string) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const handleDownload = (attachmentId: string, _fileName?: string) => {
     // Open attachment in new tab (API route will handle secure download)
     window.open(`/api/attachments/${attachmentId}`, '_blank');
   };

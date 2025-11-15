@@ -130,7 +130,7 @@ export function InvoiceListTable({
                   <td className="p-3 w-12">
                     <Checkbox
                       checked={isSelected}
-                      onCheckedChange={(checked) =>
+                      onCheckedChange={() =>
                         handleToggleInvoice(invoice.id, {
                           stopPropagation: () => {},
                         } as React.MouseEvent)

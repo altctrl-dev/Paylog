@@ -1,21 +1,13 @@
 /**
  * Quick Actions Component Tests
- */
-
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable react/display-name */
-
-/**
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable react/display-name */
-
- * Quick Actions Component Tests
  *
  * Tests for RBAC, button rendering, and navigation
  * Sprint 12, Phase 4: Testing
  */
+
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable react/display-name */
 
 import React from 'react';
 import { render, screen } from '@testing-library/react';

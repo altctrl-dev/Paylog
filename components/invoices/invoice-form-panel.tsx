@@ -30,7 +30,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Card } from '@/components/ui/card';
 import { PanelLevel } from '@/components/panels/panel-level';
 import { usePanel } from '@/hooks/use-panel';
 import { useSession } from 'next-auth/react';
@@ -81,7 +80,7 @@ export function InvoiceFormPanel({
   onClose,
   invoiceId,
 }: InvoiceFormPanelProps) {
-  const { openPanel, closeTopPanel, closeAllPanels } = usePanel();
+  const { closeTopPanel, closeAllPanels } = usePanel();
   const { data: session } = useSession();
   const { toast } = useToast();
   const isEditMode = invoiceId !== undefined;
@@ -109,7 +108,7 @@ export function InvoiceFormPanel({
     handleSubmit,
     control,
     watch,
-    formState: { errors, isSubmitting, isDirty, isValid },
+    formState: { errors, isSubmitting, isDirty },
     reset,
     setValue,
   } = useForm<InvoiceFormData>({
@@ -156,7 +155,9 @@ export function InvoiceFormPanel({
         category_id: invoice.category_id ?? 0,
         profile_id: invoice.profile_id ?? 0,
         sub_entity_id: invoice.sub_entity_id ?? 0,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         entity_id: (invoice as any).entity_id ?? 0, // NEW: Sprint 9A (may not exist in older invoices)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         currency_id: (invoice as any).currency_id ?? 0, // NEW: Sprint 9A (may not exist in older invoices)
         invoice_amount: invoice.invoice_amount,
         // Convert null dates to current date for required fields, keep null for optional
@@ -233,9 +234,11 @@ export function InvoiceFormPanel({
   };
 
   // Handle form validation errors
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const onError = (errors: any) => {
     console.log('Form validation errors:', errors);
     // Show first error in toast
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const firstError = Object.values(errors)[0] as any;
     if (firstError?.message) {
       toast({
@@ -249,7 +252,7 @@ export function InvoiceFormPanel({
   // PHASE 3.5 Change 4: Removed request handlers - users can request from Settings → My Requests
 
   // Handlers for attachments
-  const handleUploadComplete = (attachmentId: string) => {
+  const handleUploadComplete = () => {
     // Refresh attachment list by changing key
     setAttachmentKey((prev) => prev + 1);
   };

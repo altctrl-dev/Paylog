@@ -122,7 +122,7 @@ export default function InvoiceProfileManagement() {
       {
         profileId: profile.id,
         onEdit: (id: number) => handleEdit(id),
-        onDelete: (id: number) => {
+        onDelete: () => {
           closeAllPanels();
           loadProfiles();
         },

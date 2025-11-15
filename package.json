@@ -46,6 +46,7 @@
     "next-auth": "5.0.0-beta.30",
     "next-themes": "^0.2.1",
     "react": "^18.3.1",
+    "react-day-picker": "^9.11.1",
     "react-dom": "^18.3.1",
     "react-hook-form": "^7.64.0",
     "recharts": "^3.2.1",

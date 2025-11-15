@@ -8,7 +8,7 @@
 'use client';
 
 import * as React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { PanelHeader } from './panel-header';
 import { PanelFooter } from './panel-footer';
