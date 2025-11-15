@@ -1062,6 +1062,93 @@ Dashboard Route (After):
 - 12 animation utilities + accessibility improvements (WCAG 2.1 Level AA)
 - Test summary document created: `__tests__/SPRINT_13_PHASE_3_TEST_SUMMARY.md`
 
+### 🔧 Critical Bug Fix Session (November 15, 2025) - 0 SP
+
+**Note**: Emergency bug fix session after production deployment. Bug fixes are maintenance work (0 SP) and do not count toward sprint story points.
+
+**Status**: ✅ **COMPLETE** - All 8 bugs fixed and deployed
+**Duration**: ~4 hours
+**Commits**: 8 commits (cf3d31f → e7ac5b4)
+**Files Modified**: 5 files, ~500 lines changed
+
+**Context**: Invoice filters completely broken after Sprint 13 Phase 3 deployment. User reported:
+- Filters not responding to clicks (no tick marks)
+- Sorting broken
+- Sidebar navigation frozen
+- Random errors: "Maximum update depth exceeded" + Prisma errors
+
+**Bugs Fixed** (Chronological):
+
+1. **Bug #1: Infinite Loop in useEffect** (`cf3d31f`) ⚡ CRITICAL
+   - **Symptom**: "Maximum update depth exceeded" React error, frozen UI
+   - **Cause**: `useEffect([parseFiltersFromUrl])` - callback dependency creates infinite loop
+   - **Fix**: Changed to `useEffect([searchParams])` - stable primitive dependency
+   - **Impact**: Restored all filter functionality, sidebar navigation working
+
+2. **Bug #2: Date Presets Off-by-One (Layer 1)** (`2e4e7f9`) 🌍
+   - **Symptom**: "This Month" showed Oct 31 - Nov 30 instead of Nov 1 - Nov 30
+   - **Cause**: date-fns functions use UTC midnight, converts to wrong local date
+   - **Fix**: Manual date construction with local timezone: `new Date(year, month, 1, 0, 0, 0, 0)`
+   - **Bonus**: Added loading states to vendor/category dropdowns
+
+3. **Bug #3: Empty Vendors/Categories Dropdown** (`2e4e7f9`) 📋
+   - **Symptom**: Dropdowns only show "All Vendors/Categories", no items
+   - **Cause**: Database connection issues (infrastructure, not code)
+   - **Fix**: UX improvement - loading states, helper text, disabled state
+
+4. **Bug #4: Date URL Params Off-by-One (Layer 2)** (`48bb6da`) 🌍
+   - **Symptom**: Date presets still showed Oct 31 despite Bug #2 fix
+   - **Cause**: URL serialization used `toISOString()` which converts to UTC
+   - **Fix**: Created `formatDateLocal()` helper to avoid UTC conversion
+   - **Impact**: Dates now correct in all timezones
+
+5. **Bug #5-6: Calendar Closes Prematurely** (`9f8eaec`, `e19a963`, `5f4407d`) ❌ FAILED ATTEMPTS
+   - **Symptom**: Calendar closes after selecting first date, shows "Nov 3 - Nov 3"
+   - **Attempt 1**: Only call parent when both dates selected → Still closed
+   - **Attempt 2**: Added tempRange local state → Still closed
+   - **Attempt 3**: Added `onInteractOutside` handler for Radix Popover → Still closed
+   - **Root Cause**: Not technical - the **UX pattern itself** was the problem
+
+6. **Bug #7: Complete Date Picker UX Redesign** (`ea10510`, `e7ac5b4`) 🎨
+   - **Symptom**: User rejected technical fixes, requested complete redesign
+   - **Mistake**: First redesign (`ea10510`) put inputs OUTSIDE popover (misunderstood requirements)
+   - **Correct**: Second redesign (`e7ac5b4`) put everything INSIDE main popover panel
+   - **New UX Pattern** (Google Analytics-style):
+     ```
+     Main Trigger: "Date Range" button
+     Opens Panel With:
+     ├─ Preset buttons (This Month, Last Month, etc.)
+     ├─ Divider
+     ├─ Start date input (nested popover, single-date calendar)
+     ├─ End date input (nested popover, single-date calendar)
+     ├─ Divider
+     └─ Apply/Clear buttons
+     ```
+   - **Benefits**:
+     - No range selection confusion (single-date calendars only)
+     - Clear visual separation of Start/End dates
+     - Explicit Apply action prevents accidental updates
+     - Industry-standard pattern (matches Google Analytics, Railway)
+   - **Impact**: Complete success, user confirmed working
+
+**Files Modified**:
+- `hooks/use-url-filters.ts` - Fixed infinite loop, added formatDateLocal()
+- `lib/utils/invoice-filters.ts` - Replaced date-fns with manual date construction
+- `components/invoices/filters/more-filters-popover.tsx` - Added loading states
+- `components/invoices/filters/date-range-filter.tsx` - Complete rewrite (277 lines)
+- `components/ui/select.tsx` - No changes (viewed during debugging)
+
+**Technical Patterns Learned**:
+1. **React Hooks**: Never use callbacks in useEffect dependencies (causes infinite loops)
+2. **Timezones**: Date bugs come in layers (calculation + serialization + display)
+3. **Radix UI**: Nested popovers need `onInteractOutside` handlers for complex interactions
+4. **UX Over Technical**: Sometimes the pattern is wrong, not the implementation
+5. **Nested Popovers**: Each popover needs independent state management
+
+**Quality Gates**: All passed (TypeScript ✅, ESLint ✅, Build ✅, Manual Test ✅)
+
+**Documentation**: Complete bug fix timeline documented in `docs/SESSION_SUMMARY_2025_11_15.md`
+
 #### **Phase 4: Documentation & Release Prep (1 SP)** - ⏳ NEXT
 - [ ] Production deployment guide (env vars, database setup, migrations, build, deploy)
 - [ ] Complete USER_GUIDE.md (remaining sections: Invoices, Master Data, Users)
