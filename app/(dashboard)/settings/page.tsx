@@ -10,7 +10,10 @@ import * as React from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { usePanel } from '@/hooks/use-panel';
+import { useUIVersion } from '@/lib/stores/ui-version-store';
 import {
   getUserRequests,
   type MasterDataRequestWithDetails,
@@ -25,6 +28,7 @@ export default function SettingsPage() {
   const [isLoading, setIsLoading] = React.useState(false);
   const [filter, setFilter] = React.useState<MasterDataEntityType | 'all'>('all');
   const { openPanel } = usePanel();
+  const { version, setVersion } = useUIVersion();
 
   const loadRequests = React.useCallback(async () => {
     setIsLoading(true);
@@ -147,12 +151,38 @@ export default function SettingsPage() {
 
       {/* Profile Tab */}
       {activeTab === 'profile' && (
-        <Card className="p-6">
-          <h2 className="text-xl font-semibold mb-4">User Profile</h2>
-          <p className="text-sm text-muted-foreground">
-            Profile settings coming soon...
-          </p>
-        </Card>
+        <div className="space-y-6">
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">User Profile</h2>
+            <p className="text-sm text-muted-foreground">
+              Profile settings coming soon...
+            </p>
+          </Card>
+
+          {/* Appearance Section */}
+          <Card className="p-6">
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-medium">Appearance</h3>
+                <p className="text-sm text-muted-foreground">
+                  Customize how PayLog looks and feels.
+                </p>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>Modern UI (v2)</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Use the new modern interface with collapsible sidebar
+                  </p>
+                </div>
+                <Switch
+                  checked={version === 'v2'}
+                  onCheckedChange={(checked) => setVersion(checked ? 'v2' : 'v1')}
+                />
+              </div>
+            </div>
+          </Card>
+        </div>
       )}
 
       {/* My Requests Tab */}

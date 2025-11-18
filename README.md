@@ -101,8 +101,36 @@ Internal invoice tracking and payment management system built with Next.js 14.
 (last 10 actions), quick actions, configurable date range (1M/3M/6M/1Y/All),
 60-second cache with manual refresh, RBAC filtering, mobile responsive design.
 
+### Sprint 13 (In Progress) 🚀
+**Modern UI (v2)**: Complete redesign with switchable UI system
+- **Collapsible Sidebar** (240px ↔ 60px)
+  - Smooth animations with Framer Motion (<300ms transitions)
+  - Logo with ⌘K badge indicator
+  - 5 navigation items with active state highlighting
+  - Dynamic badges showing pending approvals + unpaid invoices
+  - Respects RBAC (users see only their own invoice counts)
+- **Modern Navbar**
+  - Logo transition (moves to navbar when sidebar collapsed)
+  - Quick actions: Add invoice, theme toggle, notifications
+  - User profile menu with avatar, role display, and dropdown
+- **Global Search (⌘K)**
+  - Command palette with keyboard shortcut (Cmd+K or Ctrl+K)
+  - Quick navigation to all main pages
+  - Ready for invoice/vendor search integration
+- **Mobile Responsive**
+  - Hamburger menu on mobile (<768px)
+  - Sidebar slides in/out with backdrop overlay
+  - Touch-friendly targets (≥40px)
+  - Auto-close on navigation
+- **UI Version Toggle**
+  - Switch between v1 (classic) and v2 (modern) anytime
+  - Preference stored in localStorage
+  - Zero impact on existing v1 layout
+  - Settings page toggle control
+
 ### Planned Features
-- Sprint 13: Polish, testing & production prep
+- Sprint 13 Phase 4: Documentation & Release Prep
+- Sprint 14: Post-Launch Security Enhancements (password policies, 2FA prep)
 
 ---
 
@@ -190,6 +218,23 @@ Email: admin@paylog.com
 Password: admin123
 ```
 
+### Switching UI Versions
+
+PayLog includes two UI layouts that you can switch between:
+
+- **v1 (Classic)**: Original sidebar and header layout
+- **v2 (Modern)**: New collapsible sidebar with dynamic badges, modern navbar, and ⌘K search
+
+**To switch layouts:**
+1. Navigate to **Settings** page (gear icon in sidebar)
+2. Find the **Appearance** section
+3. Toggle the **Modern UI (v2)** switch
+4. Your preference is saved automatically in localStorage
+
+**Keyboard shortcuts (v2 only):**
+- `Cmd+K` (Mac) or `Ctrl+K` (Windows/Linux): Open global search
+- Click hamburger menu icon (mobile only): Toggle sidebar
+
 ---
 
 ## Project Structure
@@ -217,13 +262,23 @@ paylog-3/
 │
 ├── components/                   # React components
 │   ├── ui/                       # Shadcn/ui components
-│   ├── layout/                   # Sidebar, header
+│   ├── layout/                   # v1 layout (sidebar, header)
+│   ├── layout-v2/                # v2 modern UI (NEW)
+│   │   ├── layout-wrapper.tsx    # v2 layout wrapper
+│   │   ├── sidebar-v2.tsx        # Collapsible sidebar with badges
+│   │   ├── header-v2.tsx         # Modern navbar
+│   │   ├── user-profile-menu.tsx # User dropdown menu
+│   │   └── global-search.tsx     # ⌘K command palette
 │   ├── panels/                   # Stacked panel system
 │   ├── invoices/                 # Invoice components
 │   ├── auth/                     # Login form
-│   └── providers/                # React Query provider
+│   └── providers/                # React Query, UI version provider
 │
 ├── hooks/                        # Custom React hooks
+│
+├── lib/                          # Utilities and config
+│   ├── stores/                   # Zustand stores
+│   │   └── ui-version-store.ts   # UI version & sidebar state (NEW)
 │   ├── use-panel.ts              # Panel operations
 │   ├── use-panel-stack.ts        # Panel state
 │   └── use-toast.ts              # Toast notifications

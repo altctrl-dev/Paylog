@@ -1,7 +1,8 @@
 import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { QueryProvider } from '@/components/providers/query-provider';
-import { DashboardShell } from '@/components/layout/dashboard-shell';
+import { UIVersionProvider } from '@/components/providers/ui-version-provider';
+import { DashboardLayoutContent } from '@/components/layout/dashboard-layout-content';
 
 export default async function DashboardLayout({
   children,
@@ -16,7 +17,11 @@ export default async function DashboardLayout({
 
   return (
     <QueryProvider>
-      <DashboardShell user={session.user}>{children}</DashboardShell>
+      <UIVersionProvider>
+        <DashboardLayoutContent user={session.user}>
+          {children}
+        </DashboardLayoutContent>
+      </UIVersionProvider>
     </QueryProvider>
   );
 }

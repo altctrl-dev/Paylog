@@ -675,3 +675,71 @@ export const getCachedRecentActivity = unstable_cache(
     tags: ['dashboard', 'activity'],
   }
 );
+
+// ============================================================================
+// SIDEBAR BADGE OPERATIONS
+// ============================================================================
+
+/**
+ * Get sidebar badge counts (for navigation menu)
+ *
+ * @returns Badge counts with RBAC filtering
+ * - invoiceCount: Sum of pending approvals + unpaid invoices
+ */
+export async function getSidebarBadgeCounts(): Promise<
+  ActionResult<{ invoiceCount: number }>
+> {
+  try {
+    const where = await buildBaseWhereClause();
+
+    // Execute queries in parallel for performance
+    const [pendingApprovals, unpaidInvoices] = await Promise.all([
+      // Pending approvals count
+      db.invoice.count({
+        where: {
+          ...where,
+          status: INVOICE_STATUS.PENDING_APPROVAL,
+        },
+      }),
+
+      // Unpaid invoices count (unpaid + partial status)
+      db.invoice.count({
+        where: {
+          ...where,
+          status: {
+            in: [INVOICE_STATUS.UNPAID, INVOICE_STATUS.PARTIAL],
+          },
+        },
+      }),
+    ]);
+
+    const invoiceCount = pendingApprovals + unpaidInvoices;
+
+    return {
+      success: true,
+      data: { invoiceCount },
+    };
+  } catch (error) {
+    console.error('getSidebarBadgeCounts error:', error);
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : 'Failed to fetch sidebar badge counts',
+    };
+  }
+}
+
+/**
+ * Cached version of getSidebarBadgeCounts (30s TTL)
+ * Shorter TTL than dashboard since badges need more frequent updates
+ */
+export const getCachedSidebarBadgeCounts = unstable_cache(
+  getSidebarBadgeCounts,
+  ['sidebar-badge-counts'],
+  {
+    revalidate: 30, // 30 seconds (more time-sensitive than dashboard)
+    tags: ['sidebar', 'badges'],
+  }
+);
