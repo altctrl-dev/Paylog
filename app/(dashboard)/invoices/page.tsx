@@ -41,7 +41,23 @@ export default function InvoicesPage() {
   };
 
   const handleRowClick = (invoice: InvoiceWithRelations) => {
-    openPanel('invoice-detail', { invoiceId: invoice.id }, { width: 350 });
+    // Detect V2 invoices: Check for V2-specific fields
+    // V2 invoices have currency_id, entity_id, or payment_type_id populated
+    // V1 invoices don't have these fields (they're null)
+    const invoiceAny = invoice as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+    const isV2Invoice =
+      invoiceAny.currency_id !== null ||
+      invoiceAny.entity_id !== null ||
+      invoiceAny.payment_type_id !== null ||
+      invoiceAny.is_recurring === true;
+
+    if (isV2Invoice) {
+      // Open V2 detail panel (wider for more content)
+      openPanel('invoice-v2-detail', { invoiceId: invoice.id }, { width: 800 });
+    } else {
+      // Open V1 detail panel (legacy)
+      openPanel('invoice-detail', { invoiceId: invoice.id }, { width: 350 });
+    }
   };
 
   const handlePreviousPage = () => {

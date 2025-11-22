@@ -17,6 +17,7 @@ import {
   categoryFiltersSchema,
 } from '@/lib/validations/master-data';
 import { revalidatePath } from 'next/cache';
+import { canApproveVendor, getVendorCreationStatus, canEditPendingVendor } from '@/lib/rbac-v2';
 
 // ============================================================================
 // TYPES
@@ -176,24 +177,42 @@ export async function getVendors(
 
 /**
  * Search vendors for autocomplete (fast, limited results)
- * Returns only active vendors
+ * Returns only active vendors with role-based filtering
+ *
+ * Q4: Non-admins only see approved vendors + their own pending vendors
  */
 export async function searchVendors(
   query: string
-): Promise<ServerActionResult<Array<{ id: number; name: string }>>> {
+): Promise<ServerActionResult<Array<{ id: number; name: string; status?: string }>>> {
   try {
-    await getCurrentUser();
+    const user = await getCurrentUser();
+
+    const where: any = { // eslint-disable-line @typescript-eslint/no-explicit-any
+      is_active: true,
+      deleted_at: null, // Exclude soft-deleted vendors
+      name: {
+        contains: query,
+      },
+    };
+
+    // Q4: Non-admins only see approved vendors + their own pending vendors
+    if (!canApproveVendor(user)) {
+      where.OR = [
+        { status: 'APPROVED' },
+        {
+          status: 'PENDING_APPROVAL',
+          created_by_user_id: user.id
+        },
+      ];
+    }
+    // Admins see all vendors regardless of status
 
     const vendors = await db.vendor.findMany({
-      where: {
-        is_active: true,
-        name: {
-          contains: query,
-        },
-      },
+      where,
       select: {
         id: true,
         name: true,
+        status: true, // Include status for badge display
       },
       orderBy: { name: 'asc' },
       take: 10,
@@ -214,20 +233,31 @@ export async function searchVendors(
 }
 
 /**
- * Create new vendor (admin only)
+ * Create new vendor
+ *
+ * Standard users: Create pending vendor + auto-create Master Data Request
+ * Admins: Create approved vendor directly (skip workflow)
+ *
+ * Q5: Admin-created vendors auto-approved, standard users create pending
  */
 export async function createVendor(
   data: unknown
-): Promise<ServerActionResult<VendorWithCount>> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): Promise<ServerActionResult<any>> {
   try {
-    await requireAdmin();
+    const user = await getCurrentUser();
 
+    // Validate input
     const validated = vendorFormSchema.parse(data);
 
     // Check case-insensitive duplicate
     const existing = await db.vendor.findFirst({
       where: {
-        name: validated.name,
+        name: {
+          equals: validated.name,
+          mode: 'insensitive',
+        },
+        deleted_at: null, // Don't count soft-deleted vendors
       },
     });
 
@@ -238,6 +268,11 @@ export async function createVendor(
       };
     }
 
+    // Determine vendor status based on user role (Q5)
+    const vendorStatus = getVendorCreationStatus(user);
+    const isAdmin = canApproveVendor(user);
+
+    // Create vendor
     const vendor = await db.vendor.create({
       data: {
         name: validated.name,
@@ -245,16 +280,23 @@ export async function createVendor(
         gst_exemption: validated.gst_exemption ?? false,
         bank_details: validated.bank_details || null,
         is_active: true,
-      },
-      include: {
-        _count: {
-          select: { invoices: true },
-        },
+        status: vendorStatus,
+        created_by_user_id: user.id,
+        approved_by_user_id: isAdmin ? user.id : null,
+        approved_at: isAdmin ? new Date() : null,
       },
     });
 
+    // If standard user, auto-create Master Data Request
+    // Note: This will be implemented when we integrate with master data requests
+    if (!isAdmin) {
+      console.log(`[createVendor] TODO: Create Master Data Request for vendor ID ${vendor.id}`);
+      // TODO: Call createMasterDataRequest('vendor', vendor.id, validated)
+    }
+
     revalidatePath('/settings');
     revalidatePath('/invoices');
+    revalidatePath('/invoices/new');
 
     return {
       success: true,
@@ -264,7 +306,10 @@ export async function createVendor(
         is_active: vendor.is_active,
         created_at: vendor.created_at,
         updated_at: vendor.updated_at,
-        invoiceCount: vendor._count.invoices,
+        status: vendor.status,
+        created_by_user_id: vendor.created_by_user_id,
+        approved_by_user_id: vendor.approved_by_user_id,
+        approved_at: vendor.approved_at,
       },
     };
   } catch (error) {
@@ -277,17 +322,18 @@ export async function createVendor(
 }
 
 /**
- * Update vendor (admin only)
+ * Update vendor
+ *
+ * Q2: Check if vendor is pending approval before allowing edit
  */
 export async function updateVendor(
   id: number,
   data: unknown
 ): Promise<ServerActionResult<VendorWithCount>> {
   try {
-    await requireAdmin();
+    const user = await getCurrentUser();
 
-    const validated = vendorFormSchema.parse(data);
-
+    // Q2: Check if vendor is pending approval
     const existing = await db.vendor.findUnique({
       where: { id },
     });
@@ -298,6 +344,16 @@ export async function updateVendor(
         error: 'Vendor not found',
       };
     }
+
+    // Check edit permission based on vendor status
+    if (!canEditPendingVendor(user, { status: existing.status })) {
+      return {
+        success: false,
+        error: 'Cannot edit vendor pending approval. Please wait for admin approval.',
+      };
+    }
+
+    const validated = vendorFormSchema.parse(data);
 
     // Check case-insensitive duplicate (exclude current vendor)
     const duplicate = await db.vendor.findFirst({
@@ -357,6 +413,8 @@ export async function updateVendor(
 /**
  * Archive vendor (soft delete, admin only)
  * Only allowed if vendor has no invoices
+ *
+ * Q7: A - Soft delete using deleted_at field
  */
 export async function archiveVendor(
   id: number
@@ -387,10 +445,11 @@ export async function archiveVendor(
       };
     }
 
+    // Q7: Soft delete using deleted_at timestamp
     await db.vendor.update({
       where: { id },
       data: {
-        is_active: false,
+        deleted_at: new Date(),
       },
     });
 
