@@ -3,7 +3,6 @@
  * Sprint 11 Phase 2: Server Actions & API
  */
 
-import { headers } from 'next/headers';
 import { db as prisma } from '@/lib/db';
 import type { UserAuditEventType } from '@/lib/types/user-management';
 
@@ -15,17 +14,25 @@ interface AuditLogData {
   new_data?: Record<string, unknown> | null;
 }
 
+interface RequestMetadata {
+  ip_address?: string | null;
+  user_agent?: string | null;
+}
+
 /**
  * Log a user management event to the audit trail
  * @param data - Audit log data
+ * @param requestMetadata - Optional request metadata (IP, user agent). Pass this from action boundary to avoid caching issues.
  * @returns Created audit log record
  */
-export async function logUserAudit(data: AuditLogData) {
+export async function logUserAudit(
+  data: AuditLogData,
+  requestMetadata?: RequestMetadata
+) {
   try {
-    // Get request metadata from headers
-    const headersList = await headers();
-    const ip_address = headersList.get('x-forwarded-for') || headersList.get('x-real-ip') || null;
-    const user_agent = headersList.get('user-agent') || null;
+    // Use provided metadata or defaults (no headers() call to avoid caching conflicts)
+    const ip_address = requestMetadata?.ip_address ?? null;
+    const user_agent = requestMetadata?.user_agent ?? null;
 
     // Create audit log entry
     const auditLog = await prisma.userAuditLog.create({
