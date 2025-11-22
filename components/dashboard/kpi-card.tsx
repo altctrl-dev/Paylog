@@ -8,11 +8,13 @@ import React from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { formatCurrency } from '@/lib/utils/format';
 
 interface KPICardProps {
   title: string;
   value: number | string;
   format?: 'number' | 'currency' | 'percentage';
+  currencyCode?: string;
   icon?: React.ReactNode;
   trend?: { value: number; direction: 'up' | 'down' };
   isLoading?: boolean;
@@ -22,6 +24,7 @@ export const KPICard = React.memo(function KPICard({
   title,
   value,
   format = 'number',
+  currencyCode = 'USD',
   icon,
   trend,
   isLoading = false,
@@ -34,19 +37,14 @@ export const KPICard = React.memo(function KPICard({
 
     switch (format) {
       case 'currency':
-        return new Intl.NumberFormat('en-US', {
-          style: 'currency',
-          currency: 'USD',
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        }).format(value);
+        return formatCurrency(value, currencyCode);
       case 'percentage':
         return `${value.toFixed(1)}%`;
       case 'number':
       default:
         return new Intl.NumberFormat('en-US').format(value);
     }
-  }, [value, format, isLoading]);
+  }, [value, format, currencyCode, isLoading]);
 
   // Determine trend color
   const trendColor = trend?.direction === 'up'

@@ -164,6 +164,7 @@ export function DashboardWrapper({
           title="Total Unpaid"
           value={kpis?.totalUnpaid ?? 0}
           format="currency"
+          currencyCode="INR"
           icon={<AlertCircle className="h-4 w-4" />}
           isLoading={isRefreshing}
         />
@@ -171,6 +172,7 @@ export function DashboardWrapper({
           title="Paid This Month"
           value={kpis?.totalPaidCurrentMonth ?? 0}
           format="currency"
+          currencyCode="INR"
           icon={<CheckCircle2 className="h-4 w-4" />}
           isLoading={isRefreshing}
         />
