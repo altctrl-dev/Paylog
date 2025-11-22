@@ -111,7 +111,8 @@ export function NonRecurringInvoiceForm({ onSuccess: _onSuccess, onCancel }: Non
     setValue,
     formState: { errors, isSubmitting },
   } = useForm<NonRecurringInvoiceFormData>({
-    resolver: zodResolver(nonRecurringInvoiceSchema),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    resolver: zodResolver(nonRecurringInvoiceSchema) as any,
     mode: 'onBlur',
     defaultValues: {
       file: null,
@@ -121,8 +122,8 @@ export function NonRecurringInvoiceForm({ onSuccess: _onSuccess, onCancel }: Non
       entity_id: 1, // Default entity
       category_id: 0,
       invoice_number: '',
-      invoice_date: null,
-      due_date: null,
+      invoice_date: undefined,
+      due_date: undefined,
       currency_id: 1, // Default INR
       invoice_amount: 0,
       tds_applicable: false,
@@ -643,7 +644,7 @@ export function NonRecurringInvoiceForm({ onSuccess: _onSuccess, onCancel }: Non
           tdsPercentage={watch('tds_percentage') ?? null}
           onTdsPercentageChange={(percentage) => setValue('tds_percentage', percentage)}
           errors={errors as Record<string, { message?: string }>}
-          control={control}
+          control={control as any} // eslint-disable-line @typescript-eslint/no-explicit-any
           showDefaultsInfo={false}
         />
 
@@ -661,7 +662,7 @@ export function NonRecurringInvoiceForm({ onSuccess: _onSuccess, onCancel }: Non
           currencies={currencies}
           paymentTypes={paymentTypes}
           errors={errors as Record<string, { message?: string }>}
-          control={control}
+          control={control as any} // eslint-disable-line @typescript-eslint/no-explicit-any
         />
 
         {/* Action Buttons */}

@@ -565,7 +565,16 @@ export async function getInvoiceV2(
     invoice_profile: { select: { id: true; name: true; description: true } };
     payment_type: { select: { id: true; name: true } };
     creator: { select: { id: true; full_name: true; email: true } };
-    attachments: true;
+    attachments: {
+      select: {
+        id: true;
+        file_name: true;
+        original_name: true;
+        file_size: true;
+        mime_type: true;
+        uploaded_at: true;
+      };
+    };
   };
 }>>> {
   try {

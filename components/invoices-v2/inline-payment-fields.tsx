@@ -42,7 +42,7 @@ interface InlinePaymentFieldsProps {
   /** Available payment types for dropdown */
   paymentTypes?: Array<{ id: number; name: string; requires_reference: boolean }>;
   /** Form errors keyed by field name */
-  errors?: Record<string, string>;
+  errors?: Record<string, { message?: string }>;
   /** React Hook Form control for Controller components */
   control?: Control<Record<string, unknown>>;
 }
@@ -142,7 +142,7 @@ export function InlinePaymentFields({
                   <Input
                     id="paid_date"
                     type="date"
-                    value={formatDateForInput(field.value)}
+                    value={formatDateForInput(field.value as Date | null)}
                     onChange={(e) => field.onChange(parseDateFromInput(e.target.value))}
                     className={errors.paid_date ? 'border-destructive' : ''}
                   />
@@ -158,7 +158,7 @@ export function InlinePaymentFields({
               />
             )}
             {errors.paid_date && (
-              <p className="text-xs text-destructive">{errors.paid_date}</p>
+              <p className="text-xs text-destructive">{errors.paid_date.message}</p>
             )}
           </div>
 
@@ -176,7 +176,7 @@ export function InlinePaymentFields({
                   render={({ field }) => (
                     <Select
                       id="paid_currency"
-                      value={field.value || ''}
+                      value={(field.value as string) || ''}
                       onChange={(e) => field.onChange(e.target.value)}
                       className={errors.paid_currency ? 'border-destructive' : ''}
                     >
@@ -220,7 +220,7 @@ export function InlinePaymentFields({
             </div>
             {(errors.paid_amount || errors.paid_currency) && (
               <p className="text-xs text-destructive">
-                {errors.paid_amount || errors.paid_currency}
+                {errors.paid_amount?.message || errors.paid_currency?.message}
               </p>
             )}
           </div>
@@ -273,7 +273,7 @@ export function InlinePaymentFields({
               </Select>
             )}
             {errors.payment_type_id && (
-              <p className="text-xs text-destructive">{errors.payment_type_id}</p>
+              <p className="text-xs text-destructive">{errors.payment_type_id.message}</p>
             )}
           </div>
 
@@ -292,7 +292,7 @@ export function InlinePaymentFields({
                 className={errors.payment_reference ? 'border-destructive' : ''}
               />
               {errors.payment_reference && (
-                <p className="text-xs text-destructive">{errors.payment_reference}</p>
+                <p className="text-xs text-destructive">{errors.payment_reference.message}</p>
               )}
             </div>
           )}

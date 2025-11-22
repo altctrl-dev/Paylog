@@ -94,17 +94,18 @@ export function RecurringInvoiceForm({ onSuccess: _onSuccess, onCancel }: Recurr
     setValue,
     formState: { errors, isSubmitting },
   } = useForm<RecurringInvoiceFormData>({
-    resolver: zodResolver(recurringInvoiceSchema),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    resolver: zodResolver(recurringInvoiceSchema) as any,
     mode: 'onBlur',
     defaultValues: {
       invoice_profile_id: 0,
       brief_description: null,
       invoice_number: '',
-      invoice_date: null,
-      due_date: null,
-      invoice_received_date: null,
-      period_start: null,
-      period_end: null,
+      invoice_date: undefined,
+      due_date: undefined,
+      invoice_received_date: undefined,
+      period_start: undefined,
+      period_end: undefined,
       currency_id: 0,
       invoice_amount: 0,
       tds_applicable: false,
@@ -599,7 +600,7 @@ export function RecurringInvoiceForm({ onSuccess: _onSuccess, onCancel }: Recurr
           invoiceProfiles.find((p) => p.id === watchedProfileId)?.tds_percentage
         }
         errors={errors as Record<string, { message?: string }>}
-        control={control}
+        control={control as any} // eslint-disable-line @typescript-eslint/no-explicit-any
         showDefaultsInfo={watchedProfileId > 0}
       />
 
@@ -617,7 +618,7 @@ export function RecurringInvoiceForm({ onSuccess: _onSuccess, onCancel }: Recurr
         currencies={currencies}
         paymentTypes={paymentTypes}
         errors={errors as Record<string, { message?: string }>}
-        control={control}
+        control={control as any} // eslint-disable-line @typescript-eslint/no-explicit-any
       />
 
       {/* Action Buttons */}

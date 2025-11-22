@@ -32,7 +32,7 @@ interface TDSSectionProps {
   /** Default TDS percentage value (from invoice profile) */
   defaultTdsPercentage?: number | null;
   /** Form errors keyed by field name */
-  errors?: Record<string, string>;
+  errors?: Record<string, { message?: string }>;
   /** React Hook Form control for Controller components */
   control?: Control<Record<string, unknown>>;
   /** Whether to show defaults info text */
@@ -131,7 +131,7 @@ export function TDSSection({
                   min="0"
                   max="100"
                   placeholder="10.00"
-                  value={field.value ?? ''}
+                  value={(field.value as number | null) ?? ''}
                   onChange={(e) => {
                     const value = e.target.value;
                     field.onChange(value === '' ? null : parseFloat(value));
@@ -159,7 +159,7 @@ export function TDSSection({
             />
           )}
           {errors.tds_percentage && (
-            <p className="text-xs text-destructive">{errors.tds_percentage}</p>
+            <p className="text-xs text-destructive">{errors.tds_percentage.message}</p>
           )}
           <p className="text-xs text-muted-foreground">
             Enter TDS percentage (0-100). Example: 10 for 10% TDS.
