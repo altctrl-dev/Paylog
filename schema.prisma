@@ -16,6 +16,9 @@ model User {
   is_active                Boolean                 @default(true)
   created_at               DateTime                @default(now())
   updated_at               DateTime                @updatedAt
+  display_name             String?
+  display_picture_url      String?
+  initials                 String?
   activity_logs            ActivityLog[]           @relation("ActivityLogger")
   deleted_attachments      InvoiceAttachment[]     @relation("AttachmentDeleter")
   uploaded_attachments     InvoiceAttachment[]     @relation("AttachmentUploader")
@@ -27,10 +30,12 @@ model User {
   rejected_invoices        Invoice[]               @relation("InvoiceRejector")
   created_requests         MasterDataRequest[]     @relation("RequestRequester")
   reviewed_master_requests MasterDataRequest[]     @relation("RequestReviewer")
-  granted_visibilities     UserProfileVisibility[] @relation("VisibilityGranter")
-  profile_visibilities     UserProfileVisibility[] @relation("UserProfileAccess")
   audit_actions            UserAuditLog[]          @relation("AuditActor")
   audit_history            UserAuditLog[]          @relation("AuditTarget")
+  granted_visibilities     UserProfileVisibility[] @relation("VisibilityGranter")
+  profile_visibilities     UserProfileVisibility[] @relation("UserProfileAccess")
+  created_vendors          Vendor[]                @relation("VendorCreatedBy")
+  approved_vendors         Vendor[]                @relation("VendorApprovedBy")
 
   @@index([role, is_active], map: "idx_users_role_active")
   @@index([role], map: "idx_users_super_admin")
@@ -38,25 +43,29 @@ model User {
 }
 
 model InvoiceProfile {
-  id               Int                     @id @default(autoincrement())
-  name             String
-  description      String?
-  visible_to_all   Boolean                 @default(true)
-  created_at       DateTime                @default(now())
-  updated_at       DateTime                @updatedAt
-  entity_id        Int
-  vendor_id        Int
-  category_id      Int
-  currency_id      Int
-  prepaid_postpaid String?                 @db.VarChar(10)
-  tds_applicable   Boolean                 @default(false)
-  tds_percentage   Float?
-  category         Category                @relation(fields: [category_id], references: [id], onUpdate: NoAction, map: "fk_invoice_profiles_category")
-  currency         Currency                @relation(fields: [currency_id], references: [id], onUpdate: NoAction, map: "fk_invoice_profiles_currency")
-  entity           Entity                  @relation(fields: [entity_id], references: [id], onUpdate: NoAction, map: "fk_invoice_profiles_entity")
-  vendor           Vendor                  @relation(fields: [vendor_id], references: [id], onUpdate: NoAction, map: "fk_invoice_profiles_vendor")
-  invoices         Invoice[]
-  visibilities     UserProfileVisibility[]
+  id                      Int                     @id @default(autoincrement())
+  name                    String
+  description             String?
+  visible_to_all          Boolean                 @default(true)
+  created_at              DateTime                @default(now())
+  updated_at              DateTime                @updatedAt
+  entity_id               Int
+  vendor_id               Int
+  category_id             Int
+  currency_id             Int
+  prepaid_postpaid        String?                 @db.VarChar(10)
+  tds_applicable          Boolean                 @default(false)
+  tds_percentage          Float?
+  billing_frequency       String?                 // Keep nullable for flexibility
+  billing_frequency_unit  String?
+  billing_frequency_value Int?
+  category                Category                @relation(fields: [category_id], references: [id], onUpdate: NoAction, map: "fk_invoice_profiles_category")
+  currency                Currency                @relation(fields: [currency_id], references: [id], onUpdate: NoAction, map: "fk_invoice_profiles_currency")
+  entity                  Entity                  @relation(fields: [entity_id], references: [id], onUpdate: NoAction, map: "fk_invoice_profiles_entity")
+  vendor                  Vendor                  @relation(fields: [vendor_id], references: [id], onUpdate: NoAction, map: "fk_invoice_profiles_vendor")
+  invoices                Invoice[]               @relation("InvoiceProfileLegacy")
+  recurring_invoices      Invoice[]               @relation("InvoiceProfileToInvoice")
+  visibilities            UserProfileVisibility[]
 
   @@index([category_id], map: "idx_invoice_profiles_category")
   @@index([currency_id], map: "idx_invoice_profiles_currency")
@@ -91,9 +100,25 @@ model Vendor {
   address          String?
   gst_exemption    Boolean          @default(false)
   bank_details     String?
+
+  // Vendor Approval Workflow Fields
+  status              String    @default("APPROVED")  // "PENDING_APPROVAL" | "APPROVED" | "REJECTED"
+  created_by_user_id  Int?
+  approved_by_user_id Int?
+  approved_at         DateTime?
+  rejected_reason     String?   // Reason for rejection (admin input)
+  deleted_at          DateTime? // Soft delete timestamp
+
+  // Relations
+  created_by          User?     @relation("VendorCreatedBy", fields: [created_by_user_id], references: [id])
+  approved_by         User?     @relation("VendorApprovedBy", fields: [approved_by_user_id], references: [id])
   invoice_profiles InvoiceProfile[]
   invoices         Invoice[]
 
+  @@index([status], map: "idx_vendors_status")
+  @@index([created_by_user_id], map: "idx_vendors_created_by")
+  @@index([approved_by_user_id], map: "idx_vendors_approved_by")
+  @@index([deleted_at], map: "idx_vendors_deleted")
   @@map("vendors")
 }
 
@@ -131,6 +156,7 @@ model PaymentType {
   created_at         DateTime  @default(now())
   updated_at         DateTime  @updatedAt
   payments           Payment[]
+  invoices           Invoice[]
 
   @@map("payment_types")
 }
@@ -142,8 +168,9 @@ model Invoice {
   category_id        Int?
   profile_id         Int?
   invoice_amount     Float
-  invoice_date       DateTime?
-  due_date           DateTime?
+  invoice_date          DateTime?
+  invoice_received_date DateTime?
+  due_date              DateTime?
   period_start       DateTime?
   period_end         DateTime?
   tds_applicable     Boolean             @default(false)
@@ -168,6 +195,18 @@ model Invoice {
   updated_at         DateTime            @updatedAt
   currency_id        Int?
   entity_id          Int?
+  description        String?
+  invoice_type       String?             @default("non-recurring") // Keep for backward compatibility
+  // NEW FIELDS - Invoice Type
+  is_recurring       Boolean             @default(false)
+  invoice_profile_id Int?
+  // NEW FIELDS - Inline Payment Status
+  is_paid            Boolean             @default(false)
+  paid_date          DateTime?
+  paid_amount        Float?
+  paid_currency      String?
+  payment_type_id    Int?
+  payment_reference  String?
   activity_logs      ActivityLog[]
   attachments        InvoiceAttachment[]
   comments           InvoiceComment[]
@@ -177,7 +216,9 @@ model Invoice {
   entity             Entity?             @relation(fields: [entity_id], references: [id], onUpdate: NoAction)
   hider              User?               @relation("InvoiceHider", fields: [hidden_by], references: [id], onDelete: Restrict)
   holder             User?               @relation("InvoiceHolder", fields: [hold_by], references: [id], onDelete: Restrict)
-  profile            InvoiceProfile?     @relation(fields: [profile_id], references: [id])
+  profile            InvoiceProfile?     @relation("InvoiceProfileLegacy", fields: [profile_id], references: [id])
+  invoice_profile    InvoiceProfile?     @relation("InvoiceProfileToInvoice", fields: [invoice_profile_id], references: [id], onDelete: SetNull)
+  payment_type       PaymentType?        @relation(fields: [payment_type_id], references: [id], onDelete: SetNull)
   rejector           User?               @relation("InvoiceRejector", fields: [rejected_by], references: [id], onDelete: Restrict)
   sub_entity         SubEntity?          @relation(fields: [sub_entity_id], references: [id])
   vendor             Vendor              @relation(fields: [vendor_id], references: [id])
@@ -192,6 +233,10 @@ model Invoice {
   @@index([sub_entity_id], map: "idx_invoices_sub_entity")
   @@index([currency_id], map: "idx_invoices_currency")
   @@index([entity_id], map: "idx_invoices_entity")
+  @@index([is_recurring], map: "idx_invoices_recurring")
+  @@index([invoice_profile_id], map: "idx_invoices_invoice_profile")
+  @@index([payment_type_id], map: "idx_invoices_payment_type")
+  @@index([is_paid], map: "idx_invoices_paid")
   @@map("invoices")
 }
 
