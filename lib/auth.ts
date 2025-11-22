@@ -6,18 +6,21 @@ import { z } from 'zod';
 import { verifyPassword } from '@/lib/crypto';
 import { loginRateLimiter } from '@/lib/rate-limit';
 
-// Validate required environment variables
-if (!process.env.NEXTAUTH_SECRET) {
-  throw new Error(
-    'NEXTAUTH_SECRET is not set. Please add it to your environment variables.\n' +
-    'Generate one with: openssl rand -base64 32'
-  );
-}
+// Validate required environment variables (server-side only)
+// This check should not run in client-side contexts
+if (typeof window === 'undefined') {
+  if (!process.env.NEXTAUTH_SECRET) {
+    throw new Error(
+      'NEXTAUTH_SECRET is not set. Please add it to your environment variables.\n' +
+      'Generate one with: openssl rand -base64 32'
+    );
+  }
 
-if (!process.env.NEXTAUTH_URL && process.env.NODE_ENV === 'production') {
-  console.warn(
-    'Warning: NEXTAUTH_URL is not set in production. This may cause issues with authentication.'
-  );
+  if (!process.env.NEXTAUTH_URL && process.env.NODE_ENV === 'production') {
+    console.warn(
+      'Warning: NEXTAUTH_URL is not set in production. This may cause issues with authentication.'
+    );
+  }
 }
 
 const loginSchema = z.object({

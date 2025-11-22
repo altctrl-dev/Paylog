@@ -21,7 +21,7 @@ export function AlertDialog({ open, onOpenChange, children }: AlertDialogProps) 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-[10010] flex items-center justify-center">
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/50 backdrop-blur-sm"
@@ -29,7 +29,7 @@ export function AlertDialog({ open, onOpenChange, children }: AlertDialogProps) 
       />
 
       {/* Dialog */}
-      <div className="relative z-50">
+      <div className="relative z-[10010]">
         {children}
       </div>
     </div>
@@ -90,11 +90,13 @@ export function AlertDialogFooter({ children }: AlertDialogFooterProps) {
 interface AlertDialogActionProps {
   children: React.ReactNode;
   onClick?: () => void;
+  disabled?: boolean;
+  className?: string;
 }
 
-export function AlertDialogAction({ children, onClick }: AlertDialogActionProps) {
+export function AlertDialogAction({ children, onClick, disabled, className }: AlertDialogActionProps) {
   return (
-    <Button onClick={onClick} variant="destructive">
+    <Button onClick={onClick} variant="destructive" disabled={disabled} className={className}>
       {children}
     </Button>
   );
@@ -103,11 +105,12 @@ export function AlertDialogAction({ children, onClick }: AlertDialogActionProps)
 interface AlertDialogCancelProps {
   children: React.ReactNode;
   onClick?: () => void;
+  disabled?: boolean;
 }
 
-export function AlertDialogCancel({ children, onClick }: AlertDialogCancelProps) {
+export function AlertDialogCancel({ children, onClick, disabled }: AlertDialogCancelProps) {
   return (
-    <Button onClick={onClick} variant="outline">
+    <Button onClick={onClick} variant="outline" disabled={disabled}>
       {children}
     </Button>
   );

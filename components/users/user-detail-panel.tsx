@@ -43,9 +43,11 @@ export function UserDetailPanel({
         setUser(result.data);
         // Check if last super admin
         if (result.data.role === 'super_admin') {
-          const { isLastSuperAdmin: checkIsLast } = await import('@/lib/auth');
-          const isLast = await checkIsLast(userId);
-          setIsLastSuperAdmin(isLast);
+          const { checkIsLastSuperAdmin } = await import('@/lib/actions/user-management');
+          const checkResult = await checkIsLastSuperAdmin(userId);
+          if (checkResult.success) {
+            setIsLastSuperAdmin(checkResult.data);
+          }
         }
       } else {
         setError(result.error);

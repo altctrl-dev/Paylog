@@ -6,6 +6,7 @@
  */
 
 import { hash } from 'bcryptjs';
+import { headers } from 'next/headers';
 import { db as prisma } from '@/lib/db';
 import { requireSuperAdmin, getCurrentUserId, isLastSuperAdmin } from '@/lib/auth';
 import { generateMemorablePassword } from '@/lib/utils/password-generator';
@@ -24,6 +25,28 @@ import type {
 } from '@/lib/types/user-management';
 
 // ============================================================================
+// Request Metadata Helper
+// ============================================================================
+
+/**
+ * Extract request metadata for audit logging
+ * Must be called at action boundary BEFORE any caching operations
+ * to avoid "headers cannot be accessed inside unstable_cache" errors
+ */
+async function getRequestMetadata() {
+  try {
+    const headersList = await headers();
+    return {
+      ip_address: headersList.get('x-forwarded-for') || headersList.get('x-real-ip') || null,
+      user_agent: headersList.get('user-agent') || null,
+    };
+  } catch {
+    // Headers not available (e.g., in static generation or testing)
+    return { ip_address: null, user_agent: null };
+  }
+}
+
+// ============================================================================
 // Create User
 // ============================================================================
 
@@ -31,6 +54,9 @@ export async function createUser(
   data: UserCreateInput
 ): Promise<ActionResult<UserBasic>> {
   try {
+    // Extract metadata at action boundary BEFORE any database/caching operations
+    const requestMetadata = await getRequestMetadata();
+
     // Permission check
     await requireSuperAdmin();
     const actorId = await getCurrentUserId();
@@ -63,7 +89,7 @@ export async function createUser(
       },
     });
 
-    // Log audit event
+    // Log audit event with request metadata
     await logUserAudit({
       target_user_id: user.id,
       actor_user_id: actorId,
@@ -73,7 +99,7 @@ export async function createUser(
         full_name: user.full_name,
         role: user.role,
       },
-    });
+    }, requestMetadata);
 
     // TODO: Send welcome email with temporary password (Sprint 5 integration)
     // await sendWelcomeEmail(user.email, user.full_name, password);
@@ -109,6 +135,9 @@ export async function updateUser(
   data: UserUpdateInput
 ): Promise<ActionResult<UserBasic>> {
   try {
+    // Extract metadata at action boundary BEFORE any database/caching operations
+    const requestMetadata = await getRequestMetadata();
+
     // Permission check
     await requireSuperAdmin();
     const actorId = await getCurrentUserId();
@@ -163,7 +192,7 @@ export async function updateUser(
       },
     });
 
-    // Log audit events
+    // Log audit events with request metadata
     if (data.email && data.email !== existingUser.email) {
       await logUserAudit({
         target_user_id: id,
@@ -171,7 +200,7 @@ export async function updateUser(
         event_type: 'user_email_changed',
         old_data: { email: existingUser.email },
         new_data: { email: data.email },
-      });
+      }, requestMetadata);
     }
 
     if (data.role && data.role !== existingUser.role) {
@@ -181,7 +210,7 @@ export async function updateUser(
         event_type: 'user_role_changed',
         old_data: { role: existingUser.role },
         new_data: { role: data.role },
-      });
+      }, requestMetadata);
     }
 
     if (data.full_name && data.full_name !== existingUser.full_name) {
@@ -191,7 +220,7 @@ export async function updateUser(
         event_type: 'user_updated',
         old_data: { full_name: existingUser.full_name },
         new_data: { full_name: data.full_name },
-      });
+      }, requestMetadata);
     }
 
     return {
@@ -222,6 +251,9 @@ export async function updateUser(
 
 export async function deactivateUser(id: number): Promise<ActionResult<void>> {
   try {
+    // Extract metadata at action boundary BEFORE any database/caching operations
+    const requestMetadata = await getRequestMetadata();
+
     // Permission check
     await requireSuperAdmin();
     const actorId = await getCurrentUserId();
@@ -263,14 +295,14 @@ export async function deactivateUser(id: number): Promise<ActionResult<void>> {
       data: { is_active: false },
     });
 
-    // Log audit event
+    // Log audit event with request metadata
     await logUserAudit({
       target_user_id: id,
       actor_user_id: actorId,
       event_type: 'user_deactivated',
       old_data: { is_active: true },
       new_data: { is_active: false },
-    });
+    }, requestMetadata);
 
     return {
       success: true,
@@ -292,6 +324,9 @@ export async function deactivateUser(id: number): Promise<ActionResult<void>> {
 
 export async function reactivateUser(id: number): Promise<ActionResult<void>> {
   try {
+    // Extract metadata at action boundary BEFORE any database/caching operations
+    const requestMetadata = await getRequestMetadata();
+
     // Permission check
     await requireSuperAdmin();
     const actorId = await getCurrentUserId();
@@ -323,14 +358,14 @@ export async function reactivateUser(id: number): Promise<ActionResult<void>> {
       data: { is_active: true },
     });
 
-    // Log audit event
+    // Log audit event with request metadata
     await logUserAudit({
       target_user_id: id,
       actor_user_id: actorId,
       event_type: 'user_reactivated',
       old_data: { is_active: false },
       new_data: { is_active: true },
-    });
+    }, requestMetadata);
 
     return {
       success: true,
@@ -352,6 +387,9 @@ export async function reactivateUser(id: number): Promise<ActionResult<void>> {
 
 export async function resetUserPassword(id: number): Promise<ActionResult<PasswordResetResult>> {
   try {
+    // Extract metadata at action boundary BEFORE any database/caching operations
+    const requestMetadata = await getRequestMetadata();
+
     // Permission check
     await requireSuperAdmin();
     const actorId = await getCurrentUserId();
@@ -379,13 +417,13 @@ export async function resetUserPassword(id: number): Promise<ActionResult<Passwo
       data: { password_hash },
     });
 
-    // Log audit event
+    // Log audit event with request metadata
     await logUserAudit({
       target_user_id: id,
       actor_user_id: actorId,
       event_type: 'user_password_reset',
       new_data: { reset_by: actorId },
-    });
+    }, requestMetadata);
 
     // TODO: Send password reset email (Sprint 5 integration)
     // await sendPasswordResetEmail(existingUser.email, existingUser.full_name, temporaryPassword);
@@ -647,6 +685,30 @@ export async function validateRoleChange(
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to validate role change',
+    };
+  }
+}
+
+// ============================================================================
+// Check if User is Last Super Admin
+// ============================================================================
+
+/**
+ * Check if a user is the last super admin
+ * Used by client components to determine if certain actions should be restricted
+ */
+export async function checkIsLastSuperAdmin(userId: number): Promise<ActionResult<boolean>> {
+  try {
+    const isLast = await isLastSuperAdmin(userId);
+    return {
+      success: true,
+      data: isLast,
+    };
+  } catch (error) {
+    console.error('Failed to check if last super admin:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to check admin status',
     };
   }
 }
