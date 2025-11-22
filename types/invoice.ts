@@ -111,6 +111,7 @@ export interface InvoiceWithRelations extends Invoice {
   vendor: {
     id: number;
     name: string;
+    status: string; // "PENDING_APPROVAL" | "APPROVED" | "REJECTED"
   };
   category: {
     id: number;
@@ -123,6 +124,11 @@ export interface InvoiceWithRelations extends Invoice {
   sub_entity: {
     id: number;
     name: string;
+  } | null;
+  currency?: {
+    id: number;
+    code: string;
+    symbol: string;
   } | null;
   creator: {
     id: number;
@@ -243,3 +249,89 @@ export interface InvoiceListResponse {
 export type ServerActionResult<T> =
   | { success: true; data: T }
   | { success: false; error: string };
+
+// ============================================================================
+// INVOICE V2 TYPES (Sprint 13)
+// ============================================================================
+
+/**
+ * Invoice V2 with all relations (for detail views)
+ * Extends Prisma's Invoice model with full relation data
+ */
+export interface InvoiceV2WithRelations {
+  id: number;
+  invoice_number: string;
+  vendor_id: number;
+  category_id: number | null;
+  invoice_amount: number;
+  invoice_date: Date | null;
+  invoice_received_date: Date | null;
+  due_date: Date | null;
+  period_start: Date | null;
+  period_end: Date | null;
+  tds_applicable: boolean;
+  tds_percentage: number | null;
+  description: string | null;
+  status: InvoiceStatus;
+
+  // V2-specific fields
+  entity_id: number | null;
+  currency_id: number | null;
+  is_recurring: boolean;
+  invoice_profile_id: number | null;
+
+  // Inline payment fields
+  is_paid: boolean;
+  paid_date: Date | null;
+  paid_amount: number | null;
+  paid_currency: string | null;
+  payment_type_id: number | null;
+  payment_reference: string | null;
+
+  // Metadata
+  created_by: number;
+  created_at: Date;
+  updated_at: Date;
+
+  // Relations
+  vendor: {
+    id: number;
+    name: string;
+    status: string; // "PENDING_APPROVAL" | "APPROVED" | "REJECTED"
+  };
+  category: {
+    id: number;
+    name: string;
+  } | null;
+  entity: {
+    id: number;
+    name: string;
+  } | null;
+  currency: {
+    id: number;
+    code: string;
+    symbol: string;
+  } | null;
+  invoice_profile: {
+    id: number;
+    name: string;
+    description: string | null;
+  } | null;
+  payment_type: {
+    id: number;
+    name: string;
+  } | null;
+  creator: {
+    id: number;
+    full_name: string;
+    email: string;
+  };
+  attachments: Array<{
+    id: string;
+    file_name: string;
+    original_name: string;
+    file_size: number;
+    mime_type: string;
+    uploaded_at: Date;
+  }>;
+}

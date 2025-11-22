@@ -57,6 +57,7 @@ const invoiceInclude = {
     select: {
       id: true,
       name: true,
+      status: true,
     },
   },
   category: {
@@ -94,6 +95,13 @@ const invoiceInclude = {
     select: {
       id: true,
       full_name: true,
+    },
+  },
+  currency: {
+    select: {
+      id: true,
+      code: true,
+      symbol: true,
     },
   },
 };
@@ -1283,6 +1291,189 @@ export async function getInvoiceFormOptions(): Promise<
         error instanceof Error
           ? error.message
           : 'Failed to fetch form options',
+    };
+  }
+}
+
+// ============================================================================
+// VENDOR APPROVAL WORKFLOW (PHASE 5)
+// ============================================================================
+
+/**
+ * Check if invoice has pending vendor
+ *
+ * Used by invoice approval UI to determine if combined approval is needed.
+ */
+export async function checkInvoiceVendorStatus(
+  invoiceId: number
+): Promise<ServerActionResult<{
+  hasPendingVendor: boolean;
+  vendor: {
+    id: number;
+    name: string;
+    status: string;
+    address: string | null;
+    gst_exemption: boolean;
+    bank_details: string | null;
+    created_by_user_id: number | null;
+    created_at: Date;
+  } | null;
+}>> {
+  try {
+    const user = await getCurrentUser();
+
+    // Check admin permission (only admins can approve invoices)
+    if (user.role !== 'admin' && user.role !== 'super_admin') {
+      return {
+        success: false,
+        error: 'You must be an admin to check vendor approval status',
+      };
+    }
+
+    const invoice = await db.invoice.findUnique({
+      where: { id: invoiceId },
+      include: {
+        vendor: {
+          select: {
+            id: true,
+            name: true,
+            status: true,
+            address: true,
+            gst_exemption: true,
+            bank_details: true,
+            created_by_user_id: true,
+            created_at: true,
+          },
+        },
+      },
+    });
+
+    if (!invoice) {
+      return {
+        success: false,
+        error: 'Invoice not found',
+      };
+    }
+
+    return {
+      success: true,
+      data: {
+        hasPendingVendor: invoice.vendor.status === 'PENDING_APPROVAL',
+        vendor: invoice.vendor.status === 'PENDING_APPROVAL' ? invoice.vendor : null,
+      },
+    };
+  } catch (error) {
+    console.error('checkInvoiceVendorStatus error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to check vendor status',
+    };
+  }
+}
+
+/**
+ * Approve invoice and vendor together
+ *
+ * Combined approval: approve both vendor and invoice in single transaction.
+ * Option B from requirements: Streamlined workflow.
+ */
+export async function approveInvoiceAndVendor(
+  invoiceId: number
+): Promise<ServerActionResult<{
+  invoice: any;
+  vendor: { id: number; name: string }
+}>> {
+  try {
+    const user = await getCurrentUser();
+
+    // Check admin permission (only admins can approve invoices)
+    if (user.role !== 'admin' && user.role !== 'super_admin') {
+      return {
+        success: false,
+        error: 'You must be an admin to approve invoices and vendors',
+      };
+    }
+
+    // Use transaction for atomicity
+    const result = await db.$transaction(async (tx) => {
+      // 1. Get invoice with vendor
+      const invoice = await tx.invoice.findUnique({
+        where: { id: invoiceId },
+        include: {
+          vendor: true,
+        },
+      });
+
+      if (!invoice) {
+        throw new Error('Invoice not found');
+      }
+
+      if (invoice.status !== 'pending_approval') {
+        throw new Error('Invoice is not pending approval');
+      }
+
+      if (invoice.vendor.status !== 'PENDING_APPROVAL') {
+        throw new Error('Vendor is not pending approval');
+      }
+
+      // 2. Approve vendor
+      await tx.vendor.update({
+        where: { id: invoice.vendor_id },
+        data: {
+          status: 'APPROVED',
+          approved_by_user_id: user.id,
+          approved_at: new Date(),
+        },
+      });
+
+      // 3. Approve invoice
+      const approvedInvoice = await tx.invoice.update({
+        where: { id: invoiceId },
+        data: {
+          status: INVOICE_STATUS.UNPAID,
+        },
+        include: invoiceInclude,
+      });
+
+      return {
+        invoice: approvedInvoice,
+        vendor: {
+          id: invoice.vendor_id,
+          name: invoice.vendor.name,
+        },
+      };
+    });
+
+    // Log activities for both approvals (non-blocking)
+    await Promise.all([
+      createActivityLog({
+        invoice_id: invoiceId,
+        user_id: user.id,
+        action: ACTIVITY_ACTION.INVOICE_APPROVED,
+        old_data: {
+          status: INVOICE_STATUS.PENDING_APPROVAL,
+          vendor_status: 'PENDING_APPROVAL',
+        },
+        new_data: {
+          status: INVOICE_STATUS.UNPAID,
+          vendor_status: 'APPROVED',
+        },
+      }),
+    ]);
+
+    revalidatePath('/invoices');
+    revalidatePath('/settings');
+    revalidatePath('/admin');
+
+    return {
+      success: true,
+      data: result,
+    };
+  } catch (error) {
+    console.error('approveInvoiceAndVendor error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to approve invoice and vendor',
     };
   }
 }

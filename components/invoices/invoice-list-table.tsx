@@ -11,35 +11,13 @@ import { InvoiceStatusBadge } from './invoice-status-badge';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { INVOICE_STATUS, type InvoiceWithRelations } from '@/types/invoice';
+import { formatCurrency, formatDate } from '@/lib/utils/format';
 
 interface InvoiceListTableProps {
   invoices: InvoiceWithRelations[];
   onRowClick: (invoice: InvoiceWithRelations) => void;
   selectedInvoiceIds?: number[];
   onSelectionChange?: (ids: number[]) => void;
-}
-
-/**
- * Format currency for display
- */
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(amount);
-}
-
-/**
- * Format date for display
- */
-function formatDate(date: Date | null | undefined): string {
-  if (!date) return 'N/A';
-
-  return new Intl.DateTimeFormat('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  }).format(new Date(date));
 }
 
 export function InvoiceListTable({
@@ -147,7 +125,7 @@ export function InvoiceListTable({
                 {invoice.vendor?.name || 'N/A'}
               </td>
               <td className="p-3 text-right text-sm font-medium">
-                {formatCurrency(invoice.invoice_amount)}
+                {formatCurrency(invoice.invoice_amount, invoice.currency?.code || 'USD')}
               </td>
               <td className="p-3 text-sm">
                 <div className="flex flex-wrap items-center gap-2">
