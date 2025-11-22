@@ -20,29 +20,6 @@ import type { VendorFormData, VendorFilters } from '@/lib/validations/master-dat
 import { useToast } from '@/hooks/use-toast';
 
 // ============================================================================
-// TYPES
-// ============================================================================
-
-type VendorWithCount = {
-  id: number;
-  name: string;
-  is_active: boolean;
-  created_at: Date;
-  updated_at: Date;
-  invoiceCount: number;
-};
-
-type VendorListResponse = {
-  vendors: VendorWithCount[];
-  pagination: {
-    page: number;
-    per_page: number;
-    total: number;
-    total_pages: number;
-  };
-};
-
-// ============================================================================
 // QUERY KEYS
 // ============================================================================
 
@@ -121,10 +98,18 @@ export function useCreateVendor() {
       });
     },
     onSuccess: (data) => {
-      toast({
-        title: 'Success',
-        description: `Vendor "${data.name}" created successfully`,
-      });
+      // Show different toast message based on status
+      if ((data as any).status === 'PENDING_APPROVAL') { // eslint-disable-line @typescript-eslint/no-explicit-any
+        toast({
+          title: 'Vendor submitted for approval',
+          description: `"${data.name}" will be available after admin approval`,
+        });
+      } else {
+        toast({
+          title: 'Success',
+          description: `Vendor "${data.name}" created successfully`,
+        });
+      }
     },
     onSettled: () => {
       // Invalidate all vendor queries

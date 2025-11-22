@@ -1,11 +1,12 @@
 /**
- * Simple Toast Hook
+ * Toast Hook using Sonner
  *
- * Basic toast notification system. Can be replaced with a more sophisticated
- * toast library (like sonner or react-hot-toast) later.
+ * Provides toast notifications with proper UI using Sonner library.
  */
 
 'use client';
+
+import { toast as sonnerToast } from 'sonner';
 
 type ToastVariant = 'default' | 'destructive';
 
@@ -16,23 +17,15 @@ interface ToastOptions {
 }
 
 /**
- * Simple toast hook using browser alerts for now
- * TODO: Implement proper toast UI component
+ * Toast hook using Sonner for actual UI toasts
  */
 export function useToast() {
   const toast = ({ title, description, variant }: ToastOptions) => {
-    // For now, use console logging (will be replaced with actual toast UI)
-    const prefix = variant === 'destructive' ? '❌' : '✅';
-    const message = `${prefix} ${title}${description ? `: ${description}` : ''}`;
-
     if (variant === 'destructive') {
-      console.error(message);
+      sonnerToast.error(title, description ? { description } : undefined);
     } else {
-      console.log(message);
+      sonnerToast.success(title, description ? { description } : undefined);
     }
-
-    // In production, this would trigger a proper toast notification
-    // For now, we'll just log to console to avoid blocking UX
   };
 
   return { toast };
