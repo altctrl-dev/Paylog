@@ -9,15 +9,19 @@
 
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
 import { PanelLevel } from '@/components/panels/panel-level';
 import { useCreateVendor, useUpdateVendor } from '@/hooks/use-vendors';
 import { vendorFormSchema, type VendorFormData } from '@/lib/validations/master-data';
 import type { PanelConfig } from '@/types/panel';
+import { canApproveVendor } from '@/lib/rbac-v2';
+import { AlertCircle } from 'lucide-react';
 
 interface VendorFormPanelProps {
   config: PanelConfig;
@@ -29,9 +33,13 @@ interface VendorFormPanelProps {
     gst_exemption?: boolean;
     bank_details?: string | null;
   };
+  /** Optional callback when vendor is created/updated successfully */
+  onSuccess?: (vendor: { id: number; name: string }) => void;
+  /** Optional initial vendor name (for create mode) */
+  initialName?: string;
 }
 
-export function VendorFormPanel({ config, onClose, vendor }: VendorFormPanelProps) {
+export function VendorFormPanel({ config, onClose, vendor, onSuccess, initialName }: VendorFormPanelProps) {
   const isEdit = !!vendor;
   const createMutation = useCreateVendor();
   const updateMutation = useUpdateVendor();
@@ -45,7 +53,7 @@ export function VendorFormPanel({ config, onClose, vendor }: VendorFormPanelProp
   } = useForm<VendorFormData>({
     resolver: zodResolver(vendorFormSchema),
     defaultValues: {
-      name: vendor?.name || '',
+      name: vendor?.name || initialName || '',
       address: vendor?.address || '',
       gst_exemption: vendor?.gst_exemption ?? false,
       bank_details: vendor?.bank_details || '',
@@ -54,13 +62,35 @@ export function VendorFormPanel({ config, onClose, vendor }: VendorFormPanelProp
 
   const gstExemption = watch('gst_exemption');
 
+  // Get current user session
+  const { data: session } = useSession();
+  const user = session?.user;
+
+  // Determine if user is admin
+  const isAdmin = user ? canApproveVendor({
+    id: parseInt(user.id as string),
+    email: user.email!,
+    role: user.role as string,
+    is_active: true,
+  }) : false;
+
+  // Determine vendor status that will be created
+  const willBeApproved = isAdmin;
+
   const onSubmit = async (data: VendorFormData) => {
     try {
+      let result;
       if (isEdit) {
-        await updateMutation.mutateAsync({ id: vendor.id, data });
+        result = await updateMutation.mutateAsync({ id: vendor.id, data });
       } else {
-        await createMutation.mutateAsync(data);
+        result = await createMutation.mutateAsync(data);
       }
+
+      // Call onSuccess callback with created/updated vendor
+      if (onSuccess && result) {
+        onSuccess({ id: result.id, name: result.name });
+      }
+
       onClose();
     } catch (error) {
       console.error('Vendor form error:', error);
@@ -73,14 +103,29 @@ export function VendorFormPanel({ config, onClose, vendor }: VendorFormPanelProp
       title={isEdit ? 'Edit Vendor' : 'Create Vendor'}
       onClose={onClose}
       footer={
-        <>
-          <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit(onSubmit)} disabled={isSubmitting}>
-            {isSubmitting ? 'Saving...' : isEdit ? 'Update' : 'Create'}
-          </Button>
-        </>
+        <div className="flex w-full flex-col gap-4">
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button onClick={handleSubmit(onSubmit)} disabled={isSubmitting}>
+              {isSubmitting ? 'Saving...' : isEdit ? 'Update' : 'Create'}
+            </Button>
+          </div>
+
+          {!isEdit && !willBeApproved && (
+            <div className="rounded-md border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800 dark:border-yellow-800 dark:bg-yellow-950 dark:text-yellow-200">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-4 w-4" />
+                <span className="font-semibold">Pending Approval</span>
+              </div>
+              <p className="mt-1 text-xs">
+                This vendor will be created with <Badge variant="outline" className="text-yellow-800">Pending Approval</Badge> status.
+                An admin must approve it before it can be used in invoices.
+              </p>
+            </div>
+          )}
+        </div>
       }
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
