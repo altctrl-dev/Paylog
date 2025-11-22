@@ -166,13 +166,13 @@ export async function createRecurringInvoice(
     }
 
     // 6. Check for duplicate invoice number (profile-specific)
-    // For recurring invoices: same invoice_number + vendor_id + invoice_profile_id = duplicate
+    // For recurring invoices: same invoice_number + vendor_id + profile_id = duplicate
     console.log('[createRecurringInvoice] Checking for duplicate invoice...');
     const existing = await db.invoice.findFirst({
       where: {
         invoice_number: validated.invoice_number,
         vendor_id: profile.vendor_id,
-        invoice_profile_id: validated.invoice_profile_id,
+        profile_id: validated.invoice_profile_id,
       },
     });
 
@@ -234,7 +234,7 @@ export async function createRecurringInvoice(
 
           // Recurring invoice fields
           is_recurring: true,
-          invoice_profile_id: validated.invoice_profile_id,
+          profile_id: validated.invoice_profile_id,
 
           // Inline payment fields
           is_paid: validated.is_paid,
@@ -281,7 +281,7 @@ export async function createRecurringInvoice(
         invoice_amount: invoice.invoice_amount,
         status: invoice.status,
         is_recurring: true,
-        invoice_profile_id: invoice.invoice_profile_id,
+        profile_id: invoice.profile_id,
       },
     }).catch((err) => {
       console.error('[createRecurringInvoice] Failed to create activity log:', err);
@@ -459,7 +459,7 @@ export async function createNonRecurringInvoice(
 
           // Non-recurring invoice fields
           is_recurring: false,
-          invoice_profile_id: null,
+          profile_id: null,
 
           // Inline payment fields
           is_paid: validated.is_paid,
@@ -672,9 +672,9 @@ export async function getInvoiceV2(
       }
 
       // For recurring invoices: check profile visibility
-      if (invoice.is_recurring && invoice.invoice_profile_id) {
+      if (invoice.is_recurring && invoice.profile_id) {
         const profile = await db.invoiceProfile.findUnique({
-          where: { id: invoice.invoice_profile_id },
+          where: { id: invoice.profile_id },
           include: {
             visibilities: {
               where: {
