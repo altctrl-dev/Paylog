@@ -29,6 +29,7 @@ import {
 import { useInvoiceV2, useApproveInvoiceV2, useRejectInvoiceV2 } from '@/hooks/use-invoices-v2';
 import { usePanel } from '@/hooks/use-panel';
 import { useToast } from '@/hooks/use-toast';
+import { formatCurrency, formatFileSize } from '@/lib/utils/format';
 import { INVOICE_STATUS_CONFIG, INVOICE_STATUS } from '@/types/invoice';
 import { VENDOR_STATUS_CONFIG } from '@/types/vendor';
 import type { PanelConfig } from '@/types/panel';
@@ -38,24 +39,6 @@ interface InvoiceDetailPanelV2Props {
   onClose: () => void;
   invoiceId: number;
   userRole?: string;
-}
-
-/**
- * Format currency amount with symbol
- */
-function formatCurrency(amount: number, symbol: string = '$'): string {
-  return `${symbol}${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-/**
- * Format file size (bytes to human-readable)
- */
-function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
 }
 
 export function InvoiceDetailPanelV2({ config, onClose, invoiceId, userRole }: InvoiceDetailPanelV2Props) {
@@ -155,7 +138,7 @@ export function InvoiceDetailPanelV2({ config, onClose, invoiceId, userRole }: I
   }
 
   const statusConfig = INVOICE_STATUS_CONFIG[invoice.status as keyof typeof INVOICE_STATUS_CONFIG];
-  const currencySymbol = invoice.currency?.symbol || '$';
+  const currencyCode = invoice.currency?.code || 'USD';
 
   return (
     <>
@@ -285,14 +268,14 @@ export function InvoiceDetailPanelV2({ config, onClose, invoiceId, userRole }: I
             <div>
               <Label className="text-xs text-muted-foreground">Invoice Amount</Label>
               <p className="text-sm font-semibold">
-                {formatCurrency(invoice.invoice_amount, currencySymbol)}
+                {formatCurrency(invoice.invoice_amount, currencyCode)}
               </p>
             </div>
             {invoice.tds_applicable && invoice.tds_percentage && (
               <div>
                 <Label className="text-xs text-muted-foreground">TDS</Label>
                 <p className="text-sm font-medium">
-                  {invoice.tds_percentage}% ({formatCurrency((invoice.invoice_amount * invoice.tds_percentage) / 100, currencySymbol)})
+                  {invoice.tds_percentage}% ({formatCurrency((invoice.invoice_amount * invoice.tds_percentage) / 100, currencyCode)})
                 </p>
               </div>
             )}
@@ -341,7 +324,7 @@ export function InvoiceDetailPanelV2({ config, onClose, invoiceId, userRole }: I
                 <div>
                   <Label className="text-xs text-muted-foreground">Amount Paid</Label>
                   <p className="text-sm font-semibold">
-                    {invoice.paid_currency || currencySymbol} {invoice.paid_amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    {formatCurrency(invoice.paid_amount, invoice.paid_currency || currencyCode)}
                   </p>
                 </div>
               )}

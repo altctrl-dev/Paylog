@@ -80,13 +80,34 @@ export function formatRelativeTime(date: Date | string | null | undefined): stri
 }
 
 /**
- * Format currency amount
+ * Format currency amount with proper symbol and formatting
  * @param amount - Amount to format
- * @param currency - Currency code (default: 'INR')
- * @returns Formatted currency string (e.g., "₹1,234.56")
+ * @param currencyCode - Currency code (ISO 4217, e.g., 'USD', 'INR', 'EUR', 'GBP')
+ * @returns Formatted currency string with correct symbol (e.g., "$1,234.56", "₹1,234.56", "€1,234.56")
+ *
+ * @example
+ * formatCurrency(1234.56, 'USD') // "$1,234.56"
+ * formatCurrency(1234.56, 'INR') // "₹1,234.56"
+ * formatCurrency(1234.56, 'EUR') // "€1,234.56"
+ * formatCurrency(1234.56, 'GBP') // "£1,234.56"
  */
-export function formatCurrency(amount: number, currency = 'INR'): string {
-  return new Intl.NumberFormat('en-IN', {
+export function formatCurrency(amount: number, currencyCode?: string): string {
+  // Default to USD if no currency code provided
+  const currency = currencyCode || 'USD';
+
+  // Use appropriate locale based on currency for better formatting
+  const localeMap: Record<string, string> = {
+    'USD': 'en-US',
+    'INR': 'en-IN',
+    'EUR': 'de-DE',
+    'GBP': 'en-GB',
+    'JPY': 'ja-JP',
+    'CNY': 'zh-CN',
+  };
+
+  const locale = localeMap[currency] || 'en-US';
+
+  return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency,
     minimumFractionDigits: 2,
