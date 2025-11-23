@@ -8,8 +8,10 @@
 'use client';
 
 import * as React from 'react';
+import { useSession } from 'next-auth/react';
 import { usePanelStack } from '@/hooks/use-panel-stack';
 import { InvoiceDetailPanel } from './invoice-detail-panel';
+import { InvoiceDetailPanelV2 } from './invoice-detail-panel-v2';
 import { InvoiceFormPanel } from './invoice-form-panel';
 import { InvoiceHoldPanel } from './invoice-hold-panel';
 import { InvoiceRejectPanel } from './invoice-reject-panel';
@@ -29,6 +31,7 @@ interface InvoicePanelRendererProps {
  *
  * Panel types:
  * - invoice-detail: View invoice details (Level 1)
+ * - invoice-v2-detail: View Invoice V2 details (Level 1, Sprint 13)
  * - invoice-create: Create new invoice (Level 2)
  * - invoice-edit: Edit existing invoice (Level 2)
  * - invoice-hold: Put invoice on hold confirmation (Level 3)
@@ -42,11 +45,31 @@ export function InvoicePanelRenderer({
   onClose,
 }: InvoicePanelRendererProps) {
   const { panels } = usePanelStack();
+  const { data: session } = useSession();
   const config = panels.find((p) => p.id === id);
 
   if (!config) return null;
 
+  // Extract user role from session
+  const userRole = session?.user?.role;
+
   switch (type) {
+    case 'invoice-v2-detail':
+      console.log('[InvoicePanelRenderer] Rendering invoice-v2-detail for invoiceId:', props.invoiceId);
+      try {
+        return (
+          <InvoiceDetailPanelV2
+            config={config}
+            onClose={onClose}
+            invoiceId={props.invoiceId as number}
+            userRole={userRole}
+          />
+        );
+      } catch (error) {
+        console.error('[InvoicePanelRenderer] Error rendering invoice-v2-detail:', error);
+        return <div className="p-4 text-red-500">Error loading invoice panel. Check console for details.</div>;
+      }
+
     case 'invoice-detail':
       return (
         <InvoiceDetailPanel

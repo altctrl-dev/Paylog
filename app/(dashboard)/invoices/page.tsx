@@ -41,6 +41,8 @@ export default function InvoicesPage() {
   };
 
   const handleRowClick = (invoice: InvoiceWithRelations) => {
+    console.log('[InvoicesPage] Invoice clicked:', invoice.id, invoice.invoice_number);
+
     // Detect V2 invoices: Check for V2-specific fields
     // V2 invoices have currency_id, entity_id, or payment_type_id populated
     // V1 invoices don't have these fields (they're null)
@@ -51,11 +53,15 @@ export default function InvoicesPage() {
       invoiceAny.payment_type_id !== null ||
       invoiceAny.is_recurring === true;
 
+    console.log('[InvoicesPage] Invoice type:', isV2Invoice ? 'V2' : 'V1');
+
     if (isV2Invoice) {
       // Open V2 detail panel (wider for more content)
+      console.log('[InvoicesPage] Opening invoice-v2-detail panel for invoice:', invoice.id);
       openPanel('invoice-v2-detail', { invoiceId: invoice.id }, { width: 800 });
     } else {
       // Open V1 detail panel (legacy)
+      console.log('[InvoicesPage] Opening invoice-detail panel for invoice:', invoice.id);
       openPanel('invoice-detail', { invoiceId: invoice.id }, { width: 350 });
     }
   };
