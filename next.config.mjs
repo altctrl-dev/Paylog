@@ -16,7 +16,11 @@ const nextConfig = {
   // Ensure environment variables are available at runtime
   env: {
     NEXTAUTH_URL: process.env.NEXTAUTH_URL,
-  }
+  },
+  // Force cache invalidation by generating unique build IDs
+  generateBuildId: async () => {
+    return `build-${Date.now()}`;
+  },
 };
 
 export default nextConfig;
