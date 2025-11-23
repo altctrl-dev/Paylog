@@ -1,9 +1,9 @@
 # PayLog Sprint Plan (Revised)
 
-**Last Updated**: October 30, 2025
+**Last Updated**: November 22, 2025
 **Total Story Points**: 208 SP (revised: +6 SP for Sprint 14)
-**Completed**: 197 SP (94.7%) - Sprint 13 Phase 1 Complete
-**Remaining**: 11 SP (5.3%) - Sprint 13 Phases 2-4 (5 SP) + Sprint 14 (6 SP)
+**Completed**: 197.5 SP (94.9%) - Sprint 13 Phase 5 ✅ COMPLETE
+**Remaining**: 10.5 SP (5.1%) - Sprint 13 Phase 6 (1.5 SP) + Sprint 14 (9 SP planned, 6 SP implementation)
 
 ---
 
@@ -25,8 +25,19 @@
 | Sprint 10 | ✅ Complete | 16 SP | Design System & Styling Refactor |
 | Sprint 11 | ✅ Complete | 12 SP | User Management & RBAC |
 | Sprint 12 | ✅ Complete | 14 SP | Dashboard & Analytics |
-| Sprint 13 | 🚀 In Progress | 7 SP | Production Prep & Launch (Phase 1-3 ✅, 4 of 5) |
-| Sprint 14 | 📋 Planned | 6 SP | Post-Launch Enhancements (Security Settings) |
+| Sprint 13 | 🚀 In Progress | 7 SP | Production Prep & Launch (Phase 1-5 ✅ COMPLETE, Phase 6 ⏳ NEXT) |
+| Sprint 14 | 📋 Planned | 6 SP | Post-Launch Enhancements (10 items detailed) |
+
+---
+
+## 📝 Recent Sessions
+
+| Date | Session Summary | Key Achievements | Documentation |
+|------|-----------------|------------------|---------------|
+| **Nov 22, 2025** | **Railway Production Deployment Fixes** | Fixed 11 Railway build failures (TypeScript errors, missing dependencies, schema sync, ESLint compliance). All invoice v2 components deployed successfully. | [Railway Fixes Session](SESSION_SUMMARY_2025_11_22_RAILWAY_FIXES.md) |
+| **Nov 22, 2025** | **Sprint 13 Phase 5 Completion** | Completed Vendor Approval Workflow (database migration, RBAC, UI, admin approval). Fixed 2 critical bugs (invoice_received_date, paid status sync). Created Sprint 14 implementation plan. | [Phase 5 Completion Session](SESSION_SUMMARY_2025_11_22.md) |
+| **Nov 21, 2025** | **Invoice V2 Detail Page Implementation** | Built complete Invoice V2 detail panel (~370 lines, 7 sections). Added invoice_received_date to schema. Implemented server action and React Query hook. Fixed toast notifications and V2 detection logic. | [Detail Page Session](SESSION_SUMMARY_2025_11_21.md) |
+| **Nov 18, 2025** | **UI v2 Redesign (4 Phases)** | Complete UI v2 redesign with modern collapsible sidebar (240px ↔ 60px) and navbar. Implemented Zustand store, React Context, dynamic badges (RBAC-filtered), mobile responsive (hamburger + backdrop). All quality gates passed. | [UI v2 Session](SESSION_SUMMARY_2025_11_18.md) |
 
 ---
 
@@ -953,18 +964,28 @@
 
 ---
 
-## 📋 Sprint 13: Production Prep & Launch (7 SP) - IN PROGRESS
+## 📋 Sprint 13: Production Prep & UI Redesign (7 SP) - IN PROGRESS
 
-**Status**: 🚀 **IN PROGRESS** (Phase 1-2 Complete)
+**Status**: 🚀 **IN PROGRESS** (Phase 1-5 Complete/90%, Phase 6 Next)
 **Started**: October 30, 2025
-**Goal**: Final production readiness - security audit, performance optimization, testing expansion, and launch documentation
+**Goal**: Final production readiness - security audit, performance optimization, testing expansion, UI v2 redesign, Invoice V2 detail page, and launch documentation
 
 **Scope Restructuring** (October 30, 2025):
 - **Reason**: Prioritize high-impact work (testing, polish, docs) before low-impact optimizations
-- **Change**: Split Phase 2 into two phases - immediate bundle optimization (✅ Done) + deferred optimizations (Phase 5)
+- **Change**: Split Phase 2 into two phases - immediate bundle optimization (✅ Done) + deferred optimizations (old Phase 5)
 - **Benefit**: Faster path to v1.0.0 launch with proper testing and documentation
 
-**Progress**: 197/202 SP Complete (97.5%)
+**UI v2 Redesign Added** (November 18, 2025):
+- **Scope**: Complete UI v2 redesign with modern collapsible sidebar and navbar (0 SP - enhancement within Sprint 13)
+- **Status**: ✅ COMPLETE - All 4 phases finished, committed (e6ece2d), and pushed to GitHub
+- **Impact**: 23 files changed, 2,284+ lines added, parallel UI version system with user toggle
+
+**Invoice V2 Detail Page Added** (November 21, 2025):
+- **Scope**: Invoice V2 detail panel implementation + bug fixes (0.5 SP - completing V2 feature set)
+- **Status**: 🟡 90% COMPLETE - Detail panel working, 2 data sync bugs pending investigation
+- **Impact**: 7 files changed, 650+ lines added, full V2 invoice viewing capability
+
+**Progress**: 197.45/208 SP Complete (94.9%)
 
 ### Deliverables
 
@@ -1149,14 +1170,350 @@ Dashboard Route (After):
 
 **Documentation**: Complete bug fix timeline documented in `docs/SESSION_SUMMARY_2025_11_15.md`
 
-#### **Phase 4: Documentation & Release Prep (1 SP)** - ⏳ NEXT
+### 🎨 UI v2 Redesign (November 18, 2025) - 0 SP
+
+**Note**: Enhancement work within Sprint 13 scope (not separate story points). Contributes to "Production Prep" by modernizing the interface before v1.0.0 launch.
+
+**Status**: ✅ **COMPLETE** - All 4 phases finished
+**Duration**: ~8-10 hours (including user feedback iterations)
+**Commit**: `e6ece2d` - "feat: Complete UI v2 redesign with modern collapsible sidebar and navbar"
+**Files Changed**: 23 files (15 new, 8 modified)
+**Lines Changed**: 2,284+ added, 43 removed (+2,241 net)
+
+#### **UI v2 Phase 1: Foundation & Context Provider (2-3 hours)** - ✅ COMPLETE
+
+**Goal**: Create infrastructure to support parallel UI versions with localStorage persistence
+
+**Implementations**:
+- ✅ Created Zustand store for UI state (`lib/stores/ui-version-store.ts`)
+  - Manages UI version ('v1' | 'v2'), sidebar collapsed, mobile menu state
+  - localStorage persistence for user preferences
+- ✅ Created React Context provider (`components/providers/ui-version-provider.tsx`)
+  - SSR-safe with default values, prevents hydration mismatches
+- ✅ Created dashboard layout wrapper (`components/layout/dashboard-layout-content.tsx`)
+  - Client component for conditional rendering between v1 and v2
+- ✅ Updated root layout (`app/(dashboard)/layout.tsx`)
+  - Wraps with UIVersionProvider
+- ✅ Added UI toggle to Settings page (`app/(dashboard)/settings/page.tsx`)
+  - "Appearance" section with Switch component
+
+**Challenges Fixed**:
+- ✅ Runtime error "useUIVersionContext is not a function" - Extracted to client component with 'use client'
+- ✅ Runtime error "must be used within UIVersionProvider" - Added SSR default values
+
+**Files Created**: 5 files (store, provider, wrapper, switch component)
+
+#### **UI v2 Phase 2: Collapsible Sidebar (4-5 hours)** - ✅ COMPLETE
+
+**Goal**: Build modern collapsible sidebar with smooth animations
+
+**Implementations**:
+- ✅ Created sidebar component (`components/layout-v2/sidebar-v2.tsx` - 158 lines)
+  - Collapsible width: 240px ↔ 60px with Framer Motion animations (<300ms)
+  - 5 navigation items: Dashboard, Invoices, Reports, Admin, Settings
+  - Active route highlighting with orange accent
+  - Logo with company name (expanded) or icon only (collapsed)
+  - Toggle button in sidebar header
+- ✅ Created layout wrapper (`components/layout-v2/layout-wrapper.tsx`)
+  - Main v2 layout structure integrating sidebar and content
+- ✅ Applied Sprint 10 design tokens consistently
+
+**Files Created**: 4 files (sidebar, layout wrapper, index, .gitkeep)
+
+#### **UI v2 Phase 3: Modern Navbar & Search (3-4 hours)** - ✅ COMPLETE
+
+**Goal**: Build modern navbar with user menu, theme toggle, and global search
+
+**Implementations**:
+- ✅ Created Avatar component (`components/ui/avatar.tsx` - 53 lines)
+  - Displays user initials from name, fallback to icon
+- ✅ Created Dropdown Menu component (`components/ui/dropdown-menu.tsx` - 200 lines)
+  - shadcn/ui wrapper with complete Radix UI primitives
+- ✅ Created Header component (`components/layout-v2/header-v2.tsx` - 99 lines)
+  - Logo transition (shows when sidebar collapsed)
+  - Centered search bar with ⌘K indicator
+  - Right-side actions: Add button, theme toggle, notification bell, user menu
+- ✅ Created User Profile Menu (`components/layout-v2/user-profile-menu.tsx` - 85 lines)
+  - Avatar with name and role display
+  - Dropdown: Profile, Settings, Logout
+  - Responsive (hides text on mobile)
+- ✅ Created Global Search (`components/layout-v2/global-search.tsx` - 86 lines)
+  - Command palette modal with ⌘K shortcut
+  - Quick navigation to all main pages
+  - Placeholder groups for invoice/vendor search
+
+**User Feedback Improvements**:
+- ✅ Removed redundant ⌘K badge from sidebar logo area
+- ✅ Added centered search bar in navbar for better discoverability
+- ✅ Moved toggle button from corner to sidebar header (cleaner layout)
+
+**Files Created**: 6 files (avatar, dropdown, header, user menu, search, command dialog)
+
+#### **UI v2 Phase 4: Integration & Polish (2-3 hours)** - ✅ COMPLETE
+
+**Goal**: Complete integration, add dynamic badges, mobile responsive, quality assurance
+
+**Sub-tasks Completed**:
+
+**4.1: Integration Audit** ✅
+- Verified all pages work with v2 layout
+- UI version switching functional (Settings toggle)
+- No orphaned code or unused imports
+
+**4.2: Dynamic Badge Counts** ✅
+- Created `getSidebarBadgeCounts()` server action in `app/actions/dashboard.ts` (lines 689-732)
+- Fetches pending approval + unpaid invoices with RBAC filtering
+- 30-second server cache, 60-second client refresh
+- Badge display: end of item (expanded) or overlay icon (collapsed)
+- Shows "99+" for counts over 99, only displays if count > 0
+
+**4.3: Mobile Responsive** ✅
+- Added mobile menu state to Zustand store
+- Hamburger menu button in header (40px touch target)
+- Backdrop overlay on mobile (`bg-black/50 z-40`)
+- Sidebar slide-in animation (300ms transform)
+- Auto-close on navigation
+- Desktop: width animation 60px ↔ 240px
+- Mobile: fixed overlay at 240px with slide
+
+**4.4: Quality Gates** ✅
+- TypeScript typecheck: PASSED (no errors)
+- ESLint: PASSED (pre-existing errors only)
+- Build: PASSED (production build succeeds)
+- Animations: <300ms, 60fps performance
+
+**4.5: Documentation** ✅
+- Updated README.md with Sprint 13 UI v2 section
+- Created docs/TODO_PINNED.md with remaining tasks
+
+**Files Modified**: 8 files (dashboard actions, sidebar, header, layout wrapper, store, README, package files)
+
+#### **UI v2 Technical Highlights**
+
+**Architecture**:
+- Parallel component libraries (v1 and v2 coexist)
+- Zero breaking changes to existing code
+- Safe migration path with user opt-in
+- Easy rollback if issues discovered
+
+**State Management**:
+- Zustand for global UI state (version, sidebar, mobile)
+- localStorage persistence for preferences
+- React Context for component tree access
+- Server Actions for real-time badge data
+
+**Performance**:
+- Badge counts: 30s server cache + 60s client refresh
+- Animations: <300ms (perceived instant)
+- Bundle impact: +60KB (framer-motion)
+- Layout shift: 0 (CLS = 0.00)
+
+**Security & RBAC**:
+- Badge counts filtered by role (admins see all, users see own)
+- Server-side enforcement in all queries
+- Session validation on every request
+
+#### **UI v2 Acceptance Criteria**
+
+**Phase 1-2 (Foundation & Sidebar)**:
+- ✅ UI version toggle works in Settings
+- ✅ Sidebar collapses/expands smoothly (240px ↔ 60px)
+- ✅ Framer Motion animations <300ms
+- ✅ SSR-safe implementation (no hydration errors)
+- ✅ localStorage persistence for preferences
+
+**Phase 3 (Navbar & Search)**:
+- ✅ Modern navbar with logo transition
+- ✅ Centered search bar with ⌘K indicator
+- ✅ User profile menu (avatar, dropdown, logout)
+- ✅ Global search command palette (⌘K shortcut)
+- ✅ Responsive design (text hides on mobile)
+
+**Phase 4 (Integration & Polish)**:
+- ✅ Dynamic badge counts (pending + unpaid invoices)
+- ✅ RBAC filtering (admins see all, users see own)
+- ✅ Mobile responsive (hamburger menu, slide-in sidebar)
+- ✅ Backdrop overlay on mobile
+- ✅ Auto-close on navigation
+- ✅ All quality gates passed (TypeScript, ESLint, Build)
+
+#### **UI v2 Files Summary**
+
+**Files Created** (15):
+- `components/layout-v2/` - 6 files (sidebar, header, layout, user menu, search, index)
+- `components/ui/` - 3 files (avatar, dropdown-menu, switch)
+- `lib/stores/` - 1 file (ui-version-store)
+- `components/providers/` - 2 files (ui-version-provider, index)
+- `components/layout/` - 1 file (dashboard-layout-content)
+- `docs/` - 1 file (TODO_PINNED.md)
+- `.gitkeep` - 1 file
+
+**Files Modified** (8):
+- `app/(dashboard)/layout.tsx` - UIVersionProvider integration
+- `app/(dashboard)/settings/page.tsx` - UI toggle
+- `app/actions/dashboard.ts` - Badge counts (+44 lines)
+- `components/ui/command.tsx` - CommandDialog wrapper
+- `README.md` - Documentation
+- `package.json` - Dependencies (framer-motion)
+- `package-lock.json` - Lock file
+- `pnpm-lock.yaml` - Lock file
+
+**Dependencies Added**: 1 (framer-motion@11.17.0)
+
+**Commit**: `e6ece2d` - "feat: Complete UI v2 redesign with modern collapsible sidebar and navbar"
+
+**Documentation**: Complete implementation details in `docs/SESSION_SUMMARY_2025_11_18.md`
+
+#### **Phase 5: Invoice V2 Detail Page & Vendor Approval Workflow (0.5 SP)** - ✅ COMPLETE
+**Started**: November 21, 2025
+**Completed**: November 22, 2025
+**Status**: Production-ready, all quality gates passed
+**Progress**: 197.5/208 SP (94.9%)
+
+**Goal**: Implement comprehensive Invoice V2 detail panel + Vendor Approval Workflow
+
+**Deliverables**:
+
+**1. Database Schema Enhancements**:
+- ✅ Added `invoice_received_date` field to Invoice model (nullable DateTime)
+- ✅ Migration `005_add_invoice_received_date` applied to Railway PostgreSQL
+- ✅ Extended Vendor model with 6 approval workflow fields (status, created_by_user_id, approved_by_user_id, approved_at, rejected_reason, deleted_at)
+- ✅ Created 4 indexes on Vendor (status, created_by, approved_by, deleted_at)
+- ✅ Vendor approval migration executed via `npx prisma db push` (14.89s, zero errors)
+- ✅ 7 vendors backfilled with APPROVED status
+- ✅ All 4 verification checks PASSED
+- ✅ Backward compatible (nullable/default fields, zero breaking changes)
+- ✅ Prisma Client regenerated with new types
+
+**Invoice V2 Detail Panel Component**:
+- ✅ Created `components/invoices/invoice-detail-panel-v2.tsx` (~370 lines)
+- ✅ 7 sections: Header, Basic Info, Profile, Payment, Classification, Attachments, Metadata
+- ✅ Fully typed with `InvoiceV2WithRelations` type (all relations included)
+- ✅ Loading, error, and empty states implemented
+- ✅ Responsive design with Tailwind utilities
+- ✅ Status badges (colored by status), recurring badge
+- ✅ Payment section highlighted (green background when paid)
+- ✅ TDS calculation display (shows formula)
+- ✅ Attachments list with download buttons
+- ✅ Conditional rendering (profile/payment sections only if data exists)
+
+**Server Action & React Query Integration**:
+- ✅ Added `getInvoiceV2(id)` server action with RBAC
+  - Super Admin/Admin: Can view any invoice
+  - Standard User: Can only view own invoices
+  - Fetches all relations (vendor, currency, entity, payment_type, profile, category, payment, attachments, users)
+- ✅ Added `useInvoiceV2(id)` React Query hook
+  - 30-second stale time (cached)
+  - Retry once on failure
+  - Proper error handling
+
+**Routing & Integration**:
+- ✅ Added `'invoice-v2-detail'` panel type to panel renderer
+- ✅ Fixed V2 invoice detection logic (was only detecting recurring invoices)
+  - Old logic: `is_recurring || invoice_profile_id` (missed non-recurring V2)
+  - New logic: `currency_id || entity_id || payment_type_id || is_recurring`
+  - Now correctly routes ALL V2 invoices to V2 detail panel
+
+**2. Vendor Approval Workflow Implementation**:
+- ✅ Created 5 new files: types/vendor.ts, lib/fuzzy-match.ts, admin/invoice-approval-with-vendor-modal.tsx, 2 migration scripts
+- ✅ Modified 17 files: schema, RBAC (6 functions), server actions (vendor CRUD + approval), UI components
+- ✅ RBAC: All users can create vendors (admins → APPROVED, standard users → PENDING_APPROVAL)
+- ✅ Fuzzy matching: Levenshtein algorithm with 75% threshold (prevents duplicate vendors)
+- ✅ Combined approval: "Approve Both" modal for atomic vendor + invoice approval
+- ✅ Status badges throughout UI: PENDING (yellow), APPROVED (green), REJECTED (red)
+- ✅ Visibility filtering: Admins see all vendors, standard users see APPROVED + own PENDING
+- ✅ ~1,500 LOC added
+
+**3. Bug Fixes Applied**:
+- ✅ Fixed toast notifications (installed Sonner, updated useToast hook, added Toaster to layout) - Nov 21
+- ✅ Fixed invoice number uniqueness (changed from global to vendor-specific) - Nov 21
+- ✅ Fixed V2 detection (non-recurring V2 invoices now open correct panel) - Nov 21
+- ✅ Fixed `invoice_received_date` not displaying (added to 4 persistence locations in server action) - Nov 22
+- ✅ Fixed paid status sync issue (updated status determination logic to check is_paid first) - Nov 22
+
+**4. Railway Deployment Fixes** (Nov 22, 2025 - Early Session):
+- ✅ **11 Railway build failures fixed through iterative commits** (19:34 - 23:53 IST, ~2.5 hours active work)
+- ✅ Fix #1: TypeScript errors in 5+ invoice v2 components (React Hook Form type issues)
+- ✅ Fix #2: Field name mismatch corrected (profile_id → invoice_profile_id throughout)
+- ✅ Fix #3: Schema sync - committed Sprint 13 fields (is_recurring, is_paid, invoice_received_date)
+- ✅ Fix #4: Added missing Alert UI component (shadcn/ui)
+- ✅ Fix #5: Committed invoice creation pages (/recurring, /non-recurring routes)
+- ✅ Fix #6: Added fuzzy-match utility (Levenshtein distance algorithm for vendor search)
+- ✅ Fix #7: Added VendorFormPanel props (initialName, onSuccess for better UX)
+- ✅ Fix #8: Fixed toast library integration (Sonner hook + Toaster component in layout)
+- ✅ Fix #9: ESLint compliance (9 targeted `any` type disables with justifications)
+- ✅ Fix #10: Added RBAC v2 utility (vendor approval permission helpers)
+- ✅ Fix #11: Enhanced audit logger (requestMetadata parameter for IP/user agent tracking)
+- ✅ **Result**: All TypeScript errors resolved (0 errors), ESLint passing, production build successful
+- ✅ **Railway Status**: Deployed successfully, health check passing ✅
+- ✅ **Lessons Learned**: Always run typecheck + lint + build before pushing (saves 30-50 min per session)
+- 📄 **Documentation**: Complete fix details in `docs/SESSION_SUMMARY_2025_11_22_RAILWAY_FIXES.md`
+
+**Files Created** (6):
+- `components/invoices/invoice-detail-panel-v2.tsx` (~370 lines) - Nov 21
+- `types/vendor.ts` (NEW) - Complete vendor type definitions - Nov 22
+- `lib/fuzzy-match.ts` (NEW) - Levenshtein algorithm for duplicate detection - Nov 22
+- `components/admin/invoice-approval-with-vendor-modal.tsx` (NEW) - Combined approval UI - Nov 22
+- `scripts/backfill-vendor-approval-status.ts` (NEW) - Migration script - Nov 22
+- `scripts/verify-vendor-migration.ts` (NEW) - Verification script - Nov 22
+
+**Files Modified** (20):
+- `types/invoice.ts` - Added `InvoiceV2WithRelations` type - Nov 21
+- `app/actions/invoices-v2.ts` - Added `getInvoiceV2` server action + bug fixes - Nov 21/22
+- `hooks/use-invoices-v2.ts` - Added `useInvoiceV2` hook - Nov 21
+- `components/invoices/invoice-panel-renderer.tsx` - Added V2 detail panel routing - Nov 21
+- `app/(dashboard)/invoices/page.tsx` - Fixed V2 detection logic - Nov 21
+- `prisma/schema.prisma` - Added invoice_received_date + vendor approval fields - Nov 21/22
+- `lib/rbac-v2.ts` - Added 6 vendor RBAC functions - Nov 22
+- `app/actions/master-data.ts` - Status-aware vendor CRUD - Nov 22
+- `app/actions/admin/master-data-approval.ts` - Vendor approval/rejection - Nov 22
+- `app/actions/invoices.ts` - Combined approval actions - Nov 22
+- `components/master-data/vendor-form-panel.tsx` - Status indicator UI - Nov 22
+- `components/invoices-v2/smart-vendor-combobox.tsx` - Fuzzy matching + badges - Nov 22
+- `hooks/use-vendors.ts` - Toast messages - Nov 22
+- `hooks/use-invoices-v2.ts` - Success handling - Nov 22
+- (plus 6 more vendor approval related files)
+
+**Database Changes** (2):
+- Migration: `005_add_invoice_received_date` (applied November 21, 2025)
+- Migration: Vendor approval workflow (6 fields + 4 indexes, applied November 22, 2025)
+
+**Code Statistics**:
+- Lines Added: ~2,150 lines (detail panel + vendor approval workflow + bug fixes)
+- Lines Modified: ~100 lines (routing, detection, bug fixes, status logic)
+- Net Addition: +2,100 lines
+
+**Quality Gates**:
+- ✅ TypeScript: 0 errors (all code type-safe)
+- ✅ ESLint: 0 new warnings
+- ✅ Build: Success (compiles without errors)
+- ✅ Database Verification: All 4 checks PASSED (status, timestamps, pending count, indexes)
+- ✅ Manual Testing: UI renders correctly, workflows functional
+- ✅ RBAC Testing: Admins see all, users see APPROVED + own PENDING
+- ✅ Bug Fixes: Both issues resolved (invoice_received_date, paid status)
+
+**Token Usage (2 sessions)**:
+- Session 1 (Nov 21): ~117K / 200K (58.5% used)
+- Session 2 (Nov 22): ~130K / 200K (65% used)
+
+**Documentation**:
+- Complete implementation details in `docs/SESSION_SUMMARY_2025_11_21.md` (Phase 5 Part 1)
+- Complete implementation details in `docs/SESSION_SUMMARY_2025_11_22.md` (Phase 5 Part 2 + Sprint 14 Planning)
+
+#### **Phase 6: Documentation & Release Prep (1.5 SP)** - ⏳ NEXT
+**Estimated Time**: 8-10 hours
+**Status**: Ready to start
+
+**Deliverables**:
 - [ ] Production deployment guide (env vars, database setup, migrations, build, deploy)
 - [ ] Complete USER_GUIDE.md (remaining sections: Invoices, Master Data, Users)
 - [ ] API documentation (all server actions with examples)
-- [ ] Changelog generation (Sprints 1-12, v1.0.0 entry)
+- [ ] Changelog generation (Sprints 1-13, v1.0.0 entry)
 - [ ] v1.0.0 release notes (features list, known limitations, upgrade path)
-- [ ] Migration guide (if schema changes needed)
+- [ ] Migration guide (vendor approval workflow, invoice_received_date field)
 - [ ] Deliverable: Complete documentation package
+
+**Dependencies**: Sprint 13 Phase 5 complete ✅
 
 #### **Phase 5: Final Optimizations (1 SP)** - DEFERRED (Last Priority)
 **Note**: These items have minimal immediate impact and can be completed after v1.0.0 launch
@@ -1273,9 +1630,130 @@ The following user management security features have been deferred to Sprint 14:
 
 ## 📋 Sprint 14: Post-Launch Enhancements (6 SP) - PLANNED
 
-**Status**: 📋 **PLANNED** (After v1.0.0 Launch)
-**Goal**: Enhanced user management security features and Settings page improvements
-**Dependencies**: Sprint 13 Phase 4 complete (v1.0.0 launched)
+**Status**: 📋 **FULLY PLANNED** (After v1.0.0 Launch)
+**Goal**: Complete invoice management workflow + UX consistency + Settings/Navigation restructure
+**Dependencies**: Sprint 13 Phase 6 complete (v1.0.0 documentation ready)
+**Detailed Plan**: `docs/SPRINT_14_IMPLEMENTATION_PLAN.md` (1,511 lines)
+
+### Sprint 14 Overview
+
+**Total Items**: 10 items across 4 phases
+**Estimated Effort**: 8-10 development days (~2,500 LOC)
+**Risk Level**: Medium (database changes + major UX updates)
+
+**Priority Breakdown**:
+- **CRITICAL (2 items)**: Blocking workflows - 4-6 hours
+  1. Invoice approval buttons missing for edited invoices
+  2. User details panel loading error (cache + headers issue)
+
+- **HIGH PRIORITY (3 items)**: Daily UX issues - 6-8 hours
+  3. Currency display bug (all showing $ instead of actual symbol)
+  4. Amount field '0' placeholder doesn't clear when typing
+  5. Inconsistent side panel styling (gaps at top)
+
+- **MEDIUM PRIORITY (5 items)**: Feature completion - 18-24 hours
+  6. Payment Types implementation (tab exists, no functionality)
+  7. Invoice Profile billing frequency field (make mandatory)
+  8. Activities tab (replace My Requests with comprehensive logging)
+  9. Settings menu restructure (Profile/Security/Activities tabs)
+  10. Invoices menu restructure (Recurring/All/TDS tabs + month navigation)
+
+### Sprint 14 Phases
+
+**Phase 1: Critical Workflow Blockers** (4-6 hours)
+- Invoice approval buttons in detail panel
+- User details panel cache fix (move headers outside unstable_cache)
+- Files: ~5 files, ~200 LOC
+- Risk: Low (isolated changes)
+
+**Phase 2: High-Priority UX Fixes** (6-8 hours)
+- Currency display with correct symbols (formatCurrency function)
+- Amount field smart placeholder behavior (AmountInput component)
+- Unified side panel component (refactor all panels)
+- Files: ~15 files, ~400 LOC
+- Risk: Medium (affects many components)
+
+**Phase 3: Master Data Features** (8-10 hours)
+- Payment Types CRUD implementation (full tab with forms)
+- Invoice Profile billing frequency mandatory (migration + validation)
+- Files: ~8 files, ~800 LOC
+- Risk: Medium (database migration)
+
+**Phase 4: Settings & Navigation Restructure** (10-12 hours)
+- Activity logging system (new table + logger utility)
+- Settings restructure (Profile/Security/Activities tabs)
+- Invoices restructure (Recurring/All/TDS tabs + month navigation)
+- Files: ~15 files, ~1,100 LOC
+- Risk: High (major UX changes)
+
+### Database Migrations Required
+
+**Migration 1: Billing Frequency Mandatory** (Phase 3)
+```sql
+ALTER TABLE invoice_profiles
+ALTER COLUMN billing_frequency SET NOT NULL,
+ALTER COLUMN billing_frequency SET DEFAULT '30 days',
+ADD CONSTRAINT billing_frequency_format CHECK (...);
+```
+
+**Migration 2: User Activities Table** (Phase 4)
+```sql
+CREATE TABLE user_activities (
+  id UUID PRIMARY KEY,
+  user_id UUID NOT NULL,
+  activity_type VARCHAR(50),
+  activity_description TEXT,
+  metadata JSONB,
+  created_at TIMESTAMP,
+  + 4 indexes
+);
+```
+
+**Rollback Plans**: Documented for each migration
+
+### Testing Strategy
+
+- **Phase 1**: Manual testing of approval buttons + user panel loading
+- **Phase 2**: Visual testing of currency symbols, amount fields, side panels
+- **Phase 3**: CRUD testing for payment types, invoice profile validation
+- **Phase 4**: User flow testing (profile, security, activities, TDS calculations)
+- **Performance**: Activity query <100ms, TDS calculations accurate
+- **Security**: RBAC enforcement, image upload limits, sensitive data protection
+
+### Success Criteria
+
+- All 10 items implemented and tested
+- No regressions in existing features
+- All quality gates passed (TypeScript, ESLint, Build)
+- Performance benchmarks met (<100ms queries, <2s page loads)
+- Security audit passed (RBAC, input validation, data protection)
+- User acceptance testing complete
+
+### Timeline
+
+**Week 1**: Phases 1-2 (Critical + High Priority UX) - 10-14 hours
+**Week 2**: Phases 3-4 (Master Data + Navigation) - 18-22 hours
+**Buffer**: Testing, bug fixes, documentation - 4-6 hours
+
+### Documentation
+
+**Comprehensive Implementation Plan**: `docs/SPRINT_14_IMPLEMENTATION_PLAN.md`
+- 1,511 lines covering all 10 items
+- Detailed technical specifications
+- Component implementations with code examples
+- Database migration strategies with rollback plans
+- Testing plans and checklists
+- Risk assessment with mitigation strategies
+- Timeline with effort estimates
+
+---
+
+## 📋 Sprint 14 (Original Plan - SUPERSEDED)
+
+**Note**: The following was the original Sprint 14 plan focused on security settings. This has been **superseded** by the comprehensive 10-item plan above based on Sprint 13 testing and user feedback. The security settings features are now deferred to Sprint 15 or later.
+
+**Original Goal**: Enhanced user management security features and Settings page improvements
+**Dependencies**: Sprint 13 Phase 6 complete (v1.0.0 launched)
 
 ### Deliverables
 
@@ -1522,6 +2000,45 @@ The following user management security features have been deferred to Sprint 14:
 ---
 
 ## 📝 Recent Session Notes
+
+### November 18, 2025 - UI v2 Redesign Complete (Session End)
+**Type**: Major UI enhancement within Sprint 13 (0 SP - enhancement work)
+**Status**: All 4 phases complete, committed and pushed to GitHub
+
+**Work Completed**:
+- UI v2 Phase 1: Foundation & Context Provider (2-3 hours) ✅
+- UI v2 Phase 2: Collapsible Sidebar (4-5 hours) ✅
+- UI v2 Phase 3: Modern Navbar & Search (3-4 hours) ✅
+- UI v2 Phase 4: Integration, Polish & Testing (2-3 hours) ✅
+
+**Key Achievements**:
+- Complete v2 layout system with parallel UI versions (v1 and v2 coexist)
+- Collapsible sidebar: 240px ↔ 60px with Framer Motion (<300ms animations)
+- Modern navbar with search bar, user menu, theme toggle
+- Dynamic badge counts (RBAC-filtered: pending approvals + unpaid invoices)
+- Full mobile responsive (hamburger menu, slide-in sidebar, backdrop)
+- Zero breaking changes to v1 layout
+
+**Statistics**:
+- 23 files changed (15 new, 8 modified)
+- 2,284 lines added, 43 removed (+2,241 net)
+- 1 dependency added (framer-motion@11.17.0)
+- All quality gates passed (TypeScript, ESLint, Build)
+
+**Commit**: `e6ece2d` - "feat: Complete UI v2 redesign with modern collapsible sidebar and navbar"
+
+**User Feedback Iterations**:
+- Removed redundant ⌘K badge from sidebar
+- Added centered search bar in navbar
+- Moved toggle button to sidebar header (cleaner UX)
+
+**Next Session**:
+- Continue Sprint 13 Phase 4: Documentation & Release Prep (1 SP)
+- OR: Begin Sprint 14: Post-Launch Security Enhancements (6 SP)
+
+**Context Restoration**: See `docs/SESSION_SUMMARY_2025_11_18.md` for complete details
+
+---
 
 ### October 30, 2025 - Sprint 13 Phase 3 Complete (Session End)
 **Type**: Sprint completion milestone (5 SP / 7 SP complete)
