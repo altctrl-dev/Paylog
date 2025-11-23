@@ -1,10 +1,11 @@
 'use client';
 
 import React from 'react';
-import { Plus, Sun, Moon, Bell, Menu, Search } from 'lucide-react';
+import { Sun, Moon, Bell, Menu, Search } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { UserProfileMenu } from './user-profile-menu';
 import { GlobalSearch } from './global-search';
+import { NavbarPlusMenu } from './navbar-plus-menu';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUIVersion } from '@/lib/stores/ui-version-store';
 
@@ -21,6 +22,12 @@ export function HeaderV2({ sidebarCollapsed, user }: HeaderV2Props) {
   const { theme, setTheme } = useTheme();
   const { toggleMobileMenu } = useUIVersion();
   const [searchOpen, setSearchOpen] = React.useState(false);
+  const [mounted, setMounted] = React.useState(false);
+
+  // Prevent hydration mismatch by only rendering theme-dependent content after mount
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Listen for Cmd+K / Ctrl+K
   React.useEffect(() => {
@@ -77,17 +84,17 @@ export function HeaderV2({ sidebarCollapsed, user }: HeaderV2Props) {
 
         {/* Right Side Actions */}
         <div className="flex items-center gap-2">
-          {/* Add Button */}
-          <button className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground hover:bg-primary/90">
-            <Plus className="h-5 w-5" />
-          </button>
+          {/* Add Button - Now using NavbarPlusMenu */}
+          <NavbarPlusMenu />
 
           {/* Theme Toggle */}
           <button
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
             className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-accent"
           >
-            {theme === 'dark' ? (
+            {!mounted ? (
+              <Sun className="h-5 w-5" />
+            ) : theme === 'dark' ? (
               <Moon className="h-5 w-5" />
             ) : (
               <Sun className="h-5 w-5" />
