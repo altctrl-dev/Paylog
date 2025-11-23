@@ -93,7 +93,23 @@ export function formatRelativeTime(date: Date | string | null | undefined): stri
  */
 export function formatCurrency(amount: number, currencyCode?: string): string {
   // Default to USD if no currency code provided
-  const currency = currencyCode || 'USD';
+  let currency = currencyCode || 'USD';
+
+  // Defensive: Map common invalid country codes to currency codes
+  const countryToCurrency: Record<string, string> = {
+    'IN': 'INR', // India country code -> Indian Rupee
+    'US': 'USD', // United States
+    'GB': 'GBP', // Great Britain
+    'EU': 'EUR', // European Union (not a valid country code, but handle it)
+    'JP': 'JPY', // Japan
+    'CN': 'CNY', // China
+  };
+
+  // Fix common mistakes: country code instead of currency code
+  if (currency in countryToCurrency) {
+    console.warn(`[formatCurrency] Invalid currency code "${currency}" detected, using "${countryToCurrency[currency]}" instead`);
+    currency = countryToCurrency[currency];
+  }
 
   // Use appropriate locale based on currency for better formatting
   const localeMap: Record<string, string> = {
@@ -107,12 +123,25 @@ export function formatCurrency(amount: number, currencyCode?: string): string {
 
   const locale = localeMap[currency] || 'en-US';
 
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
+  try {
+    return new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
+  } catch (error) {
+    // Fallback: if currency is still invalid, format as USD with a prefix
+    console.error(`[formatCurrency] Invalid currency code "${currency}":`, error);
+    const formattedUSD = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
+    // Replace $ with the invalid currency code to preserve intent
+    return formattedUSD.replace('$', `${currency} `);
+  }
 }
 
 /**
