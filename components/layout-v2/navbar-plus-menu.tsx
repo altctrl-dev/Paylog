@@ -67,12 +67,17 @@ const menuStructure = [
 ];
 
 export function NavbarPlusMenu({ onItemClick }: NavbarPlusMenuProps) {
+  console.log('[NavbarPlusMenu] Function called - component is rendering');
+
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [mounted, setMounted] = React.useState(false);
 
+  console.log('[NavbarPlusMenu] State initialized - mounted:', mounted, 'open:', open);
+
   // Prevent hydration issues
   React.useEffect(() => {
+    console.log('[NavbarPlusMenu] useEffect fired - setting mounted to true');
     setMounted(true);
     console.log('[NavbarPlusMenu] Component mounted');
   }, []);
@@ -94,9 +99,11 @@ export function NavbarPlusMenu({ onItemClick }: NavbarPlusMenuProps) {
 
   // Prevent hydration mismatch by only rendering on client
   if (!mounted) {
+    console.log('[NavbarPlusMenu] Returning placeholder button (not mounted yet)');
     return (
       <button
         type="button"
+        onClick={() => console.log('[NavbarPlusMenu] Placeholder button clicked (should not happen - button is disabled)')}
         className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
         aria-label="Create new"
         disabled
@@ -105,6 +112,8 @@ export function NavbarPlusMenu({ onItemClick }: NavbarPlusMenuProps) {
       </button>
     );
   }
+
+  console.log('[NavbarPlusMenu] Rendering full dropdown menu (mounted=true)');
 
   return (
     <DropdownMenu modal={false} open={open} onOpenChange={setOpen}>
