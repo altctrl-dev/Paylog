@@ -583,7 +583,7 @@ export async function updateRecurringInvoice(
         created_by: true,
         updated_at: true,
         is_recurring: true,
-        profile_id: true,
+        invoice_profile_id: true, // FIXED: Use correct field name
         vendor_id: true,
         invoice_number: true,
       },
@@ -597,7 +597,11 @@ export async function updateRecurringInvoice(
     }
 
     // 4. Verify this is a recurring invoice
-    if (!existing.is_recurring || !existing.profile_id) {
+    if (!existing.is_recurring || !existing.invoice_profile_id) {
+      console.log('[updateRecurringInvoice] Validation failed:', {
+        is_recurring: existing.is_recurring,
+        invoice_profile_id: existing.invoice_profile_id,
+      });
       return {
         success: false,
         error: 'This is not a recurring invoice',
