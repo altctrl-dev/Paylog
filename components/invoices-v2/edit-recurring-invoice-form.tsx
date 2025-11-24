@@ -225,7 +225,7 @@ export function EditRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: Edi
   // Update invoice mutation
   const updateInvoice = useUpdateRecurringInvoice(invoiceId, onSuccess);
 
-  // Form setup
+  // Form setup - don't set defaultValues, let setValue handle pre-filling from invoice data
   const {
     register,
     handleSubmit,
@@ -238,26 +238,6 @@ export function EditRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: Edi
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(updateRecurringInvoiceSchema) as any,
     mode: 'onBlur',
-    defaultValues: {
-      invoice_profile_id: 0,
-      brief_description: null,
-      invoice_number: '',
-      invoice_date: undefined,
-      due_date: undefined,
-      invoice_received_date: undefined,
-      period_start: undefined,
-      period_end: undefined,
-      currency_id: 0,
-      invoice_amount: 0,
-      tds_applicable: false,
-      tds_percentage: null,
-      is_paid: false,
-      paid_date: null,
-      paid_amount: null,
-      paid_currency: null,
-      payment_type_id: null,
-      payment_reference: null,
-    },
   });
 
   // Watch values
@@ -423,6 +403,12 @@ export function EditRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: Edi
   console.log('[EditRecurringInvoiceForm] Component rendered. Form errors:', errors);
   console.log('[EditRecurringInvoiceForm] Form isValid:', formState.isValid);
   console.log('[EditRecurringInvoiceForm] Form isDirty:', formState.isDirty);
+  console.log('[EditRecurringInvoiceForm] Form values:', {
+    invoice_profile_id: watch('invoice_profile_id'),
+    invoice_number: watch('invoice_number'),
+    invoice_amount: watch('invoice_amount'),
+    currency_id: watch('currency_id'),
+  });
 
   // Render form
   return (
@@ -682,6 +668,23 @@ export function EditRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: Edi
         )}
       </div>
 
+      {/* Validation Errors Display (Debug) */}
+      {Object.keys(errors).length > 0 && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Validation Errors</AlertTitle>
+          <AlertDescription>
+            <ul className="list-disc pl-4 space-y-1">
+              {Object.entries(errors).map(([field, error]) => (
+                <li key={field}>
+                  <strong>{field}:</strong> {error?.message || 'Invalid value'}
+                </li>
+              ))}
+            </ul>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Action Buttons */}
       <div className="flex items-center justify-end gap-2 pt-4 border-t">
         {onCancel && (
@@ -696,6 +699,7 @@ export function EditRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: Edi
             console.log('[EditRecurringInvoiceForm] Submit button clicked');
             console.log('[EditRecurringInvoiceForm] isSubmitting:', isSubmitting);
             console.log('[EditRecurringInvoiceForm] isPending:', updateInvoice.isPending);
+            console.log('[EditRecurringInvoiceForm] All errors:', errors);
           }}
         >
           {(isSubmitting || updateInvoice.isPending) ? 'Updating...' : 'Update Invoice'}
