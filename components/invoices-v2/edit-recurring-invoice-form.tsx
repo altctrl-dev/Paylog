@@ -89,6 +89,7 @@ export function EditRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: Edi
     control,
     watch,
     setValue,
+    formState,
     formState: { errors, isSubmitting },
   } = useForm<RecurringInvoiceFormData>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -147,6 +148,27 @@ export function EditRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: Edi
       setValue('payment_reference', invoice.payment_reference || null);
     }
   }, [invoice, setValue]);
+
+  // Handle ESC key to close panel (with unsaved data warning)
+  React.useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation(); // Prevent parent panel from closing
+
+        const isDirty = Object.keys(formState.dirtyFields).length > 0;
+        if (isDirty) {
+          if (confirm('You have unsaved changes. Are you sure you want to close?')) {
+            onCancel?.();
+          }
+        } else {
+          onCancel?.();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleEsc, { capture: true });
+    return () => window.removeEventListener('keydown', handleEsc, { capture: true });
+  }, [formState.dirtyFields, onCancel]);
 
   // Handle file selection
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -415,6 +437,7 @@ export function EditRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: Edi
             type="number"
             step="0.01"
             {...register('invoice_amount', { valueAsNumber: true })}
+            onWheel={(e) => e.currentTarget.blur()} // Disable scroll to change value
             placeholder="0.00"
           />
           {errors.invoice_amount && (

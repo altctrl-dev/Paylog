@@ -92,6 +92,7 @@ export function EditNonRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: 
     control,
     watch,
     setValue,
+    formState,
     formState: { errors, isSubmitting },
   } = useForm<NonRecurringInvoiceFormData>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -105,7 +106,7 @@ export function EditNonRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: 
       category_id: 0,
       invoice_number: '',
       invoice_date: new Date(),
-      due_date: null,
+      due_date: new Date(), // Default to invoice_date (today)
       invoice_received_date: null,
       currency_id: 1,
       invoice_amount: 0,
@@ -128,15 +129,16 @@ export function EditNonRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: 
   // Pre-fill form with existing invoice data
   React.useEffect(() => {
     if (invoice) {
+      const invoiceDate = invoice.invoice_date ? new Date(invoice.invoice_date) : new Date();
       setValue('invoice_name', invoice.description || '');
       setValue('brief_description', invoice.description);
       setValue('vendor_id', invoice.vendor_id ?? 0);
       setValue('entity_id', invoice.entity_id ?? 0);
       setValue('category_id', invoice.category_id ?? 0);
       setValue('invoice_number', invoice.invoice_number);
-      setValue('invoice_date', invoice.invoice_date ? new Date(invoice.invoice_date) : new Date());
-      setValue('due_date', invoice.due_date ? new Date(invoice.due_date) : null);
-      setValue('invoice_received_date', invoice.invoice_received_date ? new Date(invoice.invoice_received_date) : null);
+      setValue('invoice_date', invoiceDate);
+      // Default due_date to invoice_date if not set
+      setValue('due_date', invoice.due_date ? new Date(invoice.due_date) : invoiceDate);
       setValue('currency_id', invoice.currency_id ?? 1);
       setValue('invoice_amount', invoice.invoice_amount);
       setValue('tds_applicable', invoice.tds_applicable);
@@ -149,6 +151,27 @@ export function EditNonRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: 
       setValue('payment_reference', invoice.payment_reference || null);
     }
   }, [invoice, setValue]);
+
+  // Handle ESC key to close panel (with unsaved data warning)
+  React.useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation(); // Prevent parent panel from closing
+
+        const isDirty = Object.keys(formState.dirtyFields).length > 0;
+        if (isDirty) {
+          if (confirm('You have unsaved changes. Are you sure you want to close?')) {
+            onCancel?.();
+          }
+        } else {
+          onCancel?.();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleEsc, { capture: true });
+    return () => window.removeEventListener('keydown', handleEsc, { capture: true });
+  }, [formState.dirtyFields, onCancel]);
 
   // Handle file selection
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -216,8 +239,9 @@ export function EditNonRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: 
         category_id: formValues.category_id,
         invoice_number: formValues.invoice_number,
         invoice_date: formValues.invoice_date.toISOString(),
-        due_date: formValues.due_date ? formValues.due_date.toISOString() : null,
-        invoice_received_date: formValues.invoice_received_date ? formValues.invoice_received_date.toISOString() : null,
+        // Default due_date to invoice_date if not set
+        due_date: (formValues.due_date || formValues.invoice_date).toISOString(),
+        invoice_received_date: null, // Not used in edit form
         invoice_amount: formValues.invoice_amount,
         currency_id: formValues.currency_id,
         tds_applicable: formValues.tds_applicable,
@@ -385,7 +409,7 @@ export function EditNonRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: 
       </div>
 
       {/* Dates Grid */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="invoice_date">Invoice Date *</Label>
           <Controller
@@ -405,7 +429,7 @@ export function EditNonRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: 
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="due_date">Due Date</Label>
+          <Label htmlFor="due_date">Due Date *</Label>
           <Controller
             name="due_date"
             control={control}
@@ -421,21 +445,6 @@ export function EditNonRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: 
             <p className="text-xs text-destructive">{errors.due_date.message}</p>
           )}
         </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="invoice_received_date">Date Received</Label>
-          <Controller
-            name="invoice_received_date"
-            control={control}
-            render={({ field }) => (
-              <Input
-                type="date"
-                value={formatDateForInput(field.value)}
-                onChange={(e) => field.onChange(parseDateFromInput(e.target.value))}
-              />
-            )}
-          />
-        </div>
       </div>
 
       {/* Amount and Currency */}
@@ -447,6 +456,7 @@ export function EditNonRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: 
             type="number"
             step="0.01"
             {...register('invoice_amount', { valueAsNumber: true })}
+            onWheel={(e) => e.currentTarget.blur()} // Disable scroll to change value
             placeholder="0.00"
           />
           {errors.invoice_amount && (

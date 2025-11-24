@@ -576,6 +576,7 @@ export function RecurringInvoiceForm({ onSuccess: _onSuccess, onCancel }: Recurr
             type="number"
             step="0.01"
             {...register('invoice_amount', { valueAsNumber: true })}
+            onWheel={(e) => e.currentTarget.blur()} // Disable scroll to change value
             placeholder="0.00"
             className={errors.invoice_amount ? 'border-destructive' : ''}
           />

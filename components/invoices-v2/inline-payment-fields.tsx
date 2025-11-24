@@ -215,6 +215,7 @@ export function InlinePaymentFields({
                 onChange={(e) =>
                   onFieldChange('paid_amount', e.target.value ? parseFloat(e.target.value) : null)
                 }
+                onWheel={(e) => e.currentTarget.blur()} // Disable scroll to change value
                 className={errors.paid_amount ? 'border-destructive' : ''}
               />
             </div>

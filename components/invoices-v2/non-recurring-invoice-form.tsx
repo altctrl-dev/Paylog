@@ -123,7 +123,7 @@ export function NonRecurringInvoiceForm({ onSuccess: _onSuccess, onCancel }: Non
       category_id: 0,
       invoice_number: '',
       invoice_date: undefined,
-      due_date: undefined,
+      due_date: undefined, // Will default to invoice_date via schema
       currency_id: 1, // Default INR
       invoice_amount: 0,
       tds_applicable: false,
@@ -626,6 +626,7 @@ export function NonRecurringInvoiceForm({ onSuccess: _onSuccess, onCancel }: Non
               type="number"
               step="0.01"
               {...register('invoice_amount', { valueAsNumber: true })}
+              onWheel={(e) => e.currentTarget.blur()} // Disable scroll to change value
               placeholder="0.00"
               className={errors.invoice_amount ? 'border-destructive' : ''}
             />

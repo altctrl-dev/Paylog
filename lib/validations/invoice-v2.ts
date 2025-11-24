@@ -357,10 +357,10 @@ export const nonRecurringInvoiceSchema = z
       .default(() => new Date()),
     due_date: z
       .date({
+        required_error: 'Due date is required',
         invalid_type_error: 'Invalid date format',
       })
-      .nullable()
-      .optional(),
+      .default(() => new Date()), // Default to invoice_date if not explicitly set
     invoice_received_date: z
       .date({
         invalid_type_error: 'Invalid date format',
@@ -399,11 +399,8 @@ export const nonRecurringInvoiceSchema = z
   })
   .refine(
     (data) => {
-      // Validation: if due_date provided, must be >= invoice_date
-      if (data.due_date) {
-        return data.due_date >= data.invoice_date;
-      }
-      return true;
+      // Validation: due_date must be >= invoice_date
+      return data.due_date >= data.invoice_date;
     },
     {
       message: 'Due date cannot be before invoice date',
@@ -491,7 +488,7 @@ export const nonRecurringInvoiceSerializedSchema = z
       .min(1, 'Invoice number is required')
       .max(100, 'Invoice number too long'),
     invoice_date: z.string().min(1, 'Invoice date is required'), // ISO string
-    due_date: z.string().nullable().optional(), // ISO string
+    due_date: z.string().min(1, 'Due date is required'), // ISO string - defaults to invoice_date
     invoice_received_date: z.string().nullable().optional(), // ISO string
 
     // Amount & Currency
@@ -520,13 +517,10 @@ export const nonRecurringInvoiceSerializedSchema = z
   })
   .refine(
     (data) => {
-      // Validation: if due_date provided, must be >= invoice_date
-      if (data.due_date) {
-        const invoiceDate = new Date(data.invoice_date);
-        const dueDate = new Date(data.due_date);
-        return dueDate >= invoiceDate;
-      }
-      return true;
+      // Validation: due_date must be >= invoice_date
+      const invoiceDate = new Date(data.invoice_date);
+      const dueDate = new Date(data.due_date);
+      return dueDate >= invoiceDate;
     },
     {
       message: 'Due date cannot be before invoice date',
