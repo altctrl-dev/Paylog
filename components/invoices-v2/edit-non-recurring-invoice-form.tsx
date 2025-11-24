@@ -192,22 +192,9 @@ export function EditNonRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: 
   };
 
   // Handle form submission
-  const onSubmit = async () => {
+  const onSubmit = async (validatedData: NonRecurringInvoiceFormData) => {
     try {
-      console.log('[EditNonRecurringInvoiceForm] onSubmit called');
-      const formValues = watch();
-      console.log('[EditNonRecurringInvoiceForm] Form values:', formValues);
-
-      // Validate required fields
-      if (!formValues.invoice_date) {
-        console.error('[EditNonRecurringInvoiceForm] Missing required date fields');
-        toast({
-          title: 'Error',
-          description: 'Invoice date is required',
-          variant: 'destructive',
-        });
-        return;
-      }
+      console.log('[EditNonRecurringInvoiceForm] onSubmit called with validated data:', validatedData);
 
       // Convert file to base64 (if provided)
       let fileBase64: string | null = null;
@@ -232,26 +219,26 @@ export function EditNonRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: 
           size: selectedFile.size,
           data: fileBase64,
         } : null,
-        invoice_name: formValues.invoice_name,
-        brief_description: formValues.brief_description || null,
-        vendor_id: formValues.vendor_id,
-        entity_id: formValues.entity_id,
-        category_id: formValues.category_id,
-        invoice_number: formValues.invoice_number,
-        invoice_date: formValues.invoice_date.toISOString(),
+        invoice_name: validatedData.invoice_name,
+        brief_description: validatedData.brief_description || null,
+        vendor_id: validatedData.vendor_id,
+        entity_id: validatedData.entity_id,
+        category_id: validatedData.category_id,
+        invoice_number: validatedData.invoice_number,
+        invoice_date: validatedData.invoice_date.toISOString(),
         // Default due_date to invoice_date if not set
-        due_date: (formValues.due_date || formValues.invoice_date).toISOString(),
+        due_date: (validatedData.due_date || validatedData.invoice_date).toISOString(),
         invoice_received_date: null, // Not used in edit form
-        invoice_amount: formValues.invoice_amount,
-        currency_id: formValues.currency_id,
-        tds_applicable: formValues.tds_applicable,
-        tds_percentage: formValues.tds_percentage || null,
-        is_paid: formValues.is_paid,
-        paid_date: formValues.is_paid && formValues.paid_date ? formValues.paid_date.toISOString() : null,
-        paid_amount: formValues.is_paid ? formValues.paid_amount : null,
-        paid_currency: formValues.is_paid ? formValues.paid_currency : null,
-        payment_type_id: formValues.is_paid ? formValues.payment_type_id : null,
-        payment_reference: formValues.is_paid ? formValues.payment_reference : null,
+        invoice_amount: validatedData.invoice_amount,
+        currency_id: validatedData.currency_id,
+        tds_applicable: validatedData.tds_applicable,
+        tds_percentage: validatedData.tds_percentage || null,
+        is_paid: validatedData.is_paid,
+        paid_date: validatedData.is_paid && validatedData.paid_date ? validatedData.paid_date.toISOString() : null,
+        paid_amount: validatedData.is_paid ? validatedData.paid_amount : null,
+        paid_currency: validatedData.is_paid ? validatedData.paid_currency : null,
+        payment_type_id: validatedData.is_paid ? validatedData.payment_type_id : null,
+        payment_reference: validatedData.is_paid ? validatedData.payment_reference : null,
       };
 
       // Force JSON serialization
@@ -447,46 +434,48 @@ export function EditNonRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: 
         </div>
       </div>
 
-      {/* Amount and Currency */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="invoice_amount">Invoice Amount *</Label>
-          <Input
-            id="invoice_amount"
-            type="number"
-            step="0.01"
-            {...register('invoice_amount', { valueAsNumber: true })}
-            onWheel={(e) => e.currentTarget.blur()} // Disable scroll to change value
-            placeholder="0.00"
-          />
-          {errors.invoice_amount && (
-            <p className="text-xs text-destructive">{errors.invoice_amount.message}</p>
-          )}
-        </div>
+      {/* Currency and Amount */}
+      <div className="space-y-2">
+        <Label htmlFor="invoice_amount">Invoice Amount *</Label>
+        <div className="grid grid-cols-[140px_1fr] gap-4">
+          <div className="space-y-2">
+            <Controller
+              name="currency_id"
+              control={control}
+              render={({ field }) => (
+                <Select
+                  value={String(field.value || '')}
+                  onChange={(e) => field.onChange(parseInt(e.target.value))}
+                  className={errors.currency_id ? 'border-destructive' : ''}
+                >
+                  <option value="">--</option>
+                  {currencies.map((currency) => (
+                    <option key={currency.id} value={String(currency.id)}>
+                      {currency.code} {currency.symbol}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            />
+          </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="currency_id">Currency *</Label>
-          <Controller
-            name="currency_id"
-            control={control}
-            render={({ field }) => (
-              <Select
-                value={String(field.value || '')}
-                onChange={(e) => field.onChange(parseInt(e.target.value))}
-              >
-                <option value="">Select Currency</option>
-                {currencies.map((currency) => (
-                  <option key={currency.id} value={String(currency.id)}>
-                    {currency.code} - {currency.name}
-                  </option>
-                ))}
-              </Select>
-            )}
-          />
-          {errors.currency_id && (
-            <p className="text-xs text-destructive">{errors.currency_id.message}</p>
-          )}
+          <div className="space-y-2">
+            <Input
+              id="invoice_amount"
+              type="number"
+              step="0.01"
+              {...register('invoice_amount', { valueAsNumber: true })}
+              onWheel={(e) => e.currentTarget.blur()} // Disable scroll to change value
+              placeholder="0.00"
+              className={errors.invoice_amount ? 'border-destructive' : ''}
+            />
+          </div>
         </div>
+        {(errors.invoice_amount || errors.currency_id) && (
+          <p className="text-xs text-destructive">
+            {errors.invoice_amount?.message || errors.currency_id?.message}
+          </p>
+        )}
       </div>
 
       {/* TDS Section */}
