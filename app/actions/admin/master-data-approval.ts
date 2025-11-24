@@ -9,6 +9,7 @@
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { emailService, sendEmailAsync } from '@/lib/email';
+import { revalidatePath } from 'next/cache';
 import type {
   MasterDataEntityType,
   MasterDataRequestWithDetails,
@@ -619,4 +620,85 @@ function getEntityDisplayName(entityType: MasterDataEntityType): string {
     payment_type: 'Payment Type',
   };
   return labels[entityType] || entityType;
+}
+
+// ============================================================================
+// VENDOR-SPECIFIC APPROVAL FUNCTIONS (Sprint 13)
+// ============================================================================
+
+/**
+ * Approve a vendor-specific Master Data Request
+ *
+ * This function approves a vendor request and updates the vendor status.
+ * Part of Phase 2B: Vendor Approval Workflow
+ */
+export async function approveVendorRequest(
+  vendorId: number,
+  adminId: number
+): Promise<ServerActionResult<{ id: number; name: string; status: string }>> {
+  try {
+    // Update vendor status to APPROVED
+    const vendor = await db.vendor.update({
+      where: { id: vendorId },
+      data: {
+        status: 'APPROVED',
+        approved_by_user_id: adminId,
+        approved_at: new Date(),
+      },
+    });
+
+    // Note: Master Data Request status update will be handled by the caller
+    // This function focuses on vendor approval only
+
+    revalidatePath('/admin/master-data-requests');
+    revalidatePath('/settings');
+    revalidatePath('/invoices');
+
+    return {
+      success: true,
+      data: vendor,
+    };
+  } catch (error) {
+    console.error('approveVendorRequest error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to approve vendor',
+    };
+  }
+}
+
+/**
+ * Reject a vendor-specific Master Data Request
+ *
+ * Rejects the vendor request and updates vendor status to REJECTED.
+ * Part of Phase 2B: Vendor Approval Workflow
+ */
+export async function rejectVendorRequest(
+  vendorId: number,
+  rejectionReason: string
+): Promise<ServerActionResult<{ id: number; name: string; status: string }>> {
+  try {
+    // Update vendor status to REJECTED
+    const vendor = await db.vendor.update({
+      where: { id: vendorId },
+      data: {
+        status: 'REJECTED',
+        rejected_reason: rejectionReason,
+      },
+    });
+
+    revalidatePath('/admin/master-data-requests');
+    revalidatePath('/settings');
+
+    return {
+      success: true,
+      data: vendor,
+    };
+  } catch (error) {
+    console.error('rejectVendorRequest error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to reject vendor',
+    };
+  }
 }

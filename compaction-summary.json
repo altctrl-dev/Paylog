@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-11-15 05:44:30 IST",
+  "timestamp": "2025-11-25 03:20:04 IST",
   "agents_seen": [
     "Main Agent (Direct Work)"
   ],
@@ -8,56 +8,45 @@
   ],
   "open_questions": [],
   "owned_artifacts": [
-    "OMPACTION.md",
-    "__tests__/components/dashboard/kpi-card.test.tsx",
-    "__tests__/components/dashboard/quick-actions.test.tsx",
-    "__tests__/fixtures/dashboard-fixtures.ts",
-    "__tests__/integration/dashboard.test.tsx",
-    "app/(dashboard)/test-filters/page.tsx",
-    "app/actions/activity-log.ts",
-    "app/actions/payments.ts",
+    "gitignore",
+    "COMPACTION.md",
+    "app/actions/admin/master-data-approval.ts",
+    "app/layout.tsx",
     "compaction-summary.json",
-    "components/activity-log/activity-log-viewer.tsx"
+    "components/ui/button.tsx",
+    "docs/SPRINTS_REVISED.md",
+    "logs/context-metrics.jsonl",
+    "tsconfig.json",
+    "\"Invoice Workflow - Nov 19.xlsx\"",
+    "components/admin/index.ts",
+    "components/admin/invoice-approval-with-vendor-modal.tsx",
+    "docs/CONTEXT_RESTORATION_PROMPT_2025_11_24.md",
+    "docs/CONTEXT_RESTORATION_PROMPT_MASTER.md",
+    "docs/CONVERT_INVOICE_FORMS_TO_PANELS.md",
+    "docs/EDIT_BUTTON_WORKFLOW.md",
+    "docs/SECURITY_AUDIT_CHECKLIST.md",
+    "docs/SESSION_RESTORATION_GUIDE.md",
+    "docs/SESSION_SUMMARY_2025_11_24_DEBUGGING.md"
   ],
   "contracts_touched": [],
   "files_touched": [
     {
-      "path": "OMPACTION.md",
+      "path": "gitignore",
       "reason": "modified",
       "anchors": []
     },
     {
-      "path": "__tests__/components/dashboard/kpi-card.test.tsx",
+      "path": "COMPACTION.md",
       "reason": "modified",
       "anchors": []
     },
     {
-      "path": "__tests__/components/dashboard/quick-actions.test.tsx",
+      "path": "app/actions/admin/master-data-approval.ts",
       "reason": "modified",
       "anchors": []
     },
     {
-      "path": "__tests__/fixtures/dashboard-fixtures.ts",
-      "reason": "modified",
-      "anchors": []
-    },
-    {
-      "path": "__tests__/integration/dashboard.test.tsx",
-      "reason": "modified",
-      "anchors": []
-    },
-    {
-      "path": "app/(dashboard)/test-filters/page.tsx",
-      "reason": "modified",
-      "anchors": []
-    },
-    {
-      "path": "app/actions/activity-log.ts",
-      "reason": "modified",
-      "anchors": []
-    },
-    {
-      "path": "app/actions/payments.ts",
+      "path": "app/layout.tsx",
       "reason": "modified",
       "anchors": []
     },
@@ -67,8 +56,73 @@
       "anchors": []
     },
     {
-      "path": "components/activity-log/activity-log-viewer.tsx",
+      "path": "components/ui/button.tsx",
       "reason": "modified",
+      "anchors": []
+    },
+    {
+      "path": "docs/SPRINTS_REVISED.md",
+      "reason": "modified",
+      "anchors": []
+    },
+    {
+      "path": "logs/context-metrics.jsonl",
+      "reason": "modified",
+      "anchors": []
+    },
+    {
+      "path": "tsconfig.json",
+      "reason": "modified",
+      "anchors": []
+    },
+    {
+      "path": "\"Invoice Workflow - Nov 19.xlsx\"",
+      "reason": "created",
+      "anchors": []
+    },
+    {
+      "path": "components/admin/index.ts",
+      "reason": "created",
+      "anchors": []
+    },
+    {
+      "path": "components/admin/invoice-approval-with-vendor-modal.tsx",
+      "reason": "created",
+      "anchors": []
+    },
+    {
+      "path": "docs/CONTEXT_RESTORATION_PROMPT_2025_11_24.md",
+      "reason": "created",
+      "anchors": []
+    },
+    {
+      "path": "docs/CONTEXT_RESTORATION_PROMPT_MASTER.md",
+      "reason": "created",
+      "anchors": []
+    },
+    {
+      "path": "docs/CONVERT_INVOICE_FORMS_TO_PANELS.md",
+      "reason": "created",
+      "anchors": []
+    },
+    {
+      "path": "docs/EDIT_BUTTON_WORKFLOW.md",
+      "reason": "created",
+      "anchors": []
+    },
+    {
+      "path": "docs/SECURITY_AUDIT_CHECKLIST.md",
+      "reason": "created",
+      "anchors": []
+    },
+    {
+      "path": "docs/SESSION_RESTORATION_GUIDE.md",
+      "reason": "created",
+      "anchors": []
+    },
+    {
+      "path": "docs/SESSION_SUMMARY_2025_11_24_DEBUGGING.md",
+      "reason": "created",
       "anchors": []
     }
   ],

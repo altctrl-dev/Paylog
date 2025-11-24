@@ -1,43 +1,94 @@
-# dependencies
+# Dependencies
 /node_modules
 /.pnp
 .pnp.js
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
 
-# testing
+# Testing
 /coverage
+*.test.cache
 
-# next.js
+# Next.js
 /.next/
 /out/
 
-# production
+# Production builds
 /build
+/dist
 
-# misc
+# Misc OS files
 .DS_Store
 *.pem
+Thumbs.db
 
-# debug
+# Debug logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+*.log
 
-# local env files
-.env*.local
+# Environment files (CRITICAL - never commit secrets!)
 .env
+.env*.local
+.env.production
 
-# vercel
+# Vercel
 .vercel
 
-# typescript
+# TypeScript
 *.tsbuildinfo
 next-env.d.ts
 
-# prisma
-/prisma/migrations
+# Prisma
+# Note: Migrations should be in git, but generated client should not
+node_modules/.prisma
+node_modules/@prisma
 
-# uploads (file storage)
+# Database files (local development)
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# File uploads (user-generated content)
 /uploads
+/public/uploads
 
-# backups (old database files)
+# Backups and temp files
 /backups
+*.backup
+*.tmp
+*.temp
+
+# Session/Context tracking files (Claude Code artifacts)
+/logs/*.jsonl
+compaction-summary.json
+context-*.json
+session-*.json
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# IDE settings (uncomment if using)
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Documentation scratch files (optional - keep in git if they're useful)
+# SCRATCH_*.md
+# TEMP_*.md
+
+# Excel/Office temp files
+~$*.xlsx
+~$*.docx
+~$*.pptx
+
+# Test artifacts
+.jest-cache/
+.turbo/

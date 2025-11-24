@@ -419,9 +419,25 @@ export function EditRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: Edi
     );
   }
 
+  // Debug: Log when component renders
+  console.log('[EditRecurringInvoiceForm] Component rendered. Form errors:', errors);
+  console.log('[EditRecurringInvoiceForm] Form isValid:', formState.isValid);
+  console.log('[EditRecurringInvoiceForm] Form isDirty:', formState.isDirty);
+
   // Render form
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form
+      onSubmit={(e) => {
+        console.log('[EditRecurringInvoiceForm] Form onSubmit event fired');
+        console.log('[EditRecurringInvoiceForm] Event details:', {
+          type: e.type,
+          defaultPrevented: e.defaultPrevented,
+          target: e.target,
+        });
+        return handleSubmit(onSubmit)(e);
+      }}
+      className="space-y-6"
+    >
       {/* Invoice Profile (readonly) */}
       <div className="space-y-2">
         <Label htmlFor="invoice_profile_id">Invoice Profile *</Label>
@@ -673,7 +689,15 @@ export function EditRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: Edi
             Cancel
           </Button>
         )}
-        <Button type="submit" disabled={isSubmitting || updateInvoice.isPending}>
+        <Button
+          type="submit"
+          disabled={isSubmitting || updateInvoice.isPending}
+          onClick={() => {
+            console.log('[EditRecurringInvoiceForm] Submit button clicked');
+            console.log('[EditRecurringInvoiceForm] isSubmitting:', isSubmitting);
+            console.log('[EditRecurringInvoiceForm] isPending:', updateInvoice.isPending);
+          }}
+        >
           {(isSubmitting || updateInvoice.isPending) ? 'Updating...' : 'Update Invoice'}
         </Button>
       </div>
