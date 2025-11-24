@@ -122,8 +122,8 @@ export function NonRecurringInvoiceForm({ onSuccess: _onSuccess, onCancel }: Non
       entity_id: 1, // Default entity
       category_id: 0,
       invoice_number: '',
-      invoice_date: undefined,
-      due_date: undefined, // Will default to invoice_date via schema
+      invoice_date: new Date(), // Default to today
+      due_date: new Date(), // Default to today
       currency_id: 1, // Default INR
       invoice_amount: 0,
       tds_applicable: false,

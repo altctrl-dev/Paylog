@@ -101,8 +101,8 @@ export function RecurringInvoiceForm({ onSuccess: _onSuccess, onCancel }: Recurr
       invoice_profile_id: 0,
       brief_description: null,
       invoice_number: '',
-      invoice_date: undefined,
-      due_date: undefined,
+      invoice_date: new Date(), // Default to today
+      due_date: new Date(), // Default to today
       invoice_received_date: undefined,
       period_start: undefined,
       period_end: undefined,

@@ -49,14 +49,15 @@ export function VendorTextAutocomplete({
   const [selectedVendorName, setSelectedVendorName] = React.useState('');
   const inputRef = React.useRef<HTMLInputElement>(null);
 
-  // Fetch vendors based on search query
-  const { data: vendors = [], isLoading } = useSearchVendors(search, open || search.length > 0);
+  // Fetch vendors based on search query OR when we need to load initial vendor by ID
+  const shouldFetchVendors = open || search.length > 0 || (!!value && value > 0 && !search);
+  const { data: vendors = [], isLoading } = useSearchVendors(search || '', shouldFetchVendors);
 
-  // Initialize search with selected vendor name
+  // Initialize search with selected vendor name when value changes (for edit forms)
   React.useEffect(() => {
-    if (value && vendors.length > 0) {
+    if (value && value > 0 && vendors.length > 0) {
       const selected = vendors.find((v) => v.id === value);
-      if (selected && !search) {
+      if (selected && search !== selected.name) {
         setSearch(selected.name);
         setSelectedVendorName(selected.name);
       }

@@ -19,9 +19,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { TDSSection } from './tds-section';
 import { InlinePaymentFields } from './inline-payment-fields';
 import {
-  recurringInvoiceSchema,
   type RecurringInvoiceFormData,
 } from '@/lib/validations/invoice-v2';
+import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
 import { useInvoiceFormOptions, useUpdateRecurringInvoice, useInvoiceV2 } from '@/hooks/use-invoices-v2';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -61,6 +61,146 @@ function parseDateFromInput(value: string): Date | null {
 }
 
 /**
+ * Update Recurring Invoice Schema (for edit form)
+ * Same as create schema but file is optional
+ * We build it manually to avoid issues with omit on refined schemas
+ */
+const updateRecurringInvoiceSchema = z
+  .object({
+    // File upload (optional for updates)
+    file: z
+      .instanceof(File)
+      .refine(
+        (file) => !file || file.size <= 10485760, // 10MB
+        'File size must be less than 10MB'
+      )
+      .refine(
+        (file) =>
+          !file ||
+          [
+            'application/pdf',
+            'image/png',
+            'image/jpeg',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          ].includes(file.type),
+        'File must be PDF, PNG, JPG, or DOCX'
+      )
+      .nullable()
+      .optional(),
+
+    // Invoice Profile (mandatory, drives vendor/entity/category)
+    invoice_profile_id: z.number().int().positive('Invoice profile is required'),
+
+    // Description (optional)
+    brief_description: z.string().max(500, 'Description too long').optional().nullable(),
+
+    // Invoice details
+    invoice_number: z
+      .string()
+      .min(1, 'Invoice number is required')
+      .max(100, 'Invoice number too long'),
+    invoice_date: z.date({
+      required_error: 'Invoice date is required',
+      invalid_type_error: 'Invalid date format',
+    }),
+    due_date: z.date({
+      required_error: 'Due date is required',
+      invalid_type_error: 'Invalid date format',
+    }),
+    invoice_received_date: z
+      .date({
+        invalid_type_error: 'Invalid date format',
+      })
+      .nullable()
+      .optional(),
+
+    // Period (mandatory for recurring)
+    period_start: z.date({
+      required_error: 'Period start date is required',
+      invalid_type_error: 'Invalid date format',
+    }),
+    period_end: z.date({
+      required_error: 'Period end date is required',
+      invalid_type_error: 'Invalid date format',
+    }),
+
+    // Amount & Currency
+    currency_id: z.number().int().positive('Currency is required'),
+    invoice_amount: z
+      .number()
+      .min(0.01, 'Amount must be greater than 0')
+      .max(999999999, 'Amount too large'),
+
+    // TDS (loaded from profile, but editable)
+    tds_applicable: z.boolean(),
+    tds_percentage: z
+      .number()
+      .min(0, 'TDS percentage cannot be negative')
+      .max(100, 'TDS percentage cannot exceed 100')
+      .nullable()
+      .optional(),
+
+    // Inline payment fields (optional)
+    is_paid: z.boolean().default(false),
+    paid_date: z
+      .date({
+        invalid_type_error: 'Invalid date format',
+      })
+      .nullable()
+      .optional(),
+    paid_amount: z.number().positive('Paid amount must be greater than 0').nullable().optional(),
+    paid_currency: z.string().max(3, 'Currency code too long').nullable().optional(),
+    payment_type_id: z.number().int().positive('Payment type is required').nullable().optional(),
+    payment_reference: z.string().max(100, 'Reference too long').nullable().optional(),
+  })
+  .refine(
+    (data) => {
+      // Validation: due_date must be >= invoice_date
+      return data.due_date >= data.invoice_date;
+    },
+    {
+      message: 'Due date cannot be before invoice date',
+      path: ['due_date'],
+    }
+  )
+  .refine(
+    (data) => {
+      // Validation: period_end must be >= period_start
+      return data.period_end >= data.period_start;
+    },
+    {
+      message: 'Period end date must be after or equal to period start date',
+      path: ['period_end'],
+    }
+  )
+  .refine(
+    (data) => {
+      // Validation: if TDS is applicable, percentage is required
+      if (data.tds_applicable && !data.tds_percentage) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: 'TDS percentage is required when TDS is applicable',
+      path: ['tds_percentage'],
+    }
+  )
+  .refine(
+    (data) => {
+      // Validation: if is_paid = true, payment fields are required
+      if (data.is_paid) {
+        return !!(data.paid_date && data.paid_amount && data.paid_currency && data.payment_type_id);
+      }
+      return true;
+    },
+    {
+      message: 'Payment details are required when invoice is marked as paid',
+      path: ['is_paid'],
+    }
+  );
+
+/**
  * Edit Recurring Invoice Form Component
  */
 export function EditRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: EditRecurringInvoiceFormProps) {
@@ -93,7 +233,7 @@ export function EditRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: Edi
     formState: { errors, isSubmitting },
   } = useForm<RecurringInvoiceFormData>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(recurringInvoiceSchema) as any,
+    resolver: zodResolver(updateRecurringInvoiceSchema) as any,
     mode: 'onBlur',
     defaultValues: {
       invoice_profile_id: 0,
@@ -128,9 +268,7 @@ export function EditRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: Edi
       setValue('invoice_profile_id', invoice.profile_id || 0);
       setValue('brief_description', invoice.description);
       setValue('invoice_number', invoice.invoice_number);
-      // Create dummy file for validation (will be replaced if user uploads new file)
-      const dummyFile = new File([], 'existing.pdf', { type: 'application/pdf' });
-      setValue('file', dummyFile);
+      // Don't set file field - it's optional for updates
       setValue('invoice_date', invoice.invoice_date ? new Date(invoice.invoice_date) : new Date());
       setValue('due_date', invoice.due_date ? new Date(invoice.due_date) : new Date());
       setValue('invoice_received_date', invoice.invoice_received_date ? new Date(invoice.invoice_received_date) : null);
@@ -515,9 +653,8 @@ export function EditRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: Edi
               size="sm"
               onClick={() => {
                 setSelectedFile(null);
-                // Reset to dummy file
-        const dummyFile = new File([], 'existing.pdf', { type: 'application/pdf' });
-        setValue('file', dummyFile);
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                setValue('file', null as any);
               }}
             >
               <X className="h-4 w-4" />
