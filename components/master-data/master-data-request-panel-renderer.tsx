@@ -45,7 +45,7 @@ export function MasterDataRequestPanelRenderer({
           config={config}
           onClose={onClose}
           entityType={props.entityType as MasterDataEntityType}
-          initialData={props.initialData as Record<string, any> | undefined}
+          initialData={props.initialData as Record<string, unknown> | undefined}
           isResubmit={props.isResubmit as boolean | undefined}
         />
       );

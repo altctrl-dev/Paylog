@@ -88,9 +88,11 @@ async function checkUploadPermission(
     INVOICE_STATUS.UNPAID,
     INVOICE_STATUS.PARTIAL,
     INVOICE_STATUS.OVERDUE,
-  ];
+  ] as const;
 
-  if (!editableStatuses.includes(invoice.status as any)) {
+  type EditableStatus = typeof editableStatuses[number];
+
+  if (!editableStatuses.includes(invoice.status as EditableStatus)) {
     return {
       allowed: false,
       reason: `Cannot upload to invoice with status: ${invoice.status}`,
@@ -263,7 +265,7 @@ function logAttachmentOperation(
   userId: number,
   invoiceId: number,
   attachmentId?: string,
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 ) {
   console.log(`[Attachments] ${operation}:`, {
     userId,

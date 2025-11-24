@@ -1380,7 +1380,7 @@ export async function checkInvoiceVendorStatus(
 export async function approveInvoiceAndVendor(
   invoiceId: number
 ): Promise<ServerActionResult<{
-  invoice: any;
+  invoice: { id: number; status: string; invoice_number: string };
   vendor: { id: number; name: string }
 }>> {
   try {

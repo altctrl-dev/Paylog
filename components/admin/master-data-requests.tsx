@@ -159,7 +159,7 @@ export default function MasterDataRequests() {
               onChange={(e) =>
                 setFilters((prev) => ({
                   ...prev,
-                  status: e.target.value === 'all' ? undefined : (e.target.value as any),
+                  status: e.target.value === 'all' ? undefined : (e.target.value as 'pending_approval' | 'approved' | 'rejected'),
                 }))
               }
               className="rounded border border-gray-300 px-3 py-1 text-sm"
@@ -206,7 +206,7 @@ export default function MasterDataRequests() {
 
                 {/* Request Name */}
                 <div>
-                  <p className="font-semibold text-base">{(request.request_data as any).name}</p>
+                  <p className="font-semibold text-base">{(request.request_data as { name: string }).name}</p>
                 </div>
 
                 {/* Requester Info */}

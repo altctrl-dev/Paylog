@@ -248,7 +248,21 @@ export function EditRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: Edi
   // Pre-fill form with existing invoice data
   React.useEffect(() => {
     if (invoice) {
-      setValue('invoice_profile_id', invoice.profile_id || 0);
+      console.log('[EditRecurringInvoiceForm] Pre-filling form with invoice data:', {
+        invoice_profile_id: invoice.invoice_profile_id,
+        invoice_profile: invoice.invoice_profile,
+        currency_id: invoice.currency_id,
+        full_invoice_keys: Object.keys(invoice),
+      });
+
+      // Get profile ID from the scalar field (invoice_profile_id) or the relation (invoice_profile.id)
+      const profileId = invoice.invoice_profile_id || invoice.invoice_profile?.id;
+      console.log('[EditRecurringInvoiceForm] Resolved profileId:', profileId);
+
+      if (!profileId) {
+        console.error('[EditRecurringInvoiceForm] ERROR: No invoice_profile_id found in invoice data!', invoice);
+      }
+      setValue('invoice_profile_id', profileId || 0);
       setValue('brief_description', invoice.description);
       setValue('invoice_number', invoice.invoice_number);
       // Don't set file field - it's optional for updates
