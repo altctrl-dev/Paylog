@@ -194,6 +194,17 @@
     @apply text-foreground;
   }
 
+  /* Hide number input spinner arrows (UX improvement) */
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+
   /* Focus visible states */
   button:focus-visible,
   a:focus-visible,

@@ -1170,15 +1170,9 @@ export async function getInvoiceV2(
     const isAdminUser = await isAdmin();
 
     // Admins have access to all invoices
+    // Standard users can VIEW all invoices in their organization
+    // (Edit permission is checked separately in the update actions)
     if (!isAdminUser) {
-      // For non-recurring invoices: user must be creator
-      if (!invoice.is_recurring && invoice.created_by !== user.id) {
-        return {
-          success: false,
-          error: 'You do not have permission to view this invoice',
-        };
-      }
-
       // For recurring invoices: check profile visibility
       if (invoice.is_recurring && invoice.profile_id) {
         const profile = await db.invoiceProfile.findUnique({
@@ -1209,6 +1203,8 @@ export async function getInvoiceV2(
           };
         }
       }
+      // For non-recurring invoices: all users can view (no restriction)
+      // Edit permission is enforced in updateNonRecurringInvoice action
     }
 
     console.log('[getInvoiceV2] Successfully fetched invoice:', invoice.id);

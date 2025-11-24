@@ -69,7 +69,7 @@ const updateRecurringInvoiceSchema = z
   .object({
     // File upload (optional for updates)
     file: z
-      .instanceof(File)
+      .custom<File>()
       .refine(
         (file) => !file || file.size <= 10485760, // 10MB
         'File size must be less than 10MB'
