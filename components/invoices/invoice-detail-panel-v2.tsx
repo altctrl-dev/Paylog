@@ -28,7 +28,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useInvoiceV2, useApproveInvoiceV2, useRejectInvoiceV2 } from '@/hooks/use-invoices-v2';
 import { usePanel } from '@/hooks/use-panel';
-import { useToast } from '@/hooks/use-toast';
 import { formatCurrency, formatFileSize } from '@/lib/utils/format';
 import { INVOICE_STATUS_CONFIG, INVOICE_STATUS } from '@/types/invoice';
 import { VENDOR_STATUS_CONFIG } from '@/types/vendor';
@@ -39,12 +38,12 @@ interface InvoiceDetailPanelV2Props {
   onClose: () => void;
   invoiceId: number;
   userRole?: string;
+  userId?: string;
 }
 
-export function InvoiceDetailPanelV2({ config, onClose, invoiceId, userRole }: InvoiceDetailPanelV2Props) {
+export function InvoiceDetailPanelV2({ config, onClose, invoiceId, userRole, userId }: InvoiceDetailPanelV2Props) {
   const { data: invoice, isLoading, error } = useInvoiceV2(invoiceId);
   const { openPanel } = usePanel();
-  const { toast } = useToast();
 
   // Approval/Rejection state
   const [isRejectDialogOpen, setIsRejectDialogOpen] = React.useState(false);
@@ -64,14 +63,16 @@ export function InvoiceDetailPanelV2({ config, onClose, invoiceId, userRole }: I
   };
 
   const handleEdit = () => {
-    // TODO: Implement V2 invoice edit forms (recurring and non-recurring)
-    // The V1 edit form doesn't support V2 fields (is_recurring, invoice_profile_id, inline payments)
-    // For now, show a message that this feature is coming soon
-    toast({
-      title: 'Edit Not Available',
-      description: 'V2 invoice editing is coming soon. For now, you can create a new invoice or contact support.',
-      variant: 'default',
-    });
+    // Open appropriate edit panel based on invoice type
+    if (!invoice) return;
+
+    if (invoice.is_recurring) {
+      // Open recurring invoice edit panel
+      openPanel('invoice-edit-recurring-v2', { invoiceId: invoice.id }, { width: 700 });
+    } else {
+      // Open non-recurring invoice edit panel
+      openPanel('invoice-edit-non-recurring-v2', { invoiceId: invoice.id }, { width: 700 });
+    }
   };
 
   const handlePutOnHold = () => {
@@ -95,15 +96,22 @@ export function InvoiceDetailPanelV2({ config, onClose, invoiceId, userRole }: I
 
   // Check permissions
   const isAdmin = userRole === 'admin' || userRole === 'super_admin';
+  const isOwner = invoice?.created_by === Number(userId);
+  const isInvoicePending = invoice?.status === INVOICE_STATUS.PENDING_APPROVAL;
+
   const canApprove =
     invoice?.status === 'pending_approval' && isAdmin;
   const canPutOnHold =
     isAdmin &&
     invoice?.status !== INVOICE_STATUS.ON_HOLD &&
     invoice?.status !== INVOICE_STATUS.PAID;
-  const canEdit = isAdmin; // Admins can always edit
 
-  const isPending = approveInvoice.isPending || rejectInvoice.isPending;
+  // Edit permission logic:
+  // - Admins can always edit
+  // - Standard users: can edit own invoices, but NOT while pending approval
+  const canEdit = isAdmin || (isOwner && !isInvoicePending);
+
+  const isMutationPending = approveInvoice.isPending || rejectInvoice.isPending;
 
   // Handle loading state
   if (isLoading) {
@@ -150,7 +158,17 @@ export function InvoiceDetailPanelV2({ config, onClose, invoiceId, userRole }: I
           <div className="flex items-center justify-between w-full gap-2">
             {/* Left side actions */}
             <div className="flex items-center gap-2">
-              {canEdit && (
+              {isInvoicePending && !isAdmin ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled
+                  title="Cannot edit while invoice is pending approval"
+                >
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Edit (Pending)
+                </Button>
+              ) : canEdit ? (
                 <Button
                   variant="outline"
                   onClick={handleEdit}
@@ -159,7 +177,7 @@ export function InvoiceDetailPanelV2({ config, onClose, invoiceId, userRole }: I
                   <Pencil className="h-4 w-4 mr-2" />
                   Edit
                 </Button>
-              )}
+              ) : null}
               {canPutOnHold && (
                 <Button
                   variant="outline"
@@ -179,7 +197,7 @@ export function InvoiceDetailPanelV2({ config, onClose, invoiceId, userRole }: I
                   <Button
                     variant="outline"
                     onClick={handleRejectClick}
-                    disabled={isPending}
+                    disabled={isMutationPending}
                     className="text-destructive hover:text-destructive"
                   >
                     <XCircle className="h-4 w-4 mr-2" />
@@ -188,7 +206,7 @@ export function InvoiceDetailPanelV2({ config, onClose, invoiceId, userRole }: I
                   <Button
                     variant="default"
                     onClick={handleApprove}
-                    disabled={isPending}
+                    disabled={isMutationPending}
                     className="bg-green-600 hover:bg-green-700 text-white"
                   >
                     <CheckCircle className="h-4 w-4 mr-2" />
@@ -481,7 +499,7 @@ export function InvoiceDetailPanelV2({ config, onClose, invoiceId, userRole }: I
             value={rejectionReason}
             onChange={(e) => setRejectionReason(e.target.value)}
             className="min-h-[100px]"
-            disabled={isPending}
+            disabled={isMutationPending}
           />
           {rejectionReason.length > 0 && rejectionReason.length < 10 && (
             <p className="text-xs text-destructive mt-1">
@@ -490,15 +508,15 @@ export function InvoiceDetailPanelV2({ config, onClose, invoiceId, userRole }: I
           )}
         </div>
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={handleRejectCancel} disabled={isPending}>
+          <AlertDialogCancel onClick={handleRejectCancel} disabled={isMutationPending}>
             Cancel
           </AlertDialogCancel>
           <AlertDialogAction
             onClick={handleRejectConfirm}
-            disabled={rejectionReason.trim().length < 10 || isPending}
+            disabled={rejectionReason.trim().length < 10 || isMutationPending}
             className="bg-destructive hover:bg-destructive/90"
           >
-            {isPending ? 'Rejecting...' : 'Reject Invoice'}
+            {isMutationPending ? 'Rejecting...' : 'Reject Invoice'}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

@@ -11,6 +11,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createRecurringInvoice,
   createNonRecurringInvoice,
+  updateRecurringInvoice,
+  updateNonRecurringInvoice,
   getInvoiceV2,
   getInvoiceProfiles,
   getEntities,
@@ -21,6 +23,8 @@ import {
 import {
   RecurringInvoiceSerializedData,
   NonRecurringInvoiceSerializedData,
+  UpdateRecurringInvoiceSerializedData,
+  UpdateNonRecurringInvoiceSerializedData,
 } from '@/lib/validations/invoice-v2';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -329,6 +333,132 @@ export function useCreateNonRecurringInvoice() {
       // Show error toast
       toast({
         title: 'Failed to create invoice',
+        description: error.message || 'An unknown error occurred',
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+/**
+ * Update recurring invoice mutation
+ *
+ * Automatically invalidates invoice caches and shows toast notifications.
+ * Closes panel on success.
+ *
+ * @returns Mutation object with mutate function
+ *
+ * @example
+ * ```tsx
+ * const updateInvoice = useUpdateRecurringInvoice(invoiceId);
+ *
+ * const handleSubmit = async (formData: FormData) => {
+ *   updateInvoice.mutate(formData);
+ * };
+ * ```
+ */
+export function useUpdateRecurringInvoice(invoiceId: number, onSuccess?: () => void) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (data: UpdateRecurringInvoiceSerializedData) => {
+      console.log('[useUpdateRecurringInvoice] Wrapper function called with data:', data);
+      const result = await updateRecurringInvoice(invoiceId, data);
+      console.log('[useUpdateRecurringInvoice] Server Action returned:', result);
+      return result;
+    },
+    onSuccess: (result) => {
+      if (result.success) {
+        // Invalidate invoice caches
+        queryClient.invalidateQueries({ queryKey: ['invoices'] });
+        queryClient.invalidateQueries({ queryKey: invoiceV2Keys.all });
+        queryClient.invalidateQueries({ queryKey: invoiceV2Keys.detail(invoiceId) });
+
+        // Show success toast
+        toast({
+          title: 'Invoice updated successfully',
+          description: 'Your recurring invoice has been updated.',
+        });
+
+        // Call optional success callback (e.g., close panel)
+        onSuccess?.();
+      } else {
+        // Show error toast
+        toast({
+          title: 'Failed to update invoice',
+          description: result.error || 'An unknown error occurred',
+          variant: 'destructive',
+        });
+      }
+    },
+    onError: (error: Error) => {
+      // Show error toast
+      toast({
+        title: 'Failed to update invoice',
+        description: error.message || 'An unknown error occurred',
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+/**
+ * Update non-recurring invoice mutation
+ *
+ * Automatically invalidates invoice caches and shows toast notifications.
+ * Closes panel on success.
+ *
+ * @returns Mutation object with mutate function
+ *
+ * @example
+ * ```tsx
+ * const updateInvoice = useUpdateNonRecurringInvoice(invoiceId);
+ *
+ * const handleSubmit = async (formData: FormData) => {
+ *   updateInvoice.mutate(formData);
+ * };
+ * ```
+ */
+export function useUpdateNonRecurringInvoice(invoiceId: number, onSuccess?: () => void) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (data: UpdateNonRecurringInvoiceSerializedData) => {
+      console.log('[useUpdateNonRecurringInvoice] Wrapper function called with data:', data);
+      const result = await updateNonRecurringInvoice(invoiceId, data);
+      console.log('[useUpdateNonRecurringInvoice] Server Action returned:', result);
+      return result;
+    },
+    onSuccess: (result) => {
+      if (result.success) {
+        // Invalidate invoice caches
+        queryClient.invalidateQueries({ queryKey: ['invoices'] });
+        queryClient.invalidateQueries({ queryKey: invoiceV2Keys.all });
+        queryClient.invalidateQueries({ queryKey: invoiceV2Keys.detail(invoiceId) });
+
+        // Show success toast
+        toast({
+          title: 'Invoice updated successfully',
+          description: 'Your invoice has been updated.',
+        });
+
+        // Call optional success callback (e.g., close panel)
+        onSuccess?.();
+      } else {
+        // Show error toast
+        toast({
+          title: 'Failed to update invoice',
+          description: result.error || 'An unknown error occurred',
+          variant: 'destructive',
+        });
+      }
+    },
+    onError: (error: Error) => {
+      // Show error toast
+      toast({
+        title: 'Failed to update invoice',
         description: error.message || 'An unknown error occurred',
         variant: 'destructive',
       });

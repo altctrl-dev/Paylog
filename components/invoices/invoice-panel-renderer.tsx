@@ -18,6 +18,9 @@ import { InvoiceRejectPanel } from './invoice-reject-panel';
 import { PaymentFormPanel } from '@/components/payments/payment-form-panel';
 import { VendorFormPanel } from '@/components/master-data/vendor-form-panel';
 import { CategoryFormPanel } from '@/components/master-data/category-form-panel';
+import { EditRecurringInvoiceForm } from '@/components/invoices-v2/edit-recurring-invoice-form';
+import { EditNonRecurringInvoiceForm } from '@/components/invoices-v2/edit-non-recurring-invoice-form';
+import { PanelLevel } from '@/components/panels/panel-level';
 
 interface InvoicePanelRendererProps {
   id: string;
@@ -50,8 +53,9 @@ export function InvoicePanelRenderer({
 
   if (!config) return null;
 
-  // Extract user role from session
+  // Extract user role and ID from session
   const userRole = session?.user?.role;
+  const userId = session?.user?.id;
 
   switch (type) {
     case 'invoice-v2-detail':
@@ -63,12 +67,35 @@ export function InvoicePanelRenderer({
             onClose={onClose}
             invoiceId={props.invoiceId as number}
             userRole={userRole}
+            userId={userId}
           />
         );
       } catch (error) {
         console.error('[InvoicePanelRenderer] Error rendering invoice-v2-detail:', error);
         return <div className="p-4 text-red-500">Error loading invoice panel. Check console for details.</div>;
       }
+
+    case 'invoice-edit-recurring-v2':
+      return (
+        <PanelLevel config={config} title="Edit Recurring Invoice" onClose={onClose}>
+          <EditRecurringInvoiceForm
+            invoiceId={props.invoiceId as number}
+            onSuccess={onClose}
+            onCancel={onClose}
+          />
+        </PanelLevel>
+      );
+
+    case 'invoice-edit-non-recurring-v2':
+      return (
+        <PanelLevel config={config} title="Edit Non-Recurring Invoice" onClose={onClose}>
+          <EditNonRecurringInvoiceForm
+            invoiceId={props.invoiceId as number}
+            onSuccess={onClose}
+            onCancel={onClose}
+          />
+        </PanelLevel>
+      );
 
     case 'invoice-detail':
       return (
