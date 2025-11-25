@@ -21,6 +21,8 @@ import { CategoryFormPanel } from '@/components/master-data/category-form-panel'
 import { PaymentTypeFormPanel } from '@/components/master-data/payment-type-form-panel';
 import { EditRecurringInvoiceForm } from '@/components/invoices-v2/edit-recurring-invoice-form';
 import { EditNonRecurringInvoiceForm } from '@/components/invoices-v2/edit-non-recurring-invoice-form';
+import { RecurringInvoiceFormPanel } from '@/components/invoices-v2/recurring-invoice-form-panel';
+import { NonRecurringInvoiceFormPanel } from '@/components/invoices-v2/non-recurring-invoice-form-panel';
 import { PanelLevel } from '@/components/panels/panel-level';
 
 interface InvoicePanelRendererProps {
@@ -122,6 +124,22 @@ export function InvoicePanelRenderer({
           config={config}
           onClose={onClose}
           invoiceId={props.invoiceId as number}
+        />
+      );
+
+    case 'invoice-create-recurring':
+      return (
+        <RecurringInvoiceFormPanel
+          config={config}
+          onClose={onClose}
+        />
+      );
+
+    case 'invoice-create-non-recurring':
+      return (
+        <NonRecurringInvoiceFormPanel
+          config={config}
+          onClose={onClose}
         />
       );
 

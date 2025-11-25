@@ -29,7 +29,7 @@ export default function SettingsPage() {
   const [isLoading, setIsLoading] = React.useState(false);
   const [filter, setFilter] = React.useState<MasterDataEntityType | 'all'>('all');
   const { openPanel } = usePanel();
-  const { version, setVersion } = useUIVersion();
+  const { version, setVersion, invoiceCreationMode, setInvoiceCreationMode } = useUIVersion();
 
   const loadRequests = React.useCallback(async () => {
     setIsLoading(true);
@@ -179,6 +179,30 @@ export default function SettingsPage() {
                 <Switch
                   checked={version === 'v2'}
                   onCheckedChange={(checked) => setVersion(checked ? 'v2' : 'v1')}
+                />
+              </div>
+            </div>
+          </Card>
+
+          {/* Invoice Creation Mode Section */}
+          <Card className="p-6">
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-medium">Invoice Creation</h3>
+                <p className="text-sm text-muted-foreground">
+                  Choose how you prefer to create new invoices.
+                </p>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>Use Side Panel</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Create invoices in a side panel instead of navigating to a new page
+                  </p>
+                </div>
+                <Switch
+                  checked={invoiceCreationMode === 'panel'}
+                  onCheckedChange={(checked) => setInvoiceCreationMode(checked ? 'panel' : 'page')}
                 />
               </div>
             </div>

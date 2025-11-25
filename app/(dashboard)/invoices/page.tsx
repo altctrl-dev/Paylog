@@ -7,8 +7,15 @@
 'use client';
 
 import * as React from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { usePanel } from '@/hooks/use-panel';
 import { useInvoices, useInvoiceFormOptions } from '@/hooks/use-invoices';
 import { InvoiceListTable } from '@/components/invoices/invoice-list-table';
@@ -18,10 +25,14 @@ import { useUrlFilters } from '@/hooks/use-url-filters';
 import type { InvoiceWithRelations } from '@/types/invoice';
 import { useSession } from 'next-auth/react';
 import { PANEL_WIDTH } from '@/types/panel';
+import { useUIVersion } from '@/lib/stores/ui-version-store';
+import { ChevronDown, RefreshCw, FileText } from 'lucide-react';
 
 export default function InvoicesPage() {
+  const router = useRouter();
   const { openPanel } = usePanel();
   const { data: session } = useSession();
+  const { invoiceCreationMode } = useUIVersion();
 
   // Fetch form options for filter dropdowns
   const { data: formOptions } = useInvoiceFormOptions();
@@ -37,8 +48,20 @@ export default function InvoicesPage() {
   // Fetch invoices with filters
   const { data, isLoading, error } = useInvoices(filters);
 
-  const handleNewInvoice = () => {
-    openPanel('invoice-create', {}, { width: PANEL_WIDTH.LARGE });
+  const handleNewRecurringInvoice = () => {
+    if (invoiceCreationMode === 'panel') {
+      openPanel('invoice-create-recurring', {}, { width: PANEL_WIDTH.LARGE });
+    } else {
+      router.push('/invoices/new/recurring');
+    }
+  };
+
+  const handleNewNonRecurringInvoice = () => {
+    if (invoiceCreationMode === 'panel') {
+      openPanel('invoice-create-non-recurring', {}, { width: PANEL_WIDTH.LARGE });
+    } else {
+      router.push('/invoices/new/non-recurring');
+    }
   };
 
   const handleRowClick = (invoice: InvoiceWithRelations) => {
@@ -87,7 +110,24 @@ export default function InvoicesPage() {
             Manage your invoices and payments
           </p>
         </div>
-        <Button onClick={handleNewInvoice}>Add Invoice</Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button>
+              Add Invoice
+              <ChevronDown className="ml-2 h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={handleNewRecurringInvoice}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Recurring Invoice
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleNewNonRecurringInvoice}>
+              <FileText className="mr-2 h-4 w-4" />
+              One-time Invoice
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Filters - New Compact Filter Bar */}
