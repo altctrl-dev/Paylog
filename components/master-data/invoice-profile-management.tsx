@@ -16,8 +16,6 @@ import {
 } from '@/app/actions/master-data';
 import { useToast } from '@/hooks/use-toast';
 import { usePanel } from '@/hooks/use-panel';
-import { usePanelStore } from '@/lib/store/panel-store';
-import { ProfilePanelRenderer } from './profile-panel-renderer';
 
 // ============================================================================
 // TYPES
@@ -56,9 +54,8 @@ export default function InvoiceProfileManagement() {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
-  // Panel state management
-  const { openPanel, closePanel, closeTopPanel, closeAllPanels } = usePanel();
-  const panels = usePanelStore((state) => state.panels);
+  // Panel state management - uses global panel system via PanelProvider
+  const { openPanel, closeTopPanel, closeAllPanels } = usePanel();
 
   // Load profiles
   const loadProfiles = async () => {
@@ -195,16 +192,7 @@ export default function InvoiceProfileManagement() {
         />
       )}
 
-      {/* Panel Renderer */}
-      {panels.map((panel) => (
-        <ProfilePanelRenderer
-          key={panel.id}
-          id={panel.id}
-          type={panel.type}
-          props={panel.props}
-          onClose={() => closePanel(panel.id)}
-        />
-      ))}
+      {/* Panels are rendered globally via PanelProvider */}
     </div>
   );
 }

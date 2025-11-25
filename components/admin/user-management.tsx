@@ -5,6 +5,7 @@
  * Renders inline within the Admin Console page.
  *
  * Sprint 11 Phase 3: User Management UI
+ * Updated: Uses global panel system via PanelProvider
  */
 
 'use client';
@@ -13,19 +14,23 @@ import * as React from 'react';
 import { useState, useEffect, useCallback } from 'react';
 import type { UserWithStats } from '@/lib/types/user-management';
 import { listUsers } from '@/lib/actions/user-management';
-import {
-  UsersDataTable,
-  UserPanelRenderer,
-} from '@/components/users';
+import { UsersDataTable } from '@/components/users';
+import { PasswordResetDialog } from '@/components/users/password-reset-dialog';
 import { Button } from '@/components/ui/button';
 import { Plus, Loader2 } from 'lucide-react';
+import { usePanel } from '@/hooks/use-panel';
 
 export default function UserManagement() {
   const [users, setUsers] = useState<UserWithStats[]>([]);
-  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Password reset dialog state
+  const [passwordResetUserId, setPasswordResetUserId] = useState<number | null>(null);
+  const [passwordResetUserName, setPasswordResetUserName] = useState<string>('');
+
+  // Panel state management - uses global panel system via PanelProvider
+  const { openPanel, closeTopPanel, closeAllPanels } = usePanel();
 
   // Fetch users on mount
   useEffect(() => {
@@ -61,24 +66,66 @@ export default function UserManagement() {
   }, []);
 
   /**
-   * Open create user form
+   * Open create user form via global panel system
    */
   const handleCreateUser = () => {
-    setIsCreating(true);
+    closeAllPanels();
+    openPanel(
+      'user-form',
+      {
+        onSuccess: () => {
+          closeTopPanel();
+          handleRefreshData();
+        },
+      },
+      { width: 500 }
+    );
   };
 
   /**
-   * Select user for detail view
+   * Select user for detail view via global panel system
    */
   const handleSelectUser = (userId: number | null) => {
-    setSelectedUserId(userId);
+    if (userId === null) {
+      closeAllPanels();
+      return;
+    }
+
+    closeAllPanels();
+    openPanel(
+      'user-detail',
+      {
+        userId,
+        onEdit: () => handleEditUser(userId),
+        onPasswordReset: () => {
+          // Find user name for password reset dialog
+          const user = users.find(u => u.id === userId);
+          if (user) {
+            setPasswordResetUserId(userId);
+            setPasswordResetUserName(user.full_name);
+          }
+        },
+        onRefresh: handleRefreshData,
+      },
+      { width: 350 }
+    );
   };
 
   /**
-   * Handle edit user action
+   * Handle edit user action via global panel system
    */
   const handleEditUser = (userId: number) => {
-    setSelectedUserId(userId);
+    openPanel(
+      'user-edit',
+      {
+        userId,
+        onSuccess: () => {
+          closeTopPanel();
+          handleRefreshData();
+        },
+      },
+      { width: 500 }
+    );
   };
 
   if (isLoading) {
@@ -123,13 +170,20 @@ export default function UserManagement() {
         onEditUser={handleEditUser}
       />
 
-      {/* Stacked Panels */}
-      <UserPanelRenderer
-        selectedUserId={selectedUserId}
-        onSelectUser={setSelectedUserId}
-        onRefreshData={handleRefreshData}
-        showCreateForm={isCreating}
-        onCloseCreateForm={() => setIsCreating(false)}
+      {/* Panels are rendered globally via PanelProvider */}
+
+      {/* Password Reset Dialog - Renders as modal on top of panels */}
+      <PasswordResetDialog
+        userId={passwordResetUserId || 0}
+        userName={passwordResetUserName}
+        open={passwordResetUserId !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPasswordResetUserId(null);
+            setPasswordResetUserName('');
+          }
+        }}
+        onSuccess={handleRefreshData}
       />
     </div>
   );

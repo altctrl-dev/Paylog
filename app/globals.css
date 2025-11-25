@@ -225,8 +225,9 @@
   /* Panel level base styles */
   .panel-level {
     /* Use GPU acceleration for smooth animations */
-    transform: translateZ(0);
     will-change: transform;
+    /* Ensure panel is positioned from viewport edge, not any transformed ancestor */
+    /* Note: We removed translateZ(0) as it can affect fixed positioning */
   }
 
   /* Panel level responsive widths */

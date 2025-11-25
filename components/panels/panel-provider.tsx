@@ -12,6 +12,8 @@ import { ExamplePanelRenderer } from './example-panel';
 import { InvoicePanelRenderer } from '@/components/invoices/invoice-panel-renderer';
 import { MasterDataRequestPanelRenderer } from '@/components/master-data/master-data-request-panel-renderer';
 import { AdminRequestPanelRenderer } from '@/components/master-data/admin-request-panel-renderer';
+import { ProfilePanelRenderer } from '@/components/master-data/profile-panel-renderer';
+import { UserPanelRendererGlobal } from '@/components/users/user-panel-renderer-global';
 
 /**
  * Panel Provider with routing
@@ -73,6 +75,30 @@ export function PanelProvider() {
         if (type.startsWith('master-data-')) {
           return (
             <MasterDataRequestPanelRenderer
+              id={id}
+              type={type}
+              props={props}
+              onClose={onClose}
+            />
+          );
+        }
+
+        // Profile panels (invoice profile management)
+        if (type.startsWith('profile-')) {
+          return (
+            <ProfilePanelRenderer
+              id={id}
+              type={type}
+              props={props}
+              onClose={onClose}
+            />
+          );
+        }
+
+        // User panels (user management)
+        if (type.startsWith('user-')) {
+          return (
+            <UserPanelRendererGlobal
               id={id}
               type={type}
               props={props}

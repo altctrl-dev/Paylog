@@ -3,12 +3,11 @@
 import { useState, useCallback } from 'react';
 import type { UserWithStats } from '@/lib/types/user-management';
 import { listUsers } from '@/lib/actions/user-management';
-import {
-  UsersDataTable,
-  UserPanelRenderer,
-} from '@/components/users';
+import { UsersDataTable } from '@/components/users';
+import { PasswordResetDialog } from '@/components/users/password-reset-dialog';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
+import { usePanel } from '@/hooks/use-panel';
 
 /**
  * Users Page Client Component
@@ -21,10 +20,12 @@ import { Plus } from 'lucide-react';
  *
  * Features:
  * - Data table with search/filter/sort
- * - User detail panel (stacked overlay)
+ * - User detail panel (stacked overlay via global panel system)
  * - User form panel (create/edit)
  * - Password reset dialog
  * - Automatic data refresh after mutations
+ *
+ * Updated: Uses global panel system via PanelProvider
  */
 
 interface UsersPageClientProps {
@@ -34,8 +35,13 @@ interface UsersPageClientProps {
 export function UsersPageClient({ initialUsers }: UsersPageClientProps) {
   // State management
   const [users, setUsers] = useState<UserWithStats[]>(initialUsers);
-  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
+
+  // Password reset dialog state
+  const [passwordResetUserId, setPasswordResetUserId] = useState<number | null>(null);
+  const [passwordResetUserName, setPasswordResetUserName] = useState<string>('');
+
+  // Panel state management - uses global panel system via PanelProvider
+  const { openPanel, closeTopPanel, closeAllPanels } = usePanel();
 
   /**
    * Refresh users data after mutations
@@ -53,27 +59,69 @@ export function UsersPageClient({ initialUsers }: UsersPageClientProps) {
   }, []);
 
   /**
-   * Open create user form
+   * Open create user form via global panel system
    * Triggered by "Create User" button
    */
   const handleCreateUser = () => {
-    setIsCreating(true);
+    closeAllPanels();
+    openPanel(
+      'user-form',
+      {
+        onSuccess: () => {
+          closeTopPanel();
+          handleRefreshData();
+        },
+      },
+      { width: 500 }
+    );
   };
 
   /**
-   * Select user for detail view
+   * Select user for detail view via global panel system
    * Triggered by clicking a row in the data table
    */
   const handleSelectUser = (userId: number | null) => {
-    setSelectedUserId(userId);
+    if (userId === null) {
+      closeAllPanels();
+      return;
+    }
+
+    closeAllPanels();
+    openPanel(
+      'user-detail',
+      {
+        userId,
+        onEdit: () => handleEditUser(userId),
+        onPasswordReset: () => {
+          // Find user name for password reset dialog
+          const user = users.find(u => u.id === userId);
+          if (user) {
+            setPasswordResetUserId(userId);
+            setPasswordResetUserName(user.full_name);
+          }
+        },
+        onRefresh: handleRefreshData,
+      },
+      { width: 350 }
+    );
   };
 
   /**
-   * Handle edit user action
+   * Handle edit user action via global panel system
    * Triggered by clicking the edit button in the data table
    */
   const handleEditUser = (userId: number) => {
-    setSelectedUserId(userId);
+    openPanel(
+      'user-edit',
+      {
+        userId,
+        onSuccess: () => {
+          closeTopPanel();
+          handleRefreshData();
+        },
+      },
+      { width: 500 }
+    );
   };
 
   return (
@@ -103,13 +151,20 @@ export function UsersPageClient({ initialUsers }: UsersPageClientProps) {
         />
       </div>
 
-      {/* Stacked Panels */}
-      <UserPanelRenderer
-        selectedUserId={selectedUserId}
-        onSelectUser={setSelectedUserId}
-        onRefreshData={handleRefreshData}
-        showCreateForm={isCreating}
-        onCloseCreateForm={() => setIsCreating(false)}
+      {/* Panels are rendered globally via PanelProvider */}
+
+      {/* Password Reset Dialog - Renders as modal on top of panels */}
+      <PasswordResetDialog
+        userId={passwordResetUserId || 0}
+        userName={passwordResetUserName}
+        open={passwordResetUserId !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPasswordResetUserId(null);
+            setPasswordResetUserName('');
+          }
+        }}
+        onSuccess={handleRefreshData}
       />
     </div>
   );
