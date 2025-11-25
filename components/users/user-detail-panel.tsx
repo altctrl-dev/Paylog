@@ -4,10 +4,13 @@ import { useState, useEffect } from 'react';
 import { getUserById, deactivateUser, reactivateUser } from '@/lib/actions/user-management';
 import type { UserDetailed } from '@/lib/types/user-management';
 import { UserStatusBadge, LastSuperAdminWarningDialog } from '@/components/users';
+import { PanelLevel } from '@/components/panels/panel-level';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Pencil, KeyRound, Ban, CheckCircle, X, Loader2 } from 'lucide-react';
+import { Pencil, KeyRound, Ban, CheckCircle, Loader2 } from 'lucide-react';
+import type { PanelConfig } from '@/types/panel';
+import { PANEL_Z_INDEX } from '@/types/panel';
 
 interface UserDetailPanelProps {
   userId: number;
@@ -98,18 +101,24 @@ export function UserDetailPanel({
     setIsDeactivating(false);
   }
 
-  return (
-    <div className="fixed right-0 top-0 h-full w-[350px] border-l bg-background shadow-lg z-40">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b p-4">
-        <h2 className="text-lg font-semibold">User Details</h2>
-        <Button variant="ghost" size="sm" onClick={onClose}>
-          <X className="h-4 w-4" />
-        </Button>
-      </div>
+  // Create a minimal config for PanelLevel - these panels are used standalone
+  // without the panel store system, so we construct a config internally
+  const panelConfig: PanelConfig = {
+    id: `user-detail-${userId}`,
+    type: 'user-detail',
+    props: { userId },
+    level: 1,
+    zIndex: PANEL_Z_INDEX.LEVEL_1,
+    width: 350,
+  };
 
-      {/* Content - Scrollable */}
-      <div className="overflow-y-auto h-[calc(100vh-64px)] p-4 space-y-4">
+  return (
+    <PanelLevel
+      config={panelConfig}
+      title="User Details"
+      onClose={onClose}
+    >
+      <div className="space-y-4">
         {/* Loading State */}
         {isLoading && (
           <div className="flex items-center justify-center py-8">
@@ -250,7 +259,7 @@ export function UserDetailPanel({
           userName={user.full_name}
         />
       )}
-    </div>
+    </PanelLevel>
   );
 }
 

@@ -4,11 +4,14 @@ import { useState, useEffect } from 'react';
 import { createUser, updateUser, getUserById, validateRoleChange } from '@/lib/actions/user-management';
 import type { UserRole } from '@/lib/types/user-management';
 import { RoleSelector, RoleChangeConfirmationDialog, LastSuperAdminWarningDialog, UserCreatedConfirmationDialog } from '@/components/users';
+import { PanelLevel } from '@/components/panels/panel-level';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { X, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+import type { PanelConfig } from '@/types/panel';
+import { PANEL_Z_INDEX } from '@/types/panel';
 
 interface UserFormPanelProps {
   userId?: number; // undefined = create mode, number = edit mode
@@ -152,25 +155,56 @@ export function UserFormPanel({ userId, onClose, onSuccess }: UserFormPanelProps
     performSave();
   }
 
-  return (
-    <div className="fixed right-0 top-0 h-full w-[500px] border-l bg-background shadow-lg z-50">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b p-4">
-        <h2 className="text-lg font-semibold">
-          {userId ? 'Edit User' : 'Create User'}
-        </h2>
-        <Button variant="ghost" size="sm" onClick={onClose}>
-          <X className="h-4 w-4" />
-        </Button>
-      </div>
+  // Create a minimal config for PanelLevel - these panels are used standalone
+  // without the panel store system, so we construct a config internally
+  // Use level 2 for form panels (500px width, higher z-index)
+  const panelConfig: PanelConfig = {
+    id: userId ? `user-edit-${userId}` : 'user-create',
+    type: userId ? 'user-edit' : 'user-create',
+    props: userId ? { userId } : {},
+    level: 2,
+    zIndex: PANEL_Z_INDEX.LEVEL_2,
+    width: 500,
+  };
 
-      {/* Form - Scrollable */}
+  // Footer with action buttons
+  const footerContent = (
+    <div className="flex gap-2 w-full">
+      <Button
+        type="submit"
+        form="user-form"
+        disabled={isSaving}
+        className="flex-1"
+      >
+        {isSaving ? (
+          <>
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            {userId ? 'Updating...' : 'Creating...'}
+          </>
+        ) : (
+          userId ? 'Update User' : 'Create User'
+        )}
+      </Button>
+      <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
+        Cancel
+      </Button>
+    </div>
+  );
+
+  return (
+    <PanelLevel
+      config={panelConfig}
+      title={userId ? 'Edit User' : 'Create User'}
+      onClose={onClose}
+      footer={footerContent}
+    >
+      {/* Form Content */}
       {isLoadingUser ? (
-        <div className="flex items-center justify-center h-[calc(100vh-64px)]">
+        <div className="flex items-center justify-center h-64">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       ) : (
-        <form onSubmit={handleSubmit} className="overflow-y-auto h-[calc(100vh-64px)] p-4">
+        <form id="user-form" onSubmit={handleSubmit}>
           <div className="space-y-4">
             {/* Full Name Field */}
             <div>
@@ -228,23 +262,6 @@ export function UserFormPanel({ userId, onClose, onSuccess }: UserFormPanelProps
                 {errors.form}
               </div>
             )}
-
-            {/* Action Buttons */}
-            <div className="flex gap-2 pt-4">
-              <Button type="submit" disabled={isSaving} className="flex-1">
-                {isSaving ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    {userId ? 'Updating...' : 'Creating...'}
-                  </>
-                ) : (
-                  userId ? 'Update User' : 'Create User'
-                )}
-              </Button>
-              <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
-                Cancel
-              </Button>
-            </div>
           </div>
         </form>
       )}
@@ -283,6 +300,6 @@ export function UserFormPanel({ userId, onClose, onSuccess }: UserFormPanelProps
         userEmail={formData.email}
         temporaryPassword={createdUserPassword}
       />
-    </div>
+    </PanelLevel>
   );
 }
