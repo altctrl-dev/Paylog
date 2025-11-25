@@ -1,10 +1,10 @@
 # PayLog Sprint Plan (Revised)
 
-**Last Updated**: November 24, 2025
+**Last Updated**: November 25, 2025
 **Total Story Points**: 208 SP (revised: +6 SP for Sprint 14)
-**Completed**: 197.5 SP (94.9%) - Sprint 13 Phase 5 ✅ COMPLETE
-**Remaining**: 10.5 SP (5.1%)
-**Execution Order**: Sprint 14 → Security Audit → Sprint 13 Phase 6 (Documentation) → v1.0.0 Launch
+**Completed**: 198.4 SP (95.4%) - Sprint 13 Phase 5 ✅ COMPLETE, Sprint 14 Items #11-12 ✅ COMPLETE
+**Remaining**: 9.6 SP (4.6%)
+**Execution Order**: Sprint 14 (8 items remaining) → Security Audit → Sprint 13 Phase 6 (Documentation) → v1.0.0 Launch
 
 ---
 
@@ -27,7 +27,7 @@
 | Sprint 11 | ✅ Complete | 12 SP | User Management & RBAC |
 | Sprint 12 | ✅ Complete | 14 SP | Dashboard & Analytics |
 | Sprint 13 | 🚀 In Progress | 7 SP | Production Prep & Launch (Phase 1-5 ✅ COMPLETE, Phase 6 ⏳ NEXT) |
-| Sprint 14 | 🚧 In Progress | 6 SP | Post-Launch Enhancements (12 items, 4 complete, 8 todo) |
+| Sprint 14 | 🚧 In Progress | 6 SP | Post-Launch Enhancements (13 items, 5 complete, 8 todo) |
 
 ---
 
@@ -35,6 +35,7 @@
 
 | Date | Session Summary | Key Achievements | Documentation |
 |------|-----------------|------------------|---------------|
+| **Nov 25, 2025** | **Sprint 14 Items #11 & #12 Implementation (Edit Buttons)** | ✅ COMPLETE: Created edit-recurring-invoice-form.tsx (710 lines) and edit-non-recurring-invoice-form.tsx. Added server actions with RBAC (admins edit any status, standard users only non-pending). Fixed 7 critical bugs through 6 iterations (file validation, form defaults, field names). All quality gates passed. User confirmed: "it is working now". Progress: 23% → 38% (Sprint 14). | [Edit Buttons Session](SESSION_SUMMARY_2025_11_25.md) |
 | **Nov 24, 2025** | **Production Debugging & Critical Fixes** | Fixed 4 critical production bugs (currency error with invalid ISO codes, invoice panel caching, '+' button not working on Railway, password reset script). Root cause: uncommitted header-v2.tsx changes. Added defensive currency formatting. Critical lesson: always check git status before debugging deployments. | [Debugging Session](SESSION_SUMMARY_2025_11_24_DEBUGGING.md) |
 | **Nov 22, 2025** | **Railway Production Deployment Fixes** | Fixed 11 Railway build failures (TypeScript errors, missing dependencies, schema sync, ESLint compliance). All invoice v2 components deployed successfully. | [Railway Fixes Session](SESSION_SUMMARY_2025_11_22_RAILWAY_FIXES.md) |
 | **Nov 22, 2025** | **Sprint 13 Phase 5 Completion** | Completed Vendor Approval Workflow (database migration, RBAC, UI, admin approval). Fixed 2 critical bugs (invoice_received_date, paid status sync). Created Sprint 14 implementation plan. | [Phase 5 Completion Session](SESSION_SUMMARY_2025_11_22.md) |

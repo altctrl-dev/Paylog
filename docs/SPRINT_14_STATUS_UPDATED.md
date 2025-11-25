@@ -1,9 +1,9 @@
 # Sprint 14 - Updated Status & Implementation Plan
 
-**Last Updated**: November 24, 2025 (Added Item #13 - Invoice Creation Toggle)
-**Status**: 🚧 IN PROGRESS (31% complete)
-**Completed**: 4/13 items
-**Remaining**: 9/13 items
+**Last Updated**: November 25, 2025 (Completed Items #11 & #12 - Edit Buttons)
+**Status**: 🚧 IN PROGRESS (38% complete)
+**Completed**: 5/13 items
+**Remaining**: 8/13 items
 
 ---
 
@@ -14,6 +14,8 @@
 | #1: Approval Buttons | CRITICAL | ✅ DONE | invoice-detail-panel-v2.tsx lines 177-196 | 0h |
 | #2: User Panel Fix | CRITICAL | ✅ DONE | User confirmed fixed | 0h |
 | #3: Currency Display | HIGH | ✅ DONE | format.ts with Intl.NumberFormat | 0h |
+| **#11: Edit Button (Admin)** | **🔥 CRITICAL** | **✅ DONE** | **edit-recurring-invoice-form.tsx (710 lines)** | **0h** |
+| **#12: Edit Button (Users)** | **🔥 CRITICAL** | **✅ DONE** | **RBAC + status validation working** | **0h** |
 | #4: Amount Field UX | HIGH | ❌ TODO | No amount-input.tsx found | 2-3h |
 | #5: Panel Styling | HIGH | 🟡 PARTIAL | Panel system exists, needs gap fix | 1-2h |
 | #6: Payment Types | MEDIUM | ❌ TODO | Placeholder only (22 lines) | 4-5h |
@@ -21,136 +23,96 @@
 | #8: Activities Tab | MEDIUM | ❌ TODO | No activity logging system | 4-5h |
 | #9: Settings Restructure | MEDIUM | ❌ TODO | No Security/Activities tabs | 3-4h |
 | #10: Invoice Tabs (Recurring/TDS) | MEDIUM | ❌ TODO | Single list only | 4-5h |
-| **#11: Edit Button (Admin)** | **🔥 NEW** | **❌ TODO** | **Doesn't work for admins** | **2-3h** |
-| **#12: Edit Button (Users)** | **🔥 NEW** | **❌ TODO** | **Missing for standard users** | **4-5h** |
 | **#13: Invoice Creation Toggle** | **⭐ NEW** | **❌ TODO** | **Panel vs full-page preference** | **4-5h** |
 
-**Total Remaining Effort**: ~34-44 hours
+**Total Remaining Effort**: ~25-34 hours
 
 ---
 
-## 🔥 NEW CRITICAL ISSUES (Sprint 14 Extension)
+## ✅ COMPLETED ITEMS (5/13)
 
-### **Item #11: Edit Button Not Working for Admins**
-**Priority**: 🔥 CRITICAL
-**Reported**: November 24, 2025
-**Status**: ❌ NOT WORKING
+### **Item #11: Edit Button for Admins** - ✅ DONE
+**Completed**: November 25, 2025 (6-hour session)
+**Status**: ✅ FULLY WORKING
+**User Confirmation**: "it is working now"
 
-**Problem**:
-- Edit button exists in invoice detail panel (line 154-162 in invoice-detail-panel-v2.tsx)
-- Clicking it shows "Edit Not Available" toast message
-- Code comment says: "TODO: Implement V2 invoice edit forms"
-- Admin users cannot edit invoices
+**What Was Implemented**:
+- Created `edit-recurring-invoice-form.tsx` (710 lines)
+- Created `edit-non-recurring-invoice-form.tsx` (680 lines)
+- Added server actions: `updateRecurringInvoice()`, `updateNonRecurringInvoice()`
+- Added React Query hooks: `useUpdateRecurringInvoice()`, `useUpdateNonRecurringInvoice()`
+- Updated permission logic in `invoice-detail-panel-v2.tsx`
+- Registered edit panels in `invoice-panel-renderer.tsx`
 
-**Current Code**:
-```typescript
-// components/invoices/invoice-detail-panel-v2.tsx line 65-74
-const handleEdit = () => {
-  // TODO: Implement V2 invoice edit forms (recurring and non-recurring)
-  // The V1 edit form doesn't support V2 fields (is_recurring, invoice_profile_id, inline payments)
-  // For now, show a message that this feature is coming soon
-  toast({
-    title: 'Edit Not Available',
-    description: 'V2 invoice editing is coming soon. For now, you can create a new invoice or contact support.',
-    variant: 'default',
-  });
-};
-```
+**Key Features**:
+- All fields pre-filled from existing invoice
+- Invoice profile read-only (can't change after creation)
+- File upload optional (replaces only if new file provided)
+- Validation error display (red alert box)
+- ESC key handler with unsaved changes warning
+- Number input scroll disabled
 
-**Root Cause**:
-- V2 invoices have new fields (is_recurring, invoice_profile_id, currency_id, entity_id)
-- Existing V1 edit form doesn't support these fields
-- V2 edit forms haven't been created yet
+**Issues Fixed** (7 bugs through 6 iterations):
+1. Due date validation error (invalid defaultValues)
+2. Vendor field showing empty (fetch on mount fix)
+3. File upload validation error (z.custom validator)
+4. Form submission broken (onSubmit signature)
+5. Zod validator rejecting all input (explicit null/undefined check)
+6. Form invalid on mount (removed defaultValues)
+7. "Not a recurring invoice" error (wrong field name: profile_id → invoice_profile_id)
 
-**Solution Needed**:
-1. Create V2 edit forms:
-   - `components/invoices-v2/edit-recurring-invoice-form.tsx`
-   - `components/invoices-v2/edit-non-recurring-invoice-form.tsx`
-2. Add edit routes:
-   - `/invoices/edit/[id]/recurring`
-   - `/invoices/edit/[id]/non-recurring`
-3. Update `handleEdit` to open correct form based on `invoice.is_recurring`
-4. Implement server actions for updating V2 invoices
-5. Handle inline payment updates
+**Files Created**: 2 (1,390 lines total)
+**Files Modified**: 6 (400+ lines)
+**Commits**: 6 (all quality gates passed)
 
-**Acceptance Criteria**:
-- Admin clicks Edit → opens side panel with pre-filled form
-- Form shows all V2 fields (profile, entity, currency, recurring settings)
-- Admin can modify any field
-- Save updates invoice successfully
-- Panel closes and invoice list refreshes
-
-**Estimated Effort**: 2-3 hours
+**No further work needed.**
 
 ---
 
-### **Item #12: Edit Button Missing for Standard Users**
-**Priority**: 🔥 CRITICAL
-**Reported**: November 24, 2025
-**Status**: ❌ MISSING
-**Business Rules**: ✅ CLARIFIED (see EDIT_BUTTON_WORKFLOW.md)
+### **Item #12: Edit Button for Standard Users** - ✅ DONE
+**Completed**: November 25, 2025 (same session as #11)
+**Status**: ✅ FULLY WORKING
 
-**Problem**:
-- Standard users don't see Edit button in invoice detail panel
-- Current code: `canEdit = isAdmin` (line 103)
-- Standard users created the invoice but can't edit it
-
-**Current Code**:
-```typescript
-// components/invoices/invoice-detail-panel-v2.tsx line 103
-const canEdit = isAdmin; // Admins can always edit
-```
-
-**Confirmed Business Rules** (Nov 24, 2025):
+**Business Rules Implemented**:
 
 **Standard Users**:
-1. ✅ Can create new invoices
-2. ❌ **Cannot edit while in "pending_approval" status** (must wait for admin)
-3. ✅ Can edit after admin action (approved/rejected/on_hold)
-4. 🔄 Editing triggers re-approval (status → "pending_approval")
-5. 🔒 Can only edit own invoices (ownership check)
+- ✅ Can create new invoices → status becomes "pending_approval"
+- ❌ Cannot edit while in "pending_approval" (must wait for admin)
+- ✅ Can edit after admin action (approved/rejected/on_hold)
+- 🔄 Editing changes status back to "pending_approval"
+- 🔒 Can only edit own invoices (ownership check)
 
 **Admins**:
-1. ✅ Can edit any invoice (no ownership restriction)
-2. ✅ Can edit in any status (no status restriction)
-3. ✅ Admin edits don't change status
+- ✅ Can edit any invoice in any status
+- ✅ Edits don't change status
 
-**Required Logic**:
+**Permission Logic**:
 ```typescript
-const isOwner = invoice.created_by_id === session?.user?.id;
-const isStandardUser = session?.user?.role === 'standard_user';
-const isPending = invoice.status === 'pending_approval';
-
-const canEdit =
-  isAdmin || // Admins can always edit
-  (isOwner && isStandardUser && !isPending); // Standard users: own invoices, not pending
+// components/invoices/invoice-detail-panel-v2.tsx line 103-105
+const isOwner = invoice?.created_by === Number(userId);
+const isInvoicePending = invoice?.status === 'pending_approval';
+const canEdit = isAdmin || (isOwner && !isInvoicePending);
 ```
 
-**Workflow**:
+**Server Authorization**:
+```typescript
+// app/actions/invoices-v2.ts (updateRecurringInvoice)
+if (isAdminUser) {
+  newStatus = existing.status; // Admin edit doesn't change status
+} else {
+  if (existing.created_by !== user.id) {
+    return { error: 'Unauthorized: You can only edit your own invoices' };
+  }
+  if (existing.status === INVOICE_STATUS.PENDING_APPROVAL) {
+    return { error: 'Cannot edit invoice while it is pending approval' };
+  }
+  newStatus = INVOICE_STATUS.PENDING_APPROVAL; // Standard user edit triggers re-approval
+}
 ```
-Standard User:
-1. Create invoice → Submit → Status: "pending_approval"
-2. Edit button DISABLED (waiting for admin action)
-3. Admin approves → Status: "unpaid"
-4. Edit button ENABLED (user can now edit)
-5. User edits → Save → Status: "pending_approval" (goes back for re-approval)
 
-Admin:
-1. Can edit ANY invoice in ANY status
-2. Edits do NOT change status
-```
+**All Acceptance Criteria Met**: ✅
 
-**Acceptance Criteria**:
-- [x] Standard user sees Edit button for own invoices (not pending)
-- [x] Edit button disabled with tooltip during pending status
-- [x] Edit button hidden for invoices created by others
-- [x] Editing as standard user → status changes to "pending_approval"
-- [x] Editing as admin → status unchanged
-- [x] Form pre-fills with current invoice data
-- [x] Save successful → panel closes, list refreshes
-
-**Estimated Effort**: 6-8 hours total (both Items #11 and #12)
-**Detailed Plan**: See `docs/EDIT_BUTTON_WORKFLOW.md`
+**No further work needed.**
 
 ---
 
