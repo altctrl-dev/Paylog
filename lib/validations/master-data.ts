@@ -228,3 +228,38 @@ export const invoiceProfileFiltersSchema = z.object({
 });
 
 export type InvoiceProfileFilters = z.infer<typeof invoiceProfileFiltersSchema>;
+
+// ============================================================================
+// PAYMENT TYPE VALIDATION
+// ============================================================================
+
+/**
+ * Payment Type create/update validation schema
+ * - Name: required, 1-100 chars
+ * - Description: optional, text
+ * - Requires Reference: boolean, default false (e.g., bank transfers may require reference numbers)
+ * - Case-insensitive uniqueness enforced at server action level
+ */
+export const paymentTypeFormSchema = z.object({
+  name: z
+    .string()
+    .min(1, 'Payment type name is required')
+    .max(100, 'Payment type name too long')
+    .trim(),
+  description: z.string().optional(),
+  requires_reference: z.boolean(),
+});
+
+export type PaymentTypeFormData = z.infer<typeof paymentTypeFormSchema>;
+
+/**
+ * Payment Type search/filter schema
+ */
+export const paymentTypeFiltersSchema = z.object({
+  search: z.string().optional(),
+  is_active: z.boolean().optional(),
+  page: z.number().int().positive().default(1),
+  per_page: z.number().int().positive().default(20),
+});
+
+export type PaymentTypeFilters = z.infer<typeof paymentTypeFiltersSchema>;

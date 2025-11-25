@@ -18,6 +18,7 @@ import { InvoiceRejectPanel } from './invoice-reject-panel';
 import { PaymentFormPanel } from '@/components/payments/payment-form-panel';
 import { VendorFormPanel } from '@/components/master-data/vendor-form-panel';
 import { CategoryFormPanel } from '@/components/master-data/category-form-panel';
+import { PaymentTypeFormPanel } from '@/components/master-data/payment-type-form-panel';
 import { EditRecurringInvoiceForm } from '@/components/invoices-v2/edit-recurring-invoice-form';
 import { EditNonRecurringInvoiceForm } from '@/components/invoices-v2/edit-non-recurring-invoice-form';
 import { PanelLevel } from '@/components/panels/panel-level';
@@ -170,6 +171,19 @@ export function InvoicePanelRenderer({
           config={config}
           onClose={onClose}
           category={props.category as { id: number; name: string } | undefined}
+        />
+      );
+
+    case 'payment-type-form':
+      return (
+        <PaymentTypeFormPanel
+          config={config}
+          onClose={onClose}
+          paymentType={
+            props.paymentType as
+              | { id: number; name: string; description?: string | null; requires_reference: boolean }
+              | undefined
+          }
         />
       );
 

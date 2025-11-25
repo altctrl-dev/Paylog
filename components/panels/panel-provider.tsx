@@ -44,7 +44,8 @@ export function PanelProvider() {
           type.startsWith('invoice-') ||
           type.startsWith('payment-') ||
           type === 'vendor-form' ||
-          type === 'category-form'
+          type === 'category-form' ||
+          type === 'payment-type-form'
         ) {
           return (
             <InvoicePanelRenderer
