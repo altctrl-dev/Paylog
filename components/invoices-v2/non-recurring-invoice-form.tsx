@@ -33,6 +33,7 @@ import { VendorTextAutocomplete } from './vendor-text-autocomplete';
 import { VendorFormPanel } from '@/components/master-data/vendor-form-panel';
 import { TDSSection } from './tds-section';
 import { InlinePaymentFields } from './inline-payment-fields';
+import { AmountInput } from './amount-input';
 import { InvoicePreviewPanel } from './invoice-preview-panel';
 import {
   nonRecurringInvoiceSchema,
@@ -621,14 +622,18 @@ export function NonRecurringInvoiceForm({ onSuccess: _onSuccess, onCancel }: Non
               )}
             />
 
-            <Input
-              id="invoice_amount"
-              type="number"
-              step="0.01"
-              {...register('invoice_amount', { valueAsNumber: true })}
-              onWheel={(e) => e.currentTarget.blur()} // Disable scroll to change value
-              placeholder="0.00"
-              className={errors.invoice_amount ? 'border-destructive' : ''}
+            <Controller
+              name="invoice_amount"
+              control={control}
+              render={({ field }) => (
+                <AmountInput
+                  id="invoice_amount"
+                  value={field.value}
+                  onChange={field.onChange}
+                  placeholder="0.00"
+                  hasError={!!errors.invoice_amount}
+                />
+              )}
             />
           </div>
           {(errors.invoice_amount || errors.currency_id) && (

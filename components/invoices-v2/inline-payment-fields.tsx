@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
+import { AmountInput } from './amount-input';
 
 /**
  * Props interface for InlinePaymentFields
@@ -206,17 +207,12 @@ export function InlinePaymentFields({
               )}
 
               {/* Amount Input */}
-              <Input
+              <AmountInput
                 id="paid_amount"
-                type="number"
-                step="0.01"
                 placeholder="0.00"
-                value={paidAmount ?? ''}
-                onChange={(e) =>
-                  onFieldChange('paid_amount', e.target.value ? parseFloat(e.target.value) : null)
-                }
-                onWheel={(e) => e.currentTarget.blur()} // Disable scroll to change value
-                className={errors.paid_amount ? 'border-destructive' : ''}
+                value={paidAmount}
+                onChange={(value) => onFieldChange('paid_amount', value)}
+                hasError={!!errors.paid_amount}
               />
             </div>
             {(errors.paid_amount || errors.paid_currency) && (

@@ -46,6 +46,7 @@ import {
 import { VendorAutocomplete } from '@/components/master-data/vendor-autocomplete';
 import { CategoryAutocomplete } from '@/components/master-data/category-autocomplete';
 import { invoiceFormSchema, type InvoiceFormData } from '@/lib/validations/invoice';
+import { AmountInput } from '@/components/invoices-v2/amount-input';
 import type { PanelConfig } from '@/types/panel';
 
 interface InvoiceFormPanelProps {
@@ -603,13 +604,18 @@ export function InvoiceFormPanel({
             />
 
             {/* Amount Input - Right side */}
-            <Input
-              id="invoice_amount"
-              type="number"
-              step="0.01"
-              {...register('invoice_amount', { valueAsNumber: true })}
-              placeholder="0.00"
-              className={errors.invoice_amount ? 'border-destructive' : ''}
+            <Controller
+              name="invoice_amount"
+              control={control}
+              render={({ field }) => (
+                <AmountInput
+                  id="invoice_amount"
+                  value={field.value}
+                  onChange={field.onChange}
+                  placeholder="0.00"
+                  hasError={!!errors.invoice_amount}
+                />
+              )}
             />
           </div>
 
@@ -670,21 +676,15 @@ export function InvoiceFormPanel({
               name="tds_percentage"
               control={control}
               render={({ field }) => (
-                <Input
+                <AmountInput
                   id="tds_percentage"
-                  type="number"
                   step="0.01"
                   min="0"
-                  max="100"
                   placeholder="10.0"
                   disabled={!watchedTdsApplicable}
-                  value={field.value ?? ''}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    field.onChange(value === '' ? null : parseFloat(value));
-                  }}
-                  onWheel={(e) => e.currentTarget.blur()}
-                  className={errors.tds_percentage ? 'border-destructive' : ''}
+                  value={field.value}
+                  onChange={field.onChange}
+                  hasError={!!errors.tds_percentage}
                 />
               )}
             />

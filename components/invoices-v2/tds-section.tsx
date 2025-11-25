@@ -11,9 +11,9 @@
 import * as React from 'react';
 import { Controller, Control } from 'react-hook-form';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
+import { AmountInput } from './amount-input';
 
 /**
  * Props interface for TDSSection
@@ -124,38 +124,26 @@ export function TDSSection({
               name="tds_percentage"
               control={control}
               render={({ field }) => (
-                <Input
+                <AmountInput
                   id="tds_percentage"
-                  type="number"
                   step="0.01"
                   min="0"
-                  max="100"
                   placeholder="10.00"
-                  value={(field.value as number | null) ?? ''}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    field.onChange(value === '' ? null : parseFloat(value));
-                  }}
-                  onWheel={(e) => e.currentTarget.blur()}
-                  className={errors.tds_percentage ? 'border-destructive' : ''}
+                  value={field.value as number | null}
+                  onChange={field.onChange}
+                  hasError={!!errors.tds_percentage}
                 />
               )}
             />
           ) : (
-            <Input
+            <AmountInput
               id="tds_percentage"
-              type="number"
               step="0.01"
               min="0"
-              max="100"
               placeholder="10.00"
-              value={tdsPercentage ?? ''}
-              onChange={(e) => {
-                const value = e.target.value;
-                onTdsPercentageChange(value === '' ? null : parseFloat(value));
-              }}
-              onWheel={(e) => e.currentTarget.blur()}
-              className={errors.tds_percentage ? 'border-destructive' : ''}
+              value={tdsPercentage}
+              onChange={onTdsPercentageChange}
+              hasError={!!errors.tds_percentage}
             />
           )}
           {errors.tds_percentage && (

@@ -26,6 +26,7 @@ import { useCreatePayment } from '@/hooks/use-payments';
 import { type PaymentFormData } from '@/types/payment';
 import { paymentFormSchema } from '@/lib/validations/payment';
 import { PAYMENT_METHOD, PAYMENT_METHOD_CONFIG } from '@/types/payment';
+import { AmountInput } from '@/components/invoices-v2/amount-input';
 import type { PanelConfig } from '@/types/panel';
 
 interface PaymentFormPanelProps {
@@ -82,7 +83,6 @@ export function PaymentFormPanel({
 
   // Form setup
   const {
-    register,
     handleSubmit,
     control,
     watch,
@@ -208,15 +208,18 @@ export function PaymentFormPanel({
           <Label htmlFor="amount_paid">
             Amount Paid <span className="text-destructive">*</span>
           </Label>
-          <Input
-            id="amount_paid"
-            type="number"
-            step="0.01"
-            min="0.01"
-            max={remainingBalance}
-            {...register('amount_paid', { valueAsNumber: true })}
-            placeholder="0.00"
-            className={errors.amount_paid ? 'border-destructive' : ''}
+          <Controller
+            name="amount_paid"
+            control={control}
+            render={({ field }) => (
+              <AmountInput
+                id="amount_paid"
+                value={field.value}
+                onChange={field.onChange}
+                placeholder="0.00"
+                hasError={!!errors.amount_paid}
+              />
+            )}
           />
           {errors.amount_paid && (
             <p className="text-xs text-destructive">
