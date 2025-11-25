@@ -163,7 +163,7 @@ model PaymentType {
 
 model Invoice {
   id                 Int                 @id @default(autoincrement())
-  invoice_number     String              @unique
+  invoice_number     String
   vendor_id          Int
   category_id        Int?
   profile_id         Int?
@@ -237,6 +237,7 @@ model Invoice {
   @@index([invoice_profile_id], map: "idx_invoices_invoice_profile")
   @@index([payment_type_id], map: "idx_invoices_payment_type")
   @@index([is_paid], map: "idx_invoices_paid")
+  @@unique([invoice_number, vendor_id], map: "idx_invoices_number_vendor")
   @@map("invoices")
 }
 

@@ -32,6 +32,34 @@ import type { ServerActionResult } from '@/types/attachment';
 // ============================================================================
 
 /**
+ * Convert Prisma errors to user-friendly messages
+ */
+function getPrismaErrorMessage(error: unknown): string | null {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    // P2002: Unique constraint violation
+    if (error.code === 'P2002') {
+      const target = error.meta?.target as string[] | undefined;
+      if (target?.includes('invoice_number') && target?.includes('vendor_id')) {
+        return 'An invoice with this number already exists for this vendor. Please use a different invoice number.';
+      }
+      if (target?.includes('invoice_number')) {
+        return 'An invoice with this number already exists. Please use a different invoice number.';
+      }
+      return 'A record with these details already exists.';
+    }
+    // P2003: Foreign key constraint violation
+    if (error.code === 'P2003') {
+      return 'Referenced record does not exist. Please refresh and try again.';
+    }
+    // P2025: Record not found
+    if (error.code === 'P2025') {
+      return 'Record not found. It may have been deleted.';
+    }
+  }
+  return null;
+}
+
+/**
  * File-like class for converting base64 data to File API-compatible object
  */
 class Base64File implements File {
@@ -314,9 +342,10 @@ export async function createRecurringInvoice(
     };
   } catch (error) {
     console.error('[createRecurringInvoice] Error:', error);
+    const prismaError = getPrismaErrorMessage(error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to create recurring invoice',
+      error: prismaError || (error instanceof Error ? error.message : 'Failed to create recurring invoice'),
     };
   }
 }
@@ -540,9 +569,10 @@ export async function createNonRecurringInvoice(
     };
   } catch (error) {
     console.error('[createNonRecurringInvoice] Error:', error);
+    const prismaError = getPrismaErrorMessage(error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to create non-recurring invoice',
+      error: prismaError || (error instanceof Error ? error.message : 'Failed to create non-recurring invoice'),
     };
   }
 }
@@ -777,9 +807,10 @@ export async function updateRecurringInvoice(
     };
   } catch (error) {
     console.error('[updateRecurringInvoice] Error:', error);
+    const prismaError = getPrismaErrorMessage(error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to update recurring invoice',
+      error: prismaError || (error instanceof Error ? error.message : 'Failed to update recurring invoice'),
     };
   }
 }
@@ -1048,9 +1079,10 @@ export async function updateNonRecurringInvoice(
     };
   } catch (error) {
     console.error('[updateNonRecurringInvoice] Error:', error);
+    const prismaError = getPrismaErrorMessage(error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to update non-recurring invoice',
+      error: prismaError || (error instanceof Error ? error.message : 'Failed to update non-recurring invoice'),
     };
   }
 }

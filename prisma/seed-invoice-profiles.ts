@@ -198,64 +198,84 @@ async function main() {
     if (!testUser) {
       console.log('⚠️  No active user found. Skipping invoice creation.');
     } else {
-      // Sample recurring invoice
-      const recurringInvoice = await prisma.invoice.upsert({
-        where: { invoice_number: 'TEST-REC-001' },
-        create: {
+      // Sample recurring invoice - use findFirst + create/update since invoice_number is no longer globally unique
+      const existingRecurring = await prisma.invoice.findFirst({
+        where: {
           invoice_number: 'TEST-REC-001',
           vendor_id: vendor1!.id,
-          category_id: category1!.id,
-          profile_id: profile1.id, // Legacy profile link
-          invoice_profile_id: profile1.id, // New profile link
-          is_recurring: true,
-          invoice_amount: 5000.00,
-          invoice_date: new Date(),
-          due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
-          period_start: new Date(),
-          period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-          tds_applicable: profile1.tds_applicable,
-          tds_percentage: profile1.tds_percentage,
-          currency_id: currency.id,
-          entity_id: entity.id,
-          created_by: testUser.id,
-          status: 'pending_approval',
-          is_paid: false,
-          notes: 'Test recurring invoice from seed script',
-        },
-        update: {
-          is_recurring: true,
-          invoice_profile_id: profile1.id,
         },
       });
+
+      const recurringInvoice = existingRecurring
+        ? await prisma.invoice.update({
+            where: { id: existingRecurring.id },
+            data: {
+              is_recurring: true,
+              invoice_profile_id: profile1.id,
+            },
+          })
+        : await prisma.invoice.create({
+            data: {
+              invoice_number: 'TEST-REC-001',
+              vendor_id: vendor1!.id,
+              category_id: category1!.id,
+              profile_id: profile1.id, // Legacy profile link
+              invoice_profile_id: profile1.id, // New profile link
+              is_recurring: true,
+              invoice_amount: 5000.00,
+              invoice_date: new Date(),
+              due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+              period_start: new Date(),
+              period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+              tds_applicable: profile1.tds_applicable,
+              tds_percentage: profile1.tds_percentage,
+              currency_id: currency.id,
+              entity_id: entity.id,
+              created_by: testUser.id,
+              status: 'pending_approval',
+              is_paid: false,
+              notes: 'Test recurring invoice from seed script',
+            },
+          });
       console.log(`✓ Created recurring invoice: ${recurringInvoice.invoice_number}`);
 
-      // Sample non-recurring invoice
-      const nonRecurringInvoice = await prisma.invoice.upsert({
-        where: { invoice_number: 'TEST-NR-001' },
-        create: {
+      // Sample non-recurring invoice - use findFirst + create/update since invoice_number is no longer globally unique
+      const existingNonRecurring = await prisma.invoice.findFirst({
+        where: {
           invoice_number: 'TEST-NR-001',
           vendor_id: vendor2!.id,
-          category_id: category2!.id,
-          is_recurring: false,
-          invoice_amount: 1500.00,
-          invoice_date: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000), // 15 days ago
-          due_date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago (overdue)
-          tds_applicable: false,
-          currency_id: currency.id,
-          entity_id: entity.id,
-          created_by: testUser.id,
-          status: 'approved',
-          is_paid: true,
-          paid_date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // Paid 3 days ago
-          paid_amount: 1500.00,
-          paid_currency: 'USD',
-          notes: 'Test non-recurring invoice from seed script',
-        },
-        update: {
-          is_recurring: false,
-          is_paid: true,
         },
       });
+
+      const nonRecurringInvoice = existingNonRecurring
+        ? await prisma.invoice.update({
+            where: { id: existingNonRecurring.id },
+            data: {
+              is_recurring: false,
+              is_paid: true,
+            },
+          })
+        : await prisma.invoice.create({
+            data: {
+              invoice_number: 'TEST-NR-001',
+              vendor_id: vendor2!.id,
+              category_id: category2!.id,
+              is_recurring: false,
+              invoice_amount: 1500.00,
+              invoice_date: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000), // 15 days ago
+              due_date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago (overdue)
+              tds_applicable: false,
+              currency_id: currency.id,
+              entity_id: entity.id,
+              created_by: testUser.id,
+              status: 'approved',
+              is_paid: true,
+              paid_date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // Paid 3 days ago
+              paid_amount: 1500.00,
+              paid_currency: 'USD',
+              notes: 'Test non-recurring invoice from seed script',
+            },
+          });
       console.log(`✓ Created non-recurring invoice: ${nonRecurringInvoice.invoice_number}`);
     }
 

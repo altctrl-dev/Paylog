@@ -528,15 +528,18 @@ export async function createInvoice(
     // Validate input
     const validated = invoiceFormSchema.parse(data);
 
-    // Check for duplicate invoice number
-    const existing = await db.invoice.findUnique({
-      where: { invoice_number: validated.invoice_number },
+    // Check for duplicate invoice number for this vendor
+    const existing = await db.invoice.findFirst({
+      where: {
+        invoice_number: validated.invoice_number,
+        vendor_id: validated.vendor_id,
+      },
     });
 
     if (existing) {
       return {
         success: false,
-        error: `Invoice number "${validated.invoice_number}" already exists`,
+        error: `Invoice number "${validated.invoice_number}" already exists for this vendor`,
       };
     }
 
@@ -674,16 +677,19 @@ export async function updateInvoice(
       };
     }
 
-    // Check for duplicate invoice number (if changed)
+    // Check for duplicate invoice number for this vendor (if changed)
     if (validated.invoice_number !== existing.invoice_number) {
-      const duplicate = await db.invoice.findUnique({
-        where: { invoice_number: validated.invoice_number },
+      const duplicate = await db.invoice.findFirst({
+        where: {
+          invoice_number: validated.invoice_number,
+          vendor_id: validated.vendor_id,
+        },
       });
 
       if (duplicate) {
         return {
           success: false,
-          error: `Invoice number "${validated.invoice_number}" already exists`,
+          error: `Invoice number "${validated.invoice_number}" already exists for this vendor`,
         };
       }
     }
