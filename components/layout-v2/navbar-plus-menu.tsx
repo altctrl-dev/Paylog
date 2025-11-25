@@ -3,6 +3,7 @@
  *
  * Hierarchical dropdown menu for creating new records.
  * Features three expandable sections: Invoice, Masterdata, and User.
+ * Respects user's invoice creation mode preference (page vs panel).
  */
 
 'use client';
@@ -27,6 +28,9 @@ import {
   ChevronRight,
   Plus,
 } from 'lucide-react';
+import { usePanel } from '@/hooks/use-panel';
+import { useUIVersion } from '@/lib/stores/ui-version-store';
+import { PANEL_WIDTH } from '@/types/panel';
 
 interface NavbarPlusMenuProps {
   /** Optional callback when menu item is clicked */
@@ -70,10 +74,12 @@ export function NavbarPlusMenu({ onItemClick }: NavbarPlusMenuProps) {
   console.log('[NavbarPlusMenu] Function called - component is rendering');
 
   const router = useRouter();
+  const { openPanel } = usePanel();
+  const { invoiceCreationMode } = useUIVersion();
   const [open, setOpen] = React.useState(false);
   const [mounted, setMounted] = React.useState(false);
 
-  console.log('[NavbarPlusMenu] State initialized - mounted:', mounted, 'open:', open);
+  console.log('[NavbarPlusMenu] State initialized - mounted:', mounted, 'open:', open, 'invoiceCreationMode:', invoiceCreationMode);
 
   // Prevent hydration issues
   React.useEffect(() => {
@@ -88,6 +94,23 @@ export function NavbarPlusMenu({ onItemClick }: NavbarPlusMenuProps) {
 
   const handleItemClick = (route: string) => {
     console.log('[NavbarPlusMenu] Item clicked:', route);
+
+    // Check if this is an invoice creation route and user prefers panel mode
+    if (invoiceCreationMode === 'panel') {
+      if (route === '/invoices/new/recurring') {
+        console.log('[NavbarPlusMenu] Opening recurring invoice panel');
+        openPanel('invoice-create-recurring', {}, { width: PANEL_WIDTH.LARGE });
+        setOpen(false);
+        return;
+      }
+      if (route === '/invoices/new/non-recurring') {
+        console.log('[NavbarPlusMenu] Opening non-recurring invoice panel');
+        openPanel('invoice-create-non-recurring', {}, { width: PANEL_WIDTH.LARGE });
+        setOpen(false);
+        return;
+      }
+    }
+
     if (onItemClick) {
       onItemClick(route);
     } else {
