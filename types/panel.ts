@@ -175,17 +175,17 @@ export const PANEL_WIDTHS = {
 
 /**
  * Standardized panel width tiers
- * - SMALL (400px): Read-only detail views, quick info, summaries
- * - MEDIUM (550px): Forms, editing, moderate complexity
- * - LARGE (750px): Complex forms, invoice creation, multi-section content
+ * - SMALL (500px): Read-only detail views, quick info, summaries
+ * - MEDIUM (650px): Forms, editing, moderate complexity
+ * - LARGE (800px): Complex forms, invoice creation, multi-section content
  */
 export const PANEL_WIDTH = {
-  /** 400px - Detail views, read-only summaries */
-  SMALL: 400,
-  /** 550px - Forms, editing panels */
-  MEDIUM: 550,
-  /** 750px - Complex forms, multi-section content */
-  LARGE: 750,
+  /** 500px - Detail views, read-only summaries */
+  SMALL: 500,
+  /** 650px - Forms, editing panels */
+  MEDIUM: 650,
+  /** 800px - Complex forms, multi-section content */
+  LARGE: 800,
 } as const;
 
 export type PanelWidthTier = (typeof PANEL_WIDTH)[keyof typeof PANEL_WIDTH];
