@@ -930,6 +930,9 @@ type InvoiceProfileWithRelations = {
   category_id: number;
   currency_id: number;
   prepaid_postpaid: string | null;
+  billing_frequency: string | null;
+  billing_frequency_unit: string | null;
+  billing_frequency_value: number | null;
   tds_applicable: boolean;
   tds_percentage: number | null;
   visible_to_all: boolean;
@@ -1056,6 +1059,9 @@ export async function getInvoiceProfiles(
       category_id: p.category_id,
       currency_id: p.currency_id,
       prepaid_postpaid: p.prepaid_postpaid,
+      billing_frequency: p.billing_frequency,
+      billing_frequency_unit: p.billing_frequency_unit,
+      billing_frequency_value: p.billing_frequency_value,
       tds_applicable: p.tds_applicable,
       tds_percentage: p.tds_percentage,
       visible_to_all: p.visible_to_all,
@@ -1147,6 +1153,9 @@ export async function createInvoiceProfile(
         category_id: validated.category_id,
         currency_id: validated.currency_id,
         prepaid_postpaid: validated.prepaid_postpaid || null,
+        billing_frequency: validated.billing_frequency,
+        billing_frequency_unit: validated.billing_frequency_unit || null,
+        billing_frequency_value: validated.billing_frequency_value || null,
         tds_applicable: validated.tds_applicable ?? false,
         tds_percentage: validated.tds_percentage || null,
         visible_to_all: true, // Default to visible to all users
@@ -1184,6 +1193,9 @@ export async function createInvoiceProfile(
         category_id: profile.category_id,
         currency_id: profile.currency_id,
         prepaid_postpaid: profile.prepaid_postpaid,
+        billing_frequency: profile.billing_frequency,
+        billing_frequency_unit: profile.billing_frequency_unit,
+        billing_frequency_value: profile.billing_frequency_value,
         tds_applicable: profile.tds_applicable,
         tds_percentage: profile.tds_percentage,
         visible_to_all: profile.visible_to_all,
@@ -1279,6 +1291,9 @@ export async function updateInvoiceProfile(
         category_id: validated.category_id,
         currency_id: validated.currency_id,
         prepaid_postpaid: validated.prepaid_postpaid || null,
+        billing_frequency: validated.billing_frequency,
+        billing_frequency_unit: validated.billing_frequency_unit || null,
+        billing_frequency_value: validated.billing_frequency_value || null,
         tds_applicable: validated.tds_applicable ?? false,
         tds_percentage: validated.tds_percentage || null,
       },
@@ -1315,6 +1330,9 @@ export async function updateInvoiceProfile(
         category_id: profile.category_id,
         currency_id: profile.currency_id,
         prepaid_postpaid: profile.prepaid_postpaid,
+        billing_frequency: profile.billing_frequency,
+        billing_frequency_unit: profile.billing_frequency_unit,
+        billing_frequency_value: profile.billing_frequency_value,
         tds_applicable: profile.tds_applicable,
         tds_percentage: profile.tds_percentage,
         visible_to_all: profile.visible_to_all,
@@ -1458,6 +1476,9 @@ export async function restoreInvoiceProfile(
         category_id: updated.category_id,
         currency_id: updated.currency_id,
         prepaid_postpaid: updated.prepaid_postpaid,
+        billing_frequency: updated.billing_frequency,
+        billing_frequency_unit: updated.billing_frequency_unit,
+        billing_frequency_value: updated.billing_frequency_value,
         tds_applicable: updated.tds_applicable,
         tds_percentage: updated.tds_percentage,
         visible_to_all: updated.visible_to_all,

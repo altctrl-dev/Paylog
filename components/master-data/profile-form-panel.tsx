@@ -80,6 +80,9 @@ export function ProfileFormPanel({
       category_id: 0,
       currency_id: 0,
       prepaid_postpaid: undefined,
+      billing_frequency: undefined,
+      billing_frequency_unit: undefined,
+      billing_frequency_value: undefined,
       tds_applicable: false,
       tds_percentage: undefined,
       visible_to_all: true,
@@ -136,6 +139,9 @@ export function ProfileFormPanel({
             category_id: profile.category_id,
             currency_id: profile.currency_id,
             prepaid_postpaid: (profile.prepaid_postpaid as 'prepaid' | 'postpaid' | undefined) || undefined,
+            billing_frequency: (profile.billing_frequency as 'monthly' | 'quarterly' | 'annual' | 'custom' | undefined) || undefined,
+            billing_frequency_unit: (profile.billing_frequency_unit as 'days' | 'months' | undefined) || undefined,
+            billing_frequency_value: profile.billing_frequency_value || undefined,
             tds_applicable: profile.tds_applicable,
             tds_percentage: profile.tds_percentage || undefined,
             visible_to_all: profile.visible_to_all ?? true,
@@ -215,6 +221,7 @@ export function ProfileFormPanel({
   };
 
   const tdsApplicable = watch('tds_applicable');
+  const billingFrequency = watch('billing_frequency');
 
   // Check if required master data is missing
   const hasMissingMasterData =
@@ -410,6 +417,82 @@ export function ProfileFormPanel({
               <p className="text-xs text-destructive">{errors.currency_id.message}</p>
             )}
           </div>
+
+          {/* Billing Frequency */}
+          <div>
+            <Label htmlFor="billing_frequency">
+              Billing Frequency <span className="text-destructive">*</span>
+            </Label>
+            <Select
+              id="billing_frequency"
+              {...register('billing_frequency')}
+              className={errors.billing_frequency ? 'border-destructive' : ''}
+              onChange={(e) => {
+                const value = e.target.value as 'monthly' | 'quarterly' | 'annual' | 'custom' | '';
+                if (value === '') {
+                  // Clear all billing frequency fields when unselected
+                  setValue('billing_frequency', undefined as unknown as 'monthly' | 'quarterly' | 'annual' | 'custom');
+                  setValue('billing_frequency_unit', undefined);
+                  setValue('billing_frequency_value', undefined);
+                } else {
+                  setValue('billing_frequency', value);
+                  // Clear custom fields when switching away from "custom"
+                  if (value !== 'custom') {
+                    setValue('billing_frequency_unit', undefined);
+                    setValue('billing_frequency_value', undefined);
+                  }
+                }
+              }}
+            >
+              <option value="">Select frequency</option>
+              <option value="monthly">Monthly</option>
+              <option value="quarterly">Quarterly</option>
+              <option value="annual">Annual</option>
+              <option value="custom">Custom</option>
+            </Select>
+            {errors.billing_frequency && (
+              <p className="text-xs text-destructive">{errors.billing_frequency.message}</p>
+            )}
+          </div>
+
+          {/* Custom Frequency Options (conditional) */}
+          {billingFrequency === 'custom' && (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="billing_frequency_value">
+                  Every <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="billing_frequency_value"
+                  type="number"
+                  min="1"
+                  {...register('billing_frequency_value', { valueAsNumber: true })}
+                  placeholder="e.g., 30"
+                  onWheel={(e) => e.currentTarget.blur()}
+                  className={errors.billing_frequency_value ? 'border-destructive' : ''}
+                />
+              </div>
+              <div>
+                <Label htmlFor="billing_frequency_unit">
+                  Unit <span className="text-destructive">*</span>
+                </Label>
+                <Select
+                  id="billing_frequency_unit"
+                  {...register('billing_frequency_unit')}
+                  className={errors.billing_frequency_unit ? 'border-destructive' : ''}
+                >
+                  <option value="">Select</option>
+                  <option value="days">Days</option>
+                  <option value="months">Months</option>
+                </Select>
+              </div>
+              {(errors.billing_frequency_value || errors.billing_frequency_unit) && (
+                <p className="col-span-2 text-xs text-destructive">
+                  {errors.billing_frequency_value?.message || errors.billing_frequency_unit?.message || 'Custom frequency requires unit and value'}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Prepaid/Postpaid */}
           <div>

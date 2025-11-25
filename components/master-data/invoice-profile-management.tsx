@@ -32,6 +32,9 @@ type InvoiceProfile = {
   category_id: number;
   currency_id: number;
   prepaid_postpaid: string | null;
+  billing_frequency: string | null;
+  billing_frequency_unit: string | null;
+  billing_frequency_value: number | null;
   tds_applicable: boolean;
   tds_percentage: number | null;
   visible_to_all: boolean;
@@ -223,6 +226,14 @@ function ProfileTable({ profiles, onEdit, onDelete, onView }: ProfileTableProps)
     return `${profile.tds_percentage || 0}%`;
   };
 
+  const formatBillingFrequency = (profile: InvoiceProfile) => {
+    if (!profile.billing_frequency) return '-';
+    if (profile.billing_frequency === 'custom') {
+      return `Every ${profile.billing_frequency_value} ${profile.billing_frequency_unit}`;
+    }
+    return profile.billing_frequency.charAt(0).toUpperCase() + profile.billing_frequency.slice(1);
+  };
+
   return (
     <div className="overflow-x-auto rounded-lg border">
       <table className="w-full border-collapse">
@@ -233,6 +244,7 @@ function ProfileTable({ profiles, onEdit, onDelete, onView }: ProfileTableProps)
             <th className="p-3 text-left text-sm font-semibold">Vendor</th>
             <th className="p-3 text-left text-sm font-semibold">Category</th>
             <th className="p-3 text-center text-sm font-semibold">Currency</th>
+            <th className="p-3 text-center text-sm font-semibold">Billing</th>
             <th className="p-3 text-center text-sm font-semibold">TDS</th>
             <th className="p-3 text-right text-sm font-semibold">Actions</th>
           </tr>
@@ -256,6 +268,7 @@ function ProfileTable({ profiles, onEdit, onDelete, onView }: ProfileTableProps)
               <td className="p-3 text-sm">{profile.vendor.name}</td>
               <td className="p-3 text-sm">{profile.category.name}</td>
               <td className="p-3 text-center text-sm font-mono">{profile.currency.code}</td>
+              <td className="p-3 text-center text-sm">{formatBillingFrequency(profile)}</td>
               <td className="p-3 text-center text-sm">{formatTDS(profile)}</td>
               <td className="p-3 text-right">
                 <div className="flex items-center justify-end gap-2">

@@ -175,6 +175,11 @@ export const invoiceProfileFormSchema = z
         errorMap: () => ({ message: 'Must be either "prepaid" or "postpaid"' }),
       })
       .optional(),
+    billing_frequency: z.enum(['monthly', 'quarterly', 'annual', 'custom'], {
+      errorMap: () => ({ message: 'Billing frequency is required' }),
+    }),
+    billing_frequency_unit: z.enum(['days', 'months']).optional(),
+    billing_frequency_value: z.number().int().positive().optional(),
     tds_applicable: z.boolean(),
     tds_percentage: z
       .number()
@@ -207,6 +212,19 @@ export const invoiceProfileFormSchema = z
     {
       message: 'TDS percentage should not be set when TDS is not applicable',
       path: ['tds_percentage'],
+    }
+  )
+  .refine(
+    (data) => {
+      // If custom frequency, unit and value are required
+      if (data.billing_frequency === 'custom') {
+        return !!data.billing_frequency_unit && !!data.billing_frequency_value;
+      }
+      return true;
+    },
+    {
+      message: 'Custom frequency requires unit and value',
+      path: ['billing_frequency_value'],
     }
   );
 

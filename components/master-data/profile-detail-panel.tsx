@@ -35,6 +35,9 @@ type Profile = {
   category: { name: string };
   currency: { code: string; name: string };
   prepaid_postpaid: string | null;
+  billing_frequency: string | null;
+  billing_frequency_unit: string | null;
+  billing_frequency_value: number | null;
   tds_applicable: boolean;
   tds_percentage: number | null;
   visible_to_all: boolean;
@@ -249,6 +252,20 @@ export function ProfileDetailPanel({
           </label>
           <p className="mt-1 text-sm font-medium">
             {profile.currency.code} - {profile.currency.name}
+          </p>
+        </div>
+
+        {/* Billing Frequency */}
+        <div>
+          <label className="text-xs font-medium text-muted-foreground">
+            Billing Frequency
+          </label>
+          <p className="mt-1 text-sm font-medium">
+            {profile.billing_frequency === 'custom'
+              ? `Every ${profile.billing_frequency_value} ${profile.billing_frequency_unit}`
+              : profile.billing_frequency
+                ? profile.billing_frequency.charAt(0).toUpperCase() + profile.billing_frequency.slice(1)
+                : '-'}
           </p>
         </div>
 
