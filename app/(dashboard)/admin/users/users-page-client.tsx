@@ -8,6 +8,7 @@ import { PasswordResetDialog } from '@/components/users/password-reset-dialog';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { usePanel } from '@/hooks/use-panel';
+import { PANEL_WIDTH } from '@/types/panel';
 
 /**
  * Users Page Client Component
@@ -72,7 +73,7 @@ export function UsersPageClient({ initialUsers }: UsersPageClientProps) {
           handleRefreshData();
         },
       },
-      { width: 500 }
+      { width: PANEL_WIDTH.MEDIUM }
     );
   };
 
@@ -102,7 +103,7 @@ export function UsersPageClient({ initialUsers }: UsersPageClientProps) {
         },
         onRefresh: handleRefreshData,
       },
-      { width: 350 }
+      { width: PANEL_WIDTH.SMALL }
     );
   };
 
@@ -120,7 +121,7 @@ export function UsersPageClient({ initialUsers }: UsersPageClientProps) {
           handleRefreshData();
         },
       },
-      { width: 500 }
+      { width: PANEL_WIDTH.MEDIUM }
     );
   };
 

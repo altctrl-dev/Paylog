@@ -27,6 +27,7 @@ import {
   type MasterDataEntityType,
 } from '@/app/actions/master-data-requests';
 import type { PanelConfig } from '@/types/panel';
+import { PANEL_WIDTH } from '@/types/panel';
 
 interface MasterDataRequestDetailPanelProps {
   config: PanelConfig;
@@ -197,7 +198,7 @@ export function MasterDataRequestDetailPanel({
         isResubmit: true,
         originalRequestId: requestId,
       },
-      { width: 600 }
+      { width: PANEL_WIDTH.MEDIUM }
     );
   };
 
@@ -212,7 +213,7 @@ export function MasterDataRequestDetailPanel({
         requestId: requestId,
         isEdit: true,
       },
-      { width: 600 }
+      { width: PANEL_WIDTH.MEDIUM }
     );
   };
 

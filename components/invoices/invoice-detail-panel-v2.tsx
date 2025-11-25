@@ -32,6 +32,7 @@ import { formatCurrency, formatFileSize } from '@/lib/utils/format';
 import { INVOICE_STATUS_CONFIG, INVOICE_STATUS } from '@/types/invoice';
 import { VENDOR_STATUS_CONFIG } from '@/types/vendor';
 import type { PanelConfig } from '@/types/panel';
+import { PANEL_WIDTH } from '@/types/panel';
 
 interface InvoiceDetailPanelV2Props {
   config: PanelConfig;
@@ -68,15 +69,15 @@ export function InvoiceDetailPanelV2({ config, onClose, invoiceId, userRole, use
 
     if (invoice.is_recurring) {
       // Open recurring invoice edit panel
-      openPanel('invoice-edit-recurring-v2', { invoiceId: invoice.id }, { width: 700 });
+      openPanel('invoice-edit-recurring-v2', { invoiceId: invoice.id }, { width: PANEL_WIDTH.LARGE });
     } else {
       // Open non-recurring invoice edit panel
-      openPanel('invoice-edit-non-recurring-v2', { invoiceId: invoice.id }, { width: 700 });
+      openPanel('invoice-edit-non-recurring-v2', { invoiceId: invoice.id }, { width: PANEL_WIDTH.LARGE });
     }
   };
 
   const handlePutOnHold = () => {
-    openPanel('invoice-hold', { invoiceId }, { width: 500 });
+    openPanel('invoice-hold', { invoiceId }, { width: PANEL_WIDTH.MEDIUM });
   };
 
   const handleRejectConfirm = () => {

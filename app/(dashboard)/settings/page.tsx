@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { usePanel } from '@/hooks/use-panel';
 import { useUIVersion } from '@/lib/stores/ui-version-store';
+import { PANEL_WIDTH } from '@/types/panel';
 import {
   getUserRequests,
   type MasterDataRequestWithDetails,
@@ -58,11 +59,11 @@ export default function SettingsPage() {
   };
 
   const handleNewRequest = (entityType: MasterDataEntityType) => {
-    openPanel('master-data-request-form', { entityType }, { width: 600 });
+    openPanel('master-data-request-form', { entityType }, { width: PANEL_WIDTH.MEDIUM });
   };
 
   const handleViewRequest = (request: MasterDataRequestWithDetails) => {
-    openPanel('master-data-request-detail', { requestId: request.id }, { width: 600 });
+    openPanel('master-data-request-detail', { requestId: request.id }, { width: PANEL_WIDTH.MEDIUM });
   };
 
   const getStatusBadge = (status: string) => {

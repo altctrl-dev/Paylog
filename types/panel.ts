@@ -164,13 +164,31 @@ export const PANEL_Z_INDEX = {
 } as const;
 
 /**
- * Default panel widths by level
+ * Default panel widths by level (legacy - use PANEL_WIDTH instead)
+ * @deprecated Use PANEL_WIDTH.SMALL/MEDIUM/LARGE instead
  */
 export const PANEL_WIDTHS = {
   LEVEL_1: 350,
   LEVEL_2: 700,
   LEVEL_3: 500,
 } as const;
+
+/**
+ * Standardized panel width tiers
+ * - SMALL (400px): Read-only detail views, quick info, summaries
+ * - MEDIUM (550px): Forms, editing, moderate complexity
+ * - LARGE (750px): Complex forms, invoice creation, multi-section content
+ */
+export const PANEL_WIDTH = {
+  /** 400px - Detail views, read-only summaries */
+  SMALL: 400,
+  /** 550px - Forms, editing panels */
+  MEDIUM: 550,
+  /** 750px - Complex forms, multi-section content */
+  LARGE: 750,
+} as const;
+
+export type PanelWidthTier = (typeof PANEL_WIDTH)[keyof typeof PANEL_WIDTH];
 
 /**
  * Maximum number of panels that can be open simultaneously

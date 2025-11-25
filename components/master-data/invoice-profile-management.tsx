@@ -16,6 +16,7 @@ import {
 } from '@/app/actions/master-data';
 import { useToast } from '@/hooks/use-toast';
 import { usePanel } from '@/hooks/use-panel';
+import { PANEL_WIDTH } from '@/types/panel';
 
 // ============================================================================
 // TYPES
@@ -127,7 +128,7 @@ export default function InvoiceProfileManagement() {
           loadProfiles();
         },
       },
-      { width: 350 }
+      { width: PANEL_WIDTH.SMALL }
     );
   };
 
@@ -145,7 +146,7 @@ export default function InvoiceProfileManagement() {
           loadProfiles(); // Refresh list (and detail panel if open)
         },
       },
-      { width: 500 }
+      { width: PANEL_WIDTH.MEDIUM }
     );
   };
 
@@ -159,7 +160,7 @@ export default function InvoiceProfileManagement() {
           loadProfiles();
         },
       },
-      { width: 500 }
+      { width: PANEL_WIDTH.MEDIUM }
     );
   };
 

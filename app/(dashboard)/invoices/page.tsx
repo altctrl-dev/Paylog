@@ -17,6 +17,7 @@ import { FilterBar } from '@/components/invoices/filters/filter-bar';
 import { useUrlFilters } from '@/hooks/use-url-filters';
 import type { InvoiceWithRelations } from '@/types/invoice';
 import { useSession } from 'next-auth/react';
+import { PANEL_WIDTH } from '@/types/panel';
 
 export default function InvoicesPage() {
   const { openPanel } = usePanel();
@@ -37,7 +38,7 @@ export default function InvoicesPage() {
   const { data, isLoading, error } = useInvoices(filters);
 
   const handleNewInvoice = () => {
-    openPanel('invoice-create', {}, { width: 700 });
+    openPanel('invoice-create', {}, { width: PANEL_WIDTH.LARGE });
   };
 
   const handleRowClick = (invoice: InvoiceWithRelations) => {
@@ -58,11 +59,11 @@ export default function InvoicesPage() {
     if (isV2Invoice) {
       // Open V2 detail panel (wider for more content)
       console.log('[InvoicesPage] Opening invoice-v2-detail panel for invoice:', invoice.id);
-      openPanel('invoice-v2-detail', { invoiceId: invoice.id }, { width: 800 });
+      openPanel('invoice-v2-detail', { invoiceId: invoice.id }, { width: PANEL_WIDTH.LARGE });
     } else {
       // Open V1 detail panel (legacy)
       console.log('[InvoicesPage] Opening invoice-detail panel for invoice:', invoice.id);
-      openPanel('invoice-detail', { invoiceId: invoice.id }, { width: 350 });
+      openPanel('invoice-detail', { invoiceId: invoice.id }, { width: PANEL_WIDTH.SMALL });
     }
   };
 

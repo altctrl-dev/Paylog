@@ -20,6 +20,7 @@ import { PaymentHistoryList } from '@/components/payments/payment-history-list';
 import { CommentList } from '@/components/comments/comment-list';
 import { ActivityLogViewer } from '@/components/activity-log/activity-log-viewer';
 import type { PanelConfig } from '@/types/panel';
+import { PANEL_WIDTH } from '@/types/panel';
 import { INVOICE_STATUS } from '@/types/invoice';
 
 interface InvoiceDetailPanelProps {
@@ -73,12 +74,12 @@ export function InvoiceDetailPanel({
 
   const handleOpenEdit = React.useCallback(() => {
     console.log('[InvoiceDetailPanel] Opening edit panel for invoice', invoiceId);
-    openPanel('invoice-edit', { invoiceId }, { width: 700 });
+    openPanel('invoice-edit', { invoiceId }, { width: PANEL_WIDTH.LARGE });
   }, [openPanel, invoiceId]);
 
   const handleOpenHold = React.useCallback(() => {
     console.log('[InvoiceDetailPanel] Opening hold panel for invoice', invoiceId);
-    openPanel('invoice-hold', { invoiceId }, { width: 500 });
+    openPanel('invoice-hold', { invoiceId }, { width: PANEL_WIDTH.MEDIUM });
   }, [openPanel, invoiceId]);
 
   const handleOpenPayment = React.useCallback(() => {
@@ -109,7 +110,7 @@ export function InvoiceDetailPanel({
         invoiceAmount: invoice.invoice_amount,
         remainingBalance,
       },
-      { width: 600 }
+      { width: PANEL_WIDTH.MEDIUM }
     );
   }, [openPanel, invoiceId, invoice, paymentSummary]);
 
@@ -119,7 +120,7 @@ export function InvoiceDetailPanel({
       console.error('[InvoiceDetailPanel] Cannot open reject panel: invoice is null');
       return;
     }
-    openPanel('invoice-reject', { invoiceId, invoiceNumber: invoice.invoice_number }, { width: 500 });
+    openPanel('invoice-reject', { invoiceId, invoiceNumber: invoice.invoice_number }, { width: PANEL_WIDTH.MEDIUM });
   }, [openPanel, invoiceId, invoice]);
 
   const handleApprove = React.useCallback(() => {
