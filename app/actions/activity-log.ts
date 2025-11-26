@@ -336,6 +336,97 @@ export async function exportActivityLog(
 }
 
 /**
+ * Get activities for the current user across all invoices
+ * Used in Settings > Activities tab
+ *
+ * @param filters - Optional filters (pagination, action type, date range)
+ * @returns Paginated activity log entries for the current user
+ */
+export async function getUserActivities(
+  filters?: ActivityLogFilters
+): Promise<ServerActionResult<ActivityLogListResponse>> {
+  try {
+    // 1. Authenticate user
+    const user = await getCurrentUser();
+
+    // 2. Build query filters
+    const page = filters?.page || 1;
+    const perPage = Math.min(filters?.perPage || DEFAULT_PER_PAGE, MAX_PER_PAGE);
+    const skip = (page - 1) * perPage;
+
+    // Build where clause - get activities BY this user OR ON this user's invoices
+    const whereClause: Prisma.ActivityLogWhereInput = {
+      OR: [
+        // Activities performed BY the user
+        { user_id: user.id },
+        // Activities on invoices CREATED BY the user (for visibility)
+        {
+          invoice: {
+            created_by: user.id,
+            is_hidden: false,
+          },
+        },
+      ],
+      // Apply optional filters
+      ...(filters?.action && { action: filters.action }),
+      ...(filters?.startDate && {
+        created_at: { gte: filters.startDate },
+      }),
+      ...(filters?.endDate && {
+        created_at: { lte: filters.endDate },
+      }),
+    };
+
+    // 3. Query activity logs with pagination
+    const [entries, total] = await Promise.all([
+      db.activityLog.findMany({
+        where: whereClause,
+        include: {
+          invoice: {
+            select: {
+              id: true,
+              invoice_number: true,
+            },
+          },
+          user: {
+            select: {
+              id: true,
+              full_name: true,
+              email: true,
+            },
+          },
+        },
+        orderBy: {
+          created_at: 'desc',
+        },
+        skip,
+        take: perPage,
+      }),
+      db.activityLog.count({ where: whereClause }),
+    ]);
+
+    return {
+      success: true,
+      data: {
+        entries: entries as ActivityLogWithRelations[],
+        pagination: {
+          page,
+          perPage,
+          total,
+          totalPages: Math.ceil(total / perPage),
+        },
+      },
+    };
+  } catch (error) {
+    console.error('[Activity Log] getUserActivities error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to fetch user activities',
+    };
+  }
+}
+
+/**
  * Get activity log statistics for an invoice
  * Returns summary of actions and recent activity
  *

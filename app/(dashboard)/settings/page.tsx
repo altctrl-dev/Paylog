@@ -20,11 +20,12 @@ import {
   type MasterDataRequestWithDetails,
   type MasterDataEntityType,
 } from '@/app/actions/master-data-requests';
+import { ActivitiesTab } from './components/activities-tab';
 
 export default function SettingsPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const activeTab = (searchParams.get('tab') as 'profile' | 'requests') || 'profile';
+  const activeTab = (searchParams.get('tab') as 'profile' | 'requests' | 'activities') || 'profile';
   const [requests, setRequests] = React.useState<MasterDataRequestWithDetails[]>([]);
   const [isLoading, setIsLoading] = React.useState(false);
   const [filter, setFilter] = React.useState<MasterDataEntityType | 'all'>('all');
@@ -54,7 +55,7 @@ export default function SettingsPage() {
     }
   }, [activeTab, loadRequests]);
 
-  const handleTabChange = (tab: 'profile' | 'requests') => {
+  const handleTabChange = (tab: 'profile' | 'requests' | 'activities') => {
     router.push(`/settings?tab=${tab}`);
   };
 
@@ -146,6 +147,19 @@ export default function SettingsPage() {
                 {pendingCount}
               </span>
             )}
+          </button>
+          <button
+            onClick={() => handleTabChange('activities')}
+            className={`
+              whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium
+              ${
+                activeTab === 'activities'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+              }
+            `}
+          >
+            Activities
           </button>
         </nav>
       </div>
@@ -309,6 +323,9 @@ export default function SettingsPage() {
           )}
         </div>
       )}
+
+      {/* Activities Tab */}
+      {activeTab === 'activities' && <ActivitiesTab />}
     </div>
   );
 }
