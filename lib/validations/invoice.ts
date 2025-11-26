@@ -169,6 +169,10 @@ export const invoiceFiltersSchema = z
     vendor_id: z.number().int().positive().optional(),
     category_id: z.number().int().positive().optional(),
     profile_id: z.number().int().positive().optional(),
+    // Tab-specific filters (Sprint 14 - Invoice Tabs)
+    is_recurring: z.boolean().optional(),
+    tds_applicable: z.boolean().optional(),
+    invoice_profile_id: z.number().int().positive().optional(),
     // Date range filters for invoice_date
     start_date: z.date().optional(),
     end_date: z.date().optional(),

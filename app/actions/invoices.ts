@@ -271,6 +271,19 @@ export async function getInvoices(
       where.profile_id = validated.profile_id;
     }
 
+    // Tab-specific filters (Sprint 14 - Invoice Tabs)
+    if (validated.is_recurring !== undefined) {
+      where.is_recurring = validated.is_recurring;
+    }
+
+    if (validated.tds_applicable !== undefined) {
+      where.tds_applicable = validated.tds_applicable;
+    }
+
+    if (validated.invoice_profile_id) {
+      where.invoice_profile_id = validated.invoice_profile_id;
+    }
+
     // Date range filter for invoice_date
     if (validated.start_date || validated.end_date) {
       where.invoice_date = {};

@@ -218,6 +218,10 @@ export interface InvoiceFilters {
   vendor_id?: number;
   category_id?: number;
   profile_id?: number;
+  // Tab-specific filters (Sprint 14 - Invoice Tabs)
+  is_recurring?: boolean;
+  tds_applicable?: boolean;
+  invoice_profile_id?: number;
   start_date?: Date;
   end_date?: Date;
   sort_by?: 'invoice_date' | 'due_date' | 'invoice_amount' | 'status' | 'created_at';
