@@ -1,7 +1,7 @@
 /**
  * Settings Page
  *
- * User settings with Master Data Requests tab.
+ * User settings with Profile, Security, My Requests, and Activities tabs.
  */
 
 'use client';
@@ -10,27 +10,35 @@ import * as React from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { usePanel } from '@/hooks/use-panel';
-import { useUIVersion } from '@/lib/stores/ui-version-store';
 import { PANEL_WIDTH } from '@/types/panel';
 import {
   getUserRequests,
   type MasterDataRequestWithDetails,
   type MasterDataEntityType,
 } from '@/app/actions/master-data-requests';
+import { ProfileTab } from './components/profile-tab';
+import { SecurityTab } from './components/security-tab';
 import { ActivitiesTab } from './components/activities-tab';
+import { User, Shield, FileText, Activity } from 'lucide-react';
+
+type SettingsTab = 'profile' | 'security' | 'requests' | 'activities';
+
+const TABS: { id: SettingsTab; label: string; icon: React.ReactNode }[] = [
+  { id: 'profile', label: 'Profile', icon: <User className="h-4 w-4" /> },
+  { id: 'security', label: 'Security', icon: <Shield className="h-4 w-4" /> },
+  { id: 'requests', label: 'My Requests', icon: <FileText className="h-4 w-4" /> },
+  { id: 'activities', label: 'Activities', icon: <Activity className="h-4 w-4" /> },
+];
 
 export default function SettingsPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const activeTab = (searchParams.get('tab') as 'profile' | 'requests' | 'activities') || 'profile';
+  const activeTab = (searchParams.get('tab') as SettingsTab) || 'profile';
   const [requests, setRequests] = React.useState<MasterDataRequestWithDetails[]>([]);
   const [isLoading, setIsLoading] = React.useState(false);
   const [filter, setFilter] = React.useState<MasterDataEntityType | 'all'>('all');
   const { openPanel } = usePanel();
-  const { version, setVersion, invoiceCreationMode, setInvoiceCreationMode } = useUIVersion();
 
   const loadRequests = React.useCallback(async () => {
     setIsLoading(true);
@@ -55,7 +63,7 @@ export default function SettingsPage() {
     }
   }, [activeTab, loadRequests]);
 
-  const handleTabChange = (tab: 'profile' | 'requests' | 'activities') => {
+  const handleTabChange = (tab: SettingsTab) => {
     router.push(`/settings?tab=${tab}`);
   };
 
@@ -110,119 +118,44 @@ export default function SettingsPage() {
       <div>
         <h1 className="text-3xl font-bold">Settings</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Manage your account settings and data requests
+          Manage your account settings and preferences
         </p>
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-gray-200">
+      <div className="border-b border-border">
         <nav className="-mb-px flex space-x-8">
-          <button
-            onClick={() => handleTabChange('profile')}
-            className={`
-              whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium
-              ${
-                activeTab === 'profile'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-              }
-            `}
-          >
-            Profile
-          </button>
-          <button
-            onClick={() => handleTabChange('requests')}
-            className={`
-              whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium flex items-center gap-2
-              ${
-                activeTab === 'requests'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-              }
-            `}
-          >
-            My Requests
-            {pendingCount > 0 && (
-              <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-amber-500 rounded-full">
-                {pendingCount}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => handleTabChange('activities')}
-            className={`
-              whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium
-              ${
-                activeTab === 'activities'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-              }
-            `}
-          >
-            Activities
-          </button>
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => handleTabChange(tab.id)}
+              className={`
+                whitespace-nowrap border-b-2 py-3 px-1 text-sm font-medium flex items-center gap-2
+                transition-colors duration-150
+                ${
+                  activeTab === tab.id
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:border-muted-foreground/50 hover:text-foreground'
+                }
+              `}
+            >
+              {tab.icon}
+              {tab.label}
+              {tab.id === 'requests' && pendingCount > 0 && (
+                <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-amber-500 rounded-full">
+                  {pendingCount}
+                </span>
+              )}
+            </button>
+          ))}
         </nav>
       </div>
 
       {/* Profile Tab */}
-      {activeTab === 'profile' && (
-        <div className="space-y-6">
-          <Card className="p-6">
-            <h2 className="text-xl font-semibold mb-4">User Profile</h2>
-            <p className="text-sm text-muted-foreground">
-              Profile settings coming soon...
-            </p>
-          </Card>
+      {activeTab === 'profile' && <ProfileTab />}
 
-          {/* Appearance Section */}
-          <Card className="p-6">
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-lg font-medium">Appearance</h3>
-                <p className="text-sm text-muted-foreground">
-                  Customize how PayLog looks and feels.
-                </p>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Modern UI (v2)</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Use the new modern interface with collapsible sidebar
-                  </p>
-                </div>
-                <Switch
-                  checked={version === 'v2'}
-                  onCheckedChange={(checked) => setVersion(checked ? 'v2' : 'v1')}
-                />
-              </div>
-            </div>
-          </Card>
-
-          {/* Invoice Creation Mode Section */}
-          <Card className="p-6">
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-lg font-medium">Invoice Creation</h3>
-                <p className="text-sm text-muted-foreground">
-                  Choose how you prefer to create new invoices.
-                </p>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Use Side Panel</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Create invoices in a side panel instead of navigating to a new page
-                  </p>
-                </div>
-                <Switch
-                  checked={invoiceCreationMode === 'panel'}
-                  onCheckedChange={(checked) => setInvoiceCreationMode(checked ? 'panel' : 'page')}
-                />
-              </div>
-            </div>
-          </Card>
-        </div>
-      )}
+      {/* Security Tab */}
+      {activeTab === 'security' && <SecurityTab />}
 
       {/* My Requests Tab */}
       {activeTab === 'requests' && (
@@ -235,7 +168,7 @@ export default function SettingsPage() {
                 <select
                   value={filter}
                   onChange={(e) => setFilter(e.target.value as MasterDataEntityType | 'all')}
-                  className="rounded border border-gray-300 px-3 py-1 text-sm"
+                  className="rounded border border-input bg-background px-3 py-1 text-sm"
                 >
                   <option value="all">All Types</option>
                   <option value="vendor">Vendors</option>
@@ -271,8 +204,10 @@ export default function SettingsPage() {
             </Card>
           ) : requests.length === 0 ? (
             <Card className="p-12 text-center">
-              <p className="text-muted-foreground mb-4">
-                No requests found. Request new master data using the buttons above.
+              <FileText className="mx-auto h-12 w-12 text-muted-foreground/50" />
+              <h3 className="mt-4 text-lg font-semibold">No requests found</h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Request new master data using the buttons above.
               </p>
             </Card>
           ) : (
@@ -280,14 +215,14 @@ export default function SettingsPage() {
               {requests.map((request) => (
                 <Card
                   key={request.id}
-                  className="p-4 hover:bg-gray-50 cursor-pointer transition-colors"
+                  className="p-4 hover:bg-muted/50 cursor-pointer transition-colors"
                   onClick={() => handleViewRequest(request)}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         {getStatusBadge(request.status)}
-                        <span className="text-sm font-medium text-gray-500">
+                        <span className="text-sm font-medium text-muted-foreground">
                           {getEntityTypeLabel(request.entity_type)}
                         </span>
                       </div>
