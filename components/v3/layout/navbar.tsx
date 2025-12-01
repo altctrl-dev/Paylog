@@ -40,7 +40,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { useUIVersion } from '@/lib/stores/ui-version-store';
-import { signOut } from 'next-auth/react';
+import { logout } from '@/lib/logout';
 import Link from 'next/link';
 
 // ============================================================================
@@ -228,7 +228,7 @@ function UserProfileMenu({ user }: UserProfileMenuProps) {
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          onClick={() => signOut({ callbackUrl: '/login' })}
+          onClick={() => logout()}
           className="text-destructive focus:text-destructive"
         >
           <LogOut className="mr-2 h-4 w-4" />

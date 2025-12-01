@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { signOut } from 'next-auth/react';
+import { logout } from '@/lib/logout';
 
 interface SidebarItem {
   name: string;
@@ -156,7 +156,7 @@ export function Sidebar({ collapsed, onToggle, user }: SidebarProps) {
           <Button
             variant="ghost"
             size={collapsed ? 'icon' : 'sm'}
-            onClick={() => signOut({ callbackUrl: '/login' })}
+            onClick={() => logout()}
             className={cn(
               'text-muted-foreground hover:text-destructive',
               collapsed ? 'h-9 w-9' : ''
