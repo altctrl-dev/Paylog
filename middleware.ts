@@ -4,6 +4,21 @@ import { NextResponse } from 'next/server';
 export default auth((req) => {
   const { pathname } = req.nextUrl;
 
+  // Check for session errors (user deleted/deactivated)
+  // The session callback sets error when JWT callback detects issues
+  const session = req.auth;
+  if (session?.error) {
+    // Clear the session by redirecting to login with error param
+    const url = new URL('/login', req.url);
+    url.searchParams.set('error', session.error === 'UserDeactivated' ? 'deactivated' : 'session_expired');
+
+    // Create response that clears auth cookies
+    const response = NextResponse.redirect(url);
+    response.cookies.delete('authjs.session-token');
+    response.cookies.delete('__Secure-authjs.session-token');
+    return response;
+  }
+
   // Protect /admin/* routes (admin + super_admin only)
   if (pathname.startsWith('/admin')) {
     const role = req.auth?.user?.role as string;

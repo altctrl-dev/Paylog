@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { LoginForm } from '@/components/auth/login-form';
 
 export default function LoginPage() {
@@ -10,7 +11,28 @@ export default function LoginPage() {
             Invoice Management System
           </p>
         </div>
-        <LoginForm />
+        <Suspense fallback={<LoginFormSkeleton />}>
+          <LoginForm />
+        </Suspense>
+      </div>
+    </div>
+  );
+}
+
+function LoginFormSkeleton() {
+  return (
+    <div className="animate-pulse space-y-4 rounded-lg border bg-card p-6">
+      <div className="h-6 w-24 bg-muted rounded" />
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <div className="h-4 w-16 bg-muted rounded" />
+          <div className="h-10 w-full bg-muted rounded" />
+        </div>
+        <div className="space-y-2">
+          <div className="h-4 w-20 bg-muted rounded" />
+          <div className="h-10 w-full bg-muted rounded" />
+        </div>
+        <div className="h-10 w-full bg-muted rounded" />
       </div>
     </div>
   );

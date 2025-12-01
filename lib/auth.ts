@@ -30,7 +30,13 @@ const loginSchema = z.object({
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(db),
-  session: { strategy: 'jwt' },
+  session: {
+    strategy: 'jwt',
+    // Session expires after 24 hours of inactivity
+    maxAge: 24 * 60 * 60, // 24 hours
+    // Session is refreshed every 1 hour if user is active
+    updateAge: 60 * 60, // 1 hour
+  },
   secret: process.env.NEXTAUTH_SECRET,
   trustHost: true, // Trust Railway proxy headers
   pages: {
@@ -75,16 +81,53 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ],
   callbacks: {
     async session({ session, token }) {
+      // If token has an error (user deleted/deactivated), return empty session
+      // This forces a re-login
+      if (token.error) {
+        return { ...session, user: undefined, error: token.error as string };
+      }
+
       if (session.user) {
         session.user.id = token.sub as string;
         session.user.role = token.role as string;
       }
       return session;
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
+      // Initial sign in - set role from user object
       if (user) {
         token.role = user.role;
+        token.email = user.email;
       }
+
+      // On every request, refresh user data from database to catch role/status changes
+      // This ensures role changes by admin take effect without requiring logout
+      if (token.sub && trigger !== 'signIn') {
+        try {
+          const dbUser = await db.user.findUnique({
+            where: { id: parseInt(token.sub, 10) },
+            select: { role: true, is_active: true, email: true, full_name: true },
+          });
+
+          if (!dbUser) {
+            // User was deleted - invalidate token
+            return { ...token, error: 'UserNotFound' };
+          }
+
+          if (!dbUser.is_active) {
+            // User was deactivated - invalidate token
+            return { ...token, error: 'UserDeactivated' };
+          }
+
+          // Update token with fresh data from database
+          token.role = dbUser.role;
+          token.email = dbUser.email;
+          token.name = dbUser.full_name;
+        } catch (error) {
+          console.error('Error refreshing user data in JWT callback:', error);
+        }
+      }
+
       return token;
     },
   },

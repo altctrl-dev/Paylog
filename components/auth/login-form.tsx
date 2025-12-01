@@ -1,17 +1,37 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle } from 'lucide-react';
+
+// Error messages for different session errors
+const ERROR_MESSAGES: Record<string, string> = {
+  deactivated: 'Your account has been deactivated. Please contact your administrator.',
+  session_expired: 'Your session has expired. Please sign in again.',
+  CredentialsSignin: 'Invalid email or password.',
+};
 
 export function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Check for error in URL params (from middleware redirect)
+  useEffect(() => {
+    const urlError = searchParams.get('error');
+    if (urlError && ERROR_MESSAGES[urlError]) {
+      setError(ERROR_MESSAGES[urlError]);
+      // Clear the URL param without navigation
+      window.history.replaceState({}, '', '/login');
+    }
+  }, [searchParams]);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -72,7 +92,10 @@ export function LoginForm() {
             />
           </div>
           {error && (
-            <p className="text-sm text-destructive">{error}</p>
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
           )}
           <Button type="submit" className="w-full" disabled={isLoading}>
             {isLoading ? 'Signing in...' : 'Sign In'}
