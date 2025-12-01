@@ -329,22 +329,6 @@ export default function CurrencyManagement() {
         </Button>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="rounded-lg border border-border bg-card p-4">
-          <div className="text-2xl font-bold">{currencies.length}</div>
-          <div className="text-sm text-muted-foreground">Total Currencies</div>
-        </div>
-        <div className="rounded-lg border border-border bg-card p-4">
-          <div className="text-2xl font-bold text-green-600">{activeCount}</div>
-          <div className="text-sm text-muted-foreground">Active</div>
-        </div>
-        <div className="rounded-lg border border-border bg-card p-4">
-          <div className="text-2xl font-bold text-gray-400">{archivedCount}</div>
-          <div className="text-sm text-muted-foreground">Archived</div>
-        </div>
-      </div>
-
       {/* Filters */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
         <div className="flex-1">
