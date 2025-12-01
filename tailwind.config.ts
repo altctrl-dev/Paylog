@@ -69,6 +69,10 @@ const config = {
         },
         "sidebar-border": "hsl(var(--sidebar-border))",
         "sidebar-muted": "hsl(var(--sidebar-muted))",
+        "sidebar-hover": "hsl(var(--sidebar-hover))",
+        "sidebar-hover-foreground": "hsl(var(--sidebar-hover-foreground))",
+        "sidebar-active": "hsl(var(--sidebar-active))",
+        "sidebar-active-foreground": "hsl(var(--sidebar-active-foreground))",
         navbar: {
           DEFAULT: "hsl(var(--navbar))",
           foreground: "hsl(var(--navbar-foreground))",
@@ -82,6 +86,23 @@ const config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // Modern theme status colors (v3)
+        "status-urgent": "hsl(var(--status-urgent))",
+        "status-warning": "hsl(var(--status-warning))",
+        "status-success": "hsl(var(--status-success))",
+        "status-info": "hsl(var(--status-info))",
+        "status-accent": "hsl(var(--status-accent))",
+      },
+      // Modern theme spacing for sidebar
+      spacing: {
+        "sidebar-expanded": "var(--sidebar-width-expanded)",
+        "sidebar-collapsed": "var(--sidebar-width-collapsed)",
+      },
+      // Modern theme transitions
+      transitionDuration: {
+        "theme": "var(--transition-theme)",
+        "sidebar": "var(--transition-sidebar)",
+        "hover": "var(--transition-hover)",
       },
       borderRadius: {
         lg: "var(--radius)",

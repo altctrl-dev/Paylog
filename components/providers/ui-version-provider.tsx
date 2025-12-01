@@ -1,9 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { useUIVersion } from '@/lib/stores/ui-version-store';
-
-type UIVersion = 'v1' | 'v2';
+import { useUIVersion, type UIVersion } from '@/lib/stores/ui-version-store';
 
 interface UIVersionContextValue {
   version: UIVersion;

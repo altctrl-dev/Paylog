@@ -132,6 +132,167 @@
     --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.4);
     --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.45), 0 8px 10px -6px rgb(0 0 0 / 0.45);
   }
+
+  /* ============================================================================
+     MODERN THEME (v3) - SaaS-Style Design
+     Dark-first design with smooth transitions and semantic status colors
+     ============================================================================ */
+
+  /* Modern Theme - Light Mode */
+  .theme-modern {
+    /* Core Colors - Light */
+    --background: 210 20% 98%;
+    --foreground: 222 47% 11%;
+    --surface: 0 0% 100%;
+    --surface-foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    /* Navbar - Light */
+    --navbar: 0 0% 100%;
+    --navbar-foreground: 222 47% 11%;
+    --navbar-border: 220 13% 91%;
+    --navbar-alpha: 0.85;
+
+    /* Sidebar - Light */
+    --sidebar: 210 20% 98%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-muted: 220 14% 96%;
+    --sidebar-hover: 220 14% 93%;
+    --sidebar-hover-foreground: 222 47% 11%;
+    --sidebar-active: 217 91% 95%;
+    --sidebar-active-foreground: 217 91% 45%;
+
+    /* Primary - Blue for active states */
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary */
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 222 47% 11%;
+
+    /* Muted */
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+
+    /* Accent - Purple for AI features */
+    --accent: 263 70% 95%;
+    --accent-foreground: 263 70% 50%;
+
+    /* Semantic Status Colors - Same in both themes */
+    --status-urgent: 0 100% 75%;
+    --status-warning: 27 96% 61%;
+    --status-success: 142 69% 58%;
+    --status-info: 217 91% 68%;
+    --status-accent: 263 70% 76%;
+
+    /* Borders & Inputs */
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 217 91% 60%;
+
+    /* Destructive */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Info/Warning/Success */
+    --info: 217 91% 60%;
+    --info-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --success: 142 72% 40%;
+    --success-foreground: 0 0% 100%;
+
+    /* Modern Layout Variables */
+    --sidebar-width-expanded: 256px;
+    --sidebar-width-collapsed: 64px;
+    --navbar-height: 64px;
+
+    /* Transition Durations */
+    --transition-theme: 500ms;
+    --transition-sidebar: 300ms;
+    --transition-hover: 150ms;
+    --transition-dropdown: 200ms;
+
+    /* Shadows - Light Mode */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --shadow-xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+  }
+
+  /* Modern Theme - Dark Mode (Default) */
+  .theme-modern.dark {
+    /* Core Colors - Dark */
+    --background: 224 71% 4%;
+    --foreground: 0 0% 100%;
+    --surface: 222 47% 11%;
+    --surface-foreground: 0 0% 100%;
+    --card: 222 47% 11%;
+    --card-foreground: 0 0% 100%;
+    --popover: 222 47% 11%;
+    --popover-foreground: 0 0% 100%;
+
+    /* Navbar - Dark */
+    --navbar: 222 47% 7%;
+    --navbar-foreground: 0 0% 100%;
+    --navbar-border: 217 19% 17%;
+    --navbar-alpha: 0.85;
+
+    /* Sidebar - Dark */
+    --sidebar: 224 71% 4%;
+    --sidebar-foreground: 210 20% 98%;
+    --sidebar-border: 217 19% 17%;
+    --sidebar-muted: 217 19% 17%;
+    --sidebar-hover: 217 19% 20%;
+    --sidebar-hover-foreground: 0 0% 100%;
+    --sidebar-active: 217 91% 15%;
+    --sidebar-active-foreground: 217 91% 68%;
+
+    /* Primary - Blue for active states */
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary */
+    --secondary: 217 19% 17%;
+    --secondary-foreground: 210 20% 98%;
+
+    /* Muted */
+    --muted: 217 19% 17%;
+    --muted-foreground: 215 20% 65%;
+
+    /* Accent - Purple for AI features */
+    --accent: 263 70% 20%;
+    --accent-foreground: 263 70% 76%;
+
+    /* Borders & Inputs */
+    --border: 217 19% 17%;
+    --input: 217 19% 17%;
+    --ring: 217 91% 60%;
+
+    /* Destructive */
+    --destructive: 0 72% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Info/Warning/Success */
+    --info: 217 91% 68%;
+    --info-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --success: 142 72% 45%;
+    --success-foreground: 0 0% 100%;
+
+    /* Shadows - Dark Mode */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.45), 0 2px 4px -2px rgb(0 0 0 / 0.45);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.5), 0 4px 6px -4px rgb(0 0 0 / 0.5);
+    --shadow-xl: 0 25px 50px -12px rgb(0 0 0 / 0.6);
+  }
 }
 
 @layer base {
@@ -141,6 +302,7 @@
 
   body {
     @apply bg-background text-foreground antialiased;
+    font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     font-size: var(--font-size-base);
     line-height: var(--line-height-normal);
   }
@@ -520,5 +682,151 @@
   /* Skip to content link (accessibility) */
   .skip-to-content {
     @apply absolute left-0 top-0 -translate-y-full bg-primary px-4 py-2 text-primary-foreground transition-transform focus:translate-y-0 z-50;
+  }
+}
+
+/* ============================================================================
+   MODERN THEME (v3) - Component Utilities
+   Smooth transitions, status badges, and theme-specific animations
+   ============================================================================ */
+
+@layer components {
+  /* Modern Theme Smooth Transitions */
+  .theme-modern * {
+    transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: var(--transition-theme, 500ms);
+  }
+
+  /* Override for interactive elements - faster transitions */
+  .theme-modern button,
+  .theme-modern a,
+  .theme-modern input,
+  .theme-modern select,
+  .theme-modern [role="button"] {
+    transition-duration: var(--transition-hover, 150ms);
+  }
+
+  /* Sidebar specific transitions */
+  .theme-modern .sidebar-transition {
+    transition-property: width, transform, opacity;
+    transition-duration: var(--transition-sidebar, 300ms);
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Modern Status Badges */
+  .status-badge {
+    @apply inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border;
+  }
+
+  .status-badge-urgent {
+    background-color: hsl(var(--status-urgent) / 0.1);
+    color: hsl(var(--status-urgent));
+    border-color: hsl(var(--status-urgent) / 0.2);
+  }
+
+  .status-badge-warning {
+    background-color: hsl(var(--status-warning) / 0.1);
+    color: hsl(var(--status-warning));
+    border-color: hsl(var(--status-warning) / 0.2);
+  }
+
+  .status-badge-success {
+    background-color: hsl(var(--status-success) / 0.1);
+    color: hsl(var(--status-success));
+    border-color: hsl(var(--status-success) / 0.2);
+  }
+
+  .status-badge-info {
+    background-color: hsl(var(--status-info) / 0.1);
+    color: hsl(var(--status-info));
+    border-color: hsl(var(--status-info) / 0.2);
+  }
+
+  /* Modern Card Hover Effect */
+  .theme-modern .card-hover {
+    @apply transition-all duration-300;
+  }
+
+  .theme-modern .card-hover:hover {
+    @apply border-border/80;
+    box-shadow: var(--shadow-lg);
+  }
+
+  /* Modern Card with Urgent Ring */
+  .theme-modern .card-urgent {
+    box-shadow: 0 0 0 2px hsl(var(--status-urgent) / 0.2);
+  }
+
+  /* Modern Nav Item Styles */
+  .theme-modern .nav-item {
+    @apply flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium;
+    @apply text-muted-foreground hover:bg-sidebar-hover hover:text-sidebar-hover-foreground;
+    transition-duration: var(--transition-hover, 150ms);
+  }
+
+  .theme-modern .nav-item-active {
+    @apply bg-sidebar-active text-sidebar-active-foreground;
+  }
+
+  /* Modern Tooltip */
+  .theme-modern .tooltip {
+    @apply px-2 py-1 text-xs rounded bg-popover text-popover-foreground border border-border;
+    box-shadow: var(--shadow-md);
+  }
+
+  /* Modern Backdrop Blur */
+  .theme-modern .backdrop-blur-nav {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  /* AI Gradient Background */
+  .theme-modern .ai-gradient {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--status-info) / 0.1) 0%,
+      hsl(var(--status-accent) / 0.1) 100%
+    );
+    border: 1px solid hsl(var(--status-info) / 0.2);
+  }
+
+  /* Modern Large Number Display */
+  .theme-modern .display-amount {
+    font-size: var(--font-size-3xl);
+    font-weight: var(--font-weight-bold);
+    line-height: var(--line-height-tight);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Modern KPI Change Indicator */
+  .theme-modern .kpi-change-positive {
+    color: hsl(var(--status-success));
+  }
+
+  .theme-modern .kpi-change-negative {
+    color: hsl(var(--status-urgent));
+  }
+
+  /* Modern Focus Indicators for v3 theme */
+  .theme-modern *:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(var(--primary) / 0.5);
+  }
+
+  /* For dark backgrounds, use inverted colors */
+  .theme-modern button:focus-visible,
+  .theme-modern [role="button"]:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(var(--primary) / 0.4);
+  }
+
+  /* Subtle inner glow for inputs */
+  .theme-modern input:focus-visible,
+  .theme-modern textarea:focus-visible,
+  .theme-modern select:focus-visible {
+    outline: none;
+    border-color: hsl(var(--primary));
+    box-shadow: 0 0 0 3px hsl(var(--primary) / 0.15);
   }
 }
