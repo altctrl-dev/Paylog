@@ -12,7 +12,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
@@ -56,14 +55,10 @@ type AvailableCurrency = {
   symbol: string;
 };
 
-type FilterStatus = 'all' | 'active' | 'archived';
-
 export default function CurrencyManagement() {
   const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [availableCurrencies, setAvailableCurrencies] = useState<AvailableCurrency[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
   const [selectedCurrencyCode, setSelectedCurrencyCode] = useState<string>('');
   const [isAdding, setIsAdding] = useState(false);
   const [actionInProgress, setActionInProgress] = useState<number | null>(null);
@@ -255,26 +250,6 @@ export default function CurrencyManagement() {
     }
   };
 
-  // Filter currencies
-  const filteredCurrencies = currencies.filter((currency) => {
-    // Status filter
-    if (filterStatus === 'active' && !currency.is_active) return false;
-    if (filterStatus === 'archived' && currency.is_active) return false;
-
-    // Search filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      return (
-        currency.code.toLowerCase().includes(query) ||
-        currency.name.toLowerCase().includes(query)
-      );
-    }
-
-    return true;
-  });
-
-  const activeCount = currencies.filter((c) => c.is_active).length;
-  const archivedCount = currencies.length - activeCount;
 
   if (loading) {
     return (
@@ -329,50 +304,6 @@ export default function CurrencyManagement() {
         </Button>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-        <div className="flex-1">
-          <Input
-            type="text"
-            placeholder="Search by code or name..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setFilterStatus('all')}
-            className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-              filterStatus === 'all'
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted text-muted-foreground hover:bg-muted/80'
-            }`}
-          >
-            All ({currencies.length})
-          </button>
-          <button
-            onClick={() => setFilterStatus('active')}
-            className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-              filterStatus === 'active'
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted text-muted-foreground hover:bg-muted/80'
-            }`}
-          >
-            Active ({activeCount})
-          </button>
-          <button
-            onClick={() => setFilterStatus('archived')}
-            className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-              filterStatus === 'archived'
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted text-muted-foreground hover:bg-muted/80'
-            }`}
-          >
-            Archived ({archivedCount})
-          </button>
-        </div>
-      </div>
-
       {/* Table */}
       <div className="overflow-x-auto rounded-lg border">
         <table className="w-full border-collapse">
@@ -386,7 +317,7 @@ export default function CurrencyManagement() {
             </tr>
           </thead>
           <tbody>
-            {filteredCurrencies.length === 0 ? (
+            {currencies.length === 0 ? (
               <tr>
                 <td colSpan={5} className="p-8 text-center text-muted-foreground">
                   {currencies.length === 0
@@ -395,7 +326,7 @@ export default function CurrencyManagement() {
                 </td>
               </tr>
             ) : (
-              filteredCurrencies.map((currency) => (
+              currencies.map((currency) => (
                 <tr
                   key={currency.id}
                   className="border-b transition-colors hover:bg-muted/50"
