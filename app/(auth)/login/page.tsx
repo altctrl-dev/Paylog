@@ -1,7 +1,15 @@
 import { Suspense } from 'react';
+import { redirect } from 'next/navigation';
+import { auth } from '@/lib/auth';
 import { LoginForm } from '@/components/auth/login-form';
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  // If already logged in with valid session, redirect to dashboard
+  const session = await auth();
+  if (session?.user && !session.error) {
+    redirect('/dashboard');
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center">
       <div className="w-full max-w-md space-y-8 px-4">

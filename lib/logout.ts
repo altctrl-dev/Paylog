@@ -1,13 +1,21 @@
 'use client';
 
+import { signOut } from 'next-auth/react';
+
 /**
- * Perform a complete logout that clears all auth cookies
- * This handles edge cases where standard signOut doesn't properly clear session
- *
- * Instead of using signOut() which may not clear cookies properly,
- * we redirect to a server-side logout page that handles everything
+ * Perform a complete logout
+ * Uses NextAuth's signOut which handles cookie clearing server-side
  */
-export function logout() {
-  // Redirect to server-side logout that properly clears cookies
-  window.location.href = '/api/auth/logout';
+export async function logout() {
+  try {
+    // Use NextAuth's signOut - it POSTs to /api/auth/signout which clears cookies
+    await signOut({
+      callbackUrl: '/login',
+      redirect: true
+    });
+  } catch (error) {
+    // If signOut fails, force redirect to login
+    console.error('SignOut failed:', error);
+    window.location.href = '/login';
+  }
 }

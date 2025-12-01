@@ -1,8 +1,8 @@
-# Compaction Summary — 2025-11-25 03:20:04 IST
+# Compaction Summary — 2025-12-01 23:44:10 IST
 
 ## Executive Summary
 - Agents active: Main Agent (Direct Work)
-- Files modified: 19
+- Files modified: 6
 - Contracts affected: 0
 - Open questions: 0
 
@@ -13,16 +13,12 @@
 - n/a
 
 ## Critical Paths (for JIT retrieval)
-- `gitignore`
-- `COMPACTION.md`
-- `app/actions/admin/master-data-approval.ts`
-- `app/layout.tsx`
+- `OMPACTION.md`
 - `compaction-summary.json`
-- `components/ui/button.tsx`
-- `docs/SPRINTS_REVISED.md`
+- `lib/auth.ts`
 - `logs/context-metrics.jsonl`
-- `tsconfig.json`
-- `"Invoice Workflow - Nov 19.xlsx"`
+- `docs/CONTEXT_RESTORATION_PROMPT_2025_11_25.md`
+- `docs/UI_BUILD_PROMPTS.md`
 
 ## Contracts Touched (verify stability)
 - n/a
