@@ -12,9 +12,11 @@ import { redirect } from 'next/navigation';
  */
 export async function logoutAction() {
   const cookieStore = await cookies();
+  const isProduction = process.env.NODE_ENV === 'production';
 
-  // List of all possible Auth.js cookie names
+  // List of all possible Auth.js and legacy NextAuth cookie names
   const authCookies = [
+    // Auth.js v5
     'authjs.session-token',
     'authjs.callback-url',
     'authjs.csrf-token',
@@ -24,15 +26,29 @@ export async function logoutAction() {
     '__Host-authjs.session-token',
     '__Host-authjs.callback-url',
     '__Host-authjs.csrf-token',
+    // Legacy NextAuth v4
+    'next-auth.session-token',
+    'next-auth.callback-url',
+    'next-auth.csrf-token',
+    '__Secure-next-auth.session-token',
+    '__Secure-next-auth.callback-url',
+    '__Secure-next-auth.csrf-token',
   ];
 
-  // Delete all auth cookies
+  // Explicitly expire all variants with matching attributes (path + secure)
   for (const cookieName of authCookies) {
-    try {
-      cookieStore.delete(cookieName);
-    } catch {
-      // Cookie might not exist, that's fine
-    }
+    const isHostCookie = cookieName.startsWith('__Host-');
+    const isSecureCookie =
+      isHostCookie || cookieName.startsWith('__Secure-') || isProduction;
+
+    cookieStore.set(cookieName, '', {
+      expires: new Date(0),
+      path: '/', // match the issued path
+      httpOnly: true,
+      secure: isSecureCookie,
+      sameSite: 'lax',
+      // Note: do not set domain so __Host- cookies remain valid for clearing
+    });
   }
 
   // Call server-side signOut
