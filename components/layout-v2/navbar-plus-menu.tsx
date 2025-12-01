@@ -39,6 +39,7 @@ interface NavbarPlusMenuProps {
 
 /**
  * Hierarchical menu structure
+ * Routes point to actual admin pages with appropriate subtabs
  */
 const menuStructure = [
   {
@@ -53,58 +54,44 @@ const menuStructure = [
     label: 'Masterdata',
     icon: Database,
     items: [
-      { label: 'Vendor', route: '/admin/master-data/vendors/new' },
-      { label: 'Category', route: '/admin/master-data/categories/new' },
-      { label: 'Entity', route: '/admin/master-data/entities/new' },
-      { label: 'Payment Type', route: '/admin/master-data/payment-types/new' },
-      { label: 'Currency', route: '/admin/master-data/currencies/new' },
-      { label: 'Invoice Profile', route: '/admin/master-data/invoice-profiles/new' },
+      { label: 'Vendor', route: '/admin?tab=master-data&subtab=vendors' },
+      { label: 'Category', route: '/admin?tab=master-data&subtab=categories' },
+      { label: 'Entity', route: '/admin?tab=master-data&subtab=entities' },
+      { label: 'Payment Type', route: '/admin?tab=master-data&subtab=payment-types' },
+      { label: 'Currency', route: '/admin?tab=master-data&subtab=currencies' },
+      { label: 'Invoice Profile', route: '/admin?tab=master-data&subtab=profiles' },
     ],
   },
   {
     label: 'User',
     icon: User,
     items: [
-      { label: 'New User', route: '/admin/users/new' },
+      { label: 'New User', route: '/admin?tab=users' },
     ],
   },
 ];
 
 export function NavbarPlusMenu({ onItemClick }: NavbarPlusMenuProps) {
-  console.log('[NavbarPlusMenu] Function called - component is rendering');
-
   const router = useRouter();
   const { openPanel } = usePanel();
   const { invoiceCreationMode } = useUIVersion();
   const [open, setOpen] = React.useState(false);
   const [mounted, setMounted] = React.useState(false);
 
-  console.log('[NavbarPlusMenu] State initialized - mounted:', mounted, 'open:', open, 'invoiceCreationMode:', invoiceCreationMode);
-
   // Prevent hydration issues
   React.useEffect(() => {
-    console.log('[NavbarPlusMenu] useEffect fired - setting mounted to true');
     setMounted(true);
-    console.log('[NavbarPlusMenu] Component mounted');
   }, []);
 
-  React.useEffect(() => {
-    console.log('[NavbarPlusMenu] Menu open state:', open);
-  }, [open]);
-
   const handleItemClick = (route: string) => {
-    console.log('[NavbarPlusMenu] Item clicked:', route);
-
     // Check if this is an invoice creation route and user prefers panel mode
     if (invoiceCreationMode === 'panel') {
       if (route === '/invoices/new/recurring') {
-        console.log('[NavbarPlusMenu] Opening recurring invoice panel');
         openPanel('invoice-create-recurring', {}, { width: PANEL_WIDTH.LARGE });
         setOpen(false);
         return;
       }
       if (route === '/invoices/new/non-recurring') {
-        console.log('[NavbarPlusMenu] Opening non-recurring invoice panel');
         openPanel('invoice-create-non-recurring', {}, { width: PANEL_WIDTH.LARGE });
         setOpen(false);
         return;
@@ -122,11 +109,9 @@ export function NavbarPlusMenu({ onItemClick }: NavbarPlusMenuProps) {
 
   // Prevent hydration mismatch by only rendering on client
   if (!mounted) {
-    console.log('[NavbarPlusMenu] Returning placeholder button (not mounted yet)');
     return (
       <button
         type="button"
-        onClick={() => console.log('[NavbarPlusMenu] Placeholder button clicked (should not happen - button is disabled)')}
         className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
         aria-label="Create new"
         disabled
@@ -135,8 +120,6 @@ export function NavbarPlusMenu({ onItemClick }: NavbarPlusMenuProps) {
       </button>
     );
   }
-
-  console.log('[NavbarPlusMenu] Rendering full dropdown menu (mounted=true)');
 
   return (
     <DropdownMenu modal={false} open={open} onOpenChange={setOpen}>

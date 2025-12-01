@@ -27,6 +27,9 @@ import {
   LogOut,
   User,
   Settings,
+  FileText,
+  Database,
+  ChevronRight,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -34,6 +37,9 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
@@ -41,7 +47,10 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { useUIVersion } from '@/lib/stores/ui-version-store';
 import { logout } from '@/lib/logout';
+import { usePanel } from '@/hooks/use-panel';
+import { PANEL_WIDTH } from '@/types/panel';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 // ============================================================================
 // Types
@@ -104,30 +113,110 @@ function CommandPaletteTrigger({ onClick }: CommandPaletteTriggerProps) {
   );
 }
 
+/**
+ * Menu structure for quick actions
+ * Routes point to actual admin pages with appropriate subtabs
+ */
+const menuStructure = [
+  {
+    label: 'Invoice',
+    icon: FileText,
+    items: [
+      { label: 'Recurring', route: '/invoices/new/recurring' },
+      { label: 'Non Recurring', route: '/invoices/new/non-recurring' },
+    ],
+  },
+  {
+    label: 'Masterdata',
+    icon: Database,
+    items: [
+      { label: 'Vendor', route: '/admin?tab=master-data&subtab=vendors' },
+      { label: 'Category', route: '/admin?tab=master-data&subtab=categories' },
+      { label: 'Entity', route: '/admin?tab=master-data&subtab=entities' },
+      { label: 'Payment Type', route: '/admin?tab=master-data&subtab=payment-types' },
+      { label: 'Currency', route: '/admin?tab=master-data&subtab=currencies' },
+      { label: 'Invoice Profile', route: '/admin?tab=master-data&subtab=profiles' },
+    ],
+  },
+  {
+    label: 'User',
+    icon: User,
+    items: [
+      { label: 'New User', route: '/admin?tab=users' },
+    ],
+  },
+];
+
 interface QuickActionsMenuProps {
   invoiceCreationMode?: 'page' | 'panel';
 }
 
 function QuickActionsMenu({ invoiceCreationMode = 'page' }: QuickActionsMenuProps) {
-  const invoiceHref = invoiceCreationMode === 'page' ? '/invoices/new/non-recurring' : '#';
+  const router = useRouter();
+  const { openPanel } = usePanel();
+  const [open, setOpen] = React.useState(false);
+
+  const handleItemClick = (route: string) => {
+    // Check if this is an invoice creation route and user prefers panel mode
+    if (invoiceCreationMode === 'panel') {
+      if (route === '/invoices/new/recurring') {
+        openPanel('invoice-create-recurring', {}, { width: PANEL_WIDTH.LARGE });
+        setOpen(false);
+        return;
+      }
+      if (route === '/invoices/new/non-recurring') {
+        openPanel('invoice-create-non-recurring', {}, { width: PANEL_WIDTH.LARGE });
+        setOpen(false);
+        return;
+      }
+    }
+
+    // Default behavior: navigate to route
+    router.push(route);
+    setOpen(false);
+  };
 
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false} open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="h-9 w-9">
           <Plus className="h-5 w-5" />
           <span className="sr-only">Quick actions</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuLabel>Quick Actions</DropdownMenuLabel>
+      <DropdownMenuContent align="end" className="w-56" sideOffset={8}>
+        <DropdownMenuLabel>Create New</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link href={invoiceHref}>Add Invoice</Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/invoices/new/recurring">Add Recurring</Link>
-        </DropdownMenuItem>
+
+        {menuStructure.map((section, index) => {
+          const Icon = section.icon;
+
+          return (
+            <React.Fragment key={section.label}>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <Icon className="mr-2 h-4 w-4" />
+                  <span>{section.label}</span>
+                </DropdownMenuSubTrigger>
+
+                <DropdownMenuSubContent sideOffset={8} alignOffset={-4}>
+                  {section.items.map((item) => (
+                    <DropdownMenuItem
+                      key={item.route}
+                      onClick={() => handleItemClick(item.route)}
+                      className="cursor-pointer"
+                    >
+                      <ChevronRight className="mr-2 h-4 w-4 opacity-50" />
+                      {item.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+
+              {index < menuStructure.length - 1 && <DropdownMenuSeparator />}
+            </React.Fragment>
+          );
+        })}
       </DropdownMenuContent>
     </DropdownMenu>
   );

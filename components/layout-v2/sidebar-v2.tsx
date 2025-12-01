@@ -98,22 +98,11 @@ export function SidebarV2() {
       }}
     >
       {/* Logo Area with Toggle - ALWAYS show */}
-      <div className="flex h-16 items-center justify-between border-b border-border px-4">
-        {!sidebarCollapsed && (
-          <motion.span
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="text-xl font-bold"
-          >
-            PAYLOG
-          </motion.span>
-        )}
-
-        {/* Toggle Button - show on desktop only */}
+      <div className="flex h-16 items-center border-b border-border px-3 overflow-hidden">
+        {/* Toggle Button - fixed position on left */}
         <button
           onClick={toggleSidebar}
-          className="hidden md:flex h-8 w-8 items-center justify-center rounded-lg hover:bg-accent transition-colors"
+          className="hidden md:flex h-8 w-8 shrink-0 items-center justify-center rounded-lg hover:bg-accent transition-colors"
           aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {sidebarCollapsed ? (
@@ -122,6 +111,23 @@ export function SidebarV2() {
             <ChevronLeft className="h-4 w-4" />
           )}
         </button>
+
+        {/* Logo text - animates in/out smoothly */}
+        <motion.span
+          initial={false}
+          animate={{
+            opacity: sidebarCollapsed ? 0 : 1,
+            width: sidebarCollapsed ? 0 : 'auto',
+            marginLeft: sidebarCollapsed ? 0 : 8,
+          }}
+          transition={{
+            duration: 0.3,
+            ease: [0.4, 0, 0.2, 1],
+          }}
+          className="text-xl font-bold whitespace-nowrap overflow-hidden"
+        >
+          PAYLOG
+        </motion.span>
       </div>
 
       {/* Main Navigation */}
@@ -138,16 +144,18 @@ export function SidebarV2() {
               key={item.href}
               href={item.href}
               className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors relative',
+                'flex items-center rounded-lg py-2 text-sm transition-colors relative overflow-hidden',
                 isActive
                   ? 'bg-primary text-primary-foreground'
                   : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-                isCollapsedDesktop && 'justify-center'
+                // Use consistent padding - icons will stay centered via fixed width container
+                'px-3'
               )}
               title={isCollapsedDesktop ? item.label : undefined}
             >
-              <div className="relative">
-                <Icon className="h-5 w-5 shrink-0" />
+              {/* Fixed-width icon container for smooth transitions */}
+              <div className="relative flex h-5 w-5 shrink-0 items-center justify-center">
+                <Icon className="h-5 w-5" />
                 {/* Badge for collapsed sidebar - positioned on icon */}
                 {isCollapsedDesktop && badgeCount > 0 && (
                   <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-medium text-destructive-foreground">
@@ -155,17 +163,28 @@ export function SidebarV2() {
                   </span>
                 )}
               </div>
-              {!isCollapsedDesktop && (
-                <>
-                  <span className="flex-1">{item.label}</span>
-                  {/* Badge for expanded sidebar - positioned at end */}
-                  {badgeCount > 0 && (
-                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-xs font-medium text-destructive-foreground">
-                      {badgeCount > 99 ? '99+' : badgeCount}
-                    </span>
-                  )}
-                </>
-              )}
+              {/* Text and badge container with smooth opacity/width transition */}
+              <motion.div
+                initial={false}
+                animate={{
+                  opacity: isCollapsedDesktop ? 0 : 1,
+                  width: isCollapsedDesktop ? 0 : 'auto',
+                  marginLeft: isCollapsedDesktop ? 0 : 12,
+                }}
+                transition={{
+                  duration: 0.3,
+                  ease: [0.4, 0, 0.2, 1],
+                }}
+                className="flex items-center overflow-hidden whitespace-nowrap"
+              >
+                <span className="flex-1">{item.label}</span>
+                {/* Badge for expanded sidebar - positioned at end */}
+                {badgeCount > 0 && (
+                  <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-xs font-medium text-destructive-foreground">
+                    {badgeCount > 99 ? '99+' : badgeCount}
+                  </span>
+                )}
+              </motion.div>
             </Link>
           );
         })}
@@ -175,33 +194,55 @@ export function SidebarV2() {
       <div className="border-t border-border p-2 space-y-1">
         {/* AI Assistant */}
         <button
-          className={cn(
-            'w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground',
-            sidebarCollapsed && !mobileMenuOpen && 'justify-center'
-          )}
+          className="w-full flex items-center rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground overflow-hidden"
           title={sidebarCollapsed && !mobileMenuOpen ? 'AI Assistant' : undefined}
         >
-          <Sparkles className="h-5 w-5 shrink-0" />
-          {(!sidebarCollapsed || mobileMenuOpen) && (
-            <div className="flex-1 text-left">
-              <div className="font-medium">AI Assistant</div>
-              <div className="text-xs text-muted-foreground">
-                Ask me anything about your invoices
-              </div>
+          <div className="flex h-5 w-5 shrink-0 items-center justify-center">
+            <Sparkles className="h-5 w-5" />
+          </div>
+          <motion.div
+            initial={false}
+            animate={{
+              opacity: sidebarCollapsed && !mobileMenuOpen ? 0 : 1,
+              width: sidebarCollapsed && !mobileMenuOpen ? 0 : 'auto',
+              marginLeft: sidebarCollapsed && !mobileMenuOpen ? 0 : 12,
+            }}
+            transition={{
+              duration: 0.3,
+              ease: [0.4, 0, 0.2, 1],
+            }}
+            className="flex-1 text-left overflow-hidden whitespace-nowrap"
+          >
+            <div className="font-medium">AI Assistant</div>
+            <div className="text-xs text-muted-foreground">
+              Ask me anything about your invoices
             </div>
-          )}
+          </motion.div>
         </button>
 
         {/* Help & Support */}
         <button
-          className={cn(
-            'w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground',
-            sidebarCollapsed && !mobileMenuOpen && 'justify-center'
-          )}
+          className="w-full flex items-center rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground overflow-hidden"
           title={sidebarCollapsed && !mobileMenuOpen ? 'Help & Support' : undefined}
         >
-          <HelpCircle className="h-5 w-5 shrink-0" />
-          {(!sidebarCollapsed || mobileMenuOpen) && <span className="flex-1 text-left">Help & Support</span>}
+          <div className="flex h-5 w-5 shrink-0 items-center justify-center">
+            <HelpCircle className="h-5 w-5" />
+          </div>
+          <motion.span
+            initial={false}
+            animate={{
+              opacity: sidebarCollapsed && !mobileMenuOpen ? 0 : 1,
+              width: sidebarCollapsed && !mobileMenuOpen ? 0 : 'auto',
+              marginLeft: sidebarCollapsed && !mobileMenuOpen ? 0 : 12,
+            }}
+            transition={{
+              duration: 0.3,
+              ease: [0.4, 0, 0.2, 1],
+            }}
+            className="flex-1 text-left overflow-hidden whitespace-nowrap"
+          >
+            Help & Support
+          </motion.span>
         </button>
       </div>
     </motion.aside>
