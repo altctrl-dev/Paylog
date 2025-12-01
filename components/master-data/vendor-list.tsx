@@ -11,7 +11,13 @@ import { useVendors, useArchiveVendor, useRestoreVendor } from '@/hooks/use-vend
 import { Badge } from '@/components/ui/badge';
 
 interface VendorListProps {
-  onEdit: (vendor: { id: number; name: string }) => void;
+  onEdit: (vendor: {
+    id: number;
+    name: string;
+    address?: string | null;
+    gst_exemption?: boolean;
+    bank_details?: string | null;
+  }) => void;
   showArchived?: boolean;
 }
 
@@ -84,7 +90,13 @@ export function VendorList({ onEdit, showArchived = false }: VendorListProps) {
                   {vendor.is_active ? (
                     <>
                       <button
-                        onClick={() => onEdit({ id: vendor.id, name: vendor.name })}
+                        onClick={() => onEdit({
+                          id: vendor.id,
+                          name: vendor.name,
+                          address: vendor.address,
+                          gst_exemption: vendor.gst_exemption,
+                          bank_details: vendor.bank_details,
+                        })}
                         className="inline-flex items-center justify-center rounded-md p-2 text-sm hover:bg-accent hover:text-accent-foreground"
                         aria-label="Edit vendor"
                       >

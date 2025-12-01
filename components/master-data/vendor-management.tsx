@@ -20,7 +20,13 @@ export default function VendorManagement() {
     openPanel('vendor-form', {});
   };
 
-  const handleEditVendor = (vendor: { id: number; name: string }) => {
+  const handleEditVendor = (vendor: {
+    id: number;
+    name: string;
+    address?: string | null;
+    gst_exemption?: boolean;
+    bank_details?: string | null;
+  }) => {
     openPanel('vendor-form', { vendor });
   };
 

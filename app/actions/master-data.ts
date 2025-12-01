@@ -33,6 +33,9 @@ type VendorWithCount = {
   is_active: boolean;
   created_at: Date;
   updated_at: Date;
+  address: string | null;
+  gst_exemption: boolean;
+  bank_details: string | null;
   invoiceCount: number;
 };
 
@@ -151,6 +154,9 @@ export async function getVendors(
       is_active: v.is_active,
       created_at: v.created_at,
       updated_at: v.updated_at,
+      address: v.address,
+      gst_exemption: v.gst_exemption,
+      bank_details: v.bank_details,
       invoiceCount: v._count.invoices,
     }));
 
@@ -398,6 +404,9 @@ export async function updateVendor(
         is_active: vendor.is_active,
         created_at: vendor.created_at,
         updated_at: vendor.updated_at,
+        address: vendor.address,
+        gst_exemption: vendor.gst_exemption,
+        bank_details: vendor.bank_details,
         invoiceCount: vendor._count.invoices,
       },
     };
@@ -519,6 +528,9 @@ export async function restoreVendor(
         is_active: updated.is_active,
         created_at: updated.created_at,
         updated_at: updated.updated_at,
+        address: updated.address,
+        gst_exemption: updated.gst_exemption,
+        bank_details: updated.bank_details,
         invoiceCount: updated._count.invoices,
       },
     };

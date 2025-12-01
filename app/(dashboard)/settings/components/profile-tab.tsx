@@ -13,7 +13,8 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { useUIVersion } from '@/lib/stores/ui-version-store';
+import { useUIVersion, UI_VERSION_LABELS, UI_VERSION_DESCRIPTIONS, type UIVersion } from '@/lib/stores/ui-version-store';
+import { Select } from '@/components/ui/select';
 import { updateUserProfile } from '@/app/actions/user-settings';
 import { User, Save, Loader2 } from 'lucide-react';
 
@@ -188,17 +189,23 @@ export function ProfileTab() {
               Customize how PayLog looks and feels
             </p>
           </div>
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label>Modern UI (v2)</Label>
-              <p className="text-sm text-muted-foreground">
-                Use the new modern interface with collapsible sidebar
-              </p>
-            </div>
-            <Switch
-              checked={version === 'v2'}
-              onCheckedChange={(checked) => setVersion(checked ? 'v2' : 'v1')}
-            />
+          <div className="grid gap-2">
+            <Label htmlFor="theme">Theme</Label>
+            <Select
+              id="theme"
+              value={version}
+              onChange={(e) => setVersion(e.target.value as UIVersion)}
+              className="w-48"
+            >
+              {(Object.keys(UI_VERSION_LABELS) as UIVersion[]).map((v) => (
+                <option key={v} value={v}>
+                  {UI_VERSION_LABELS[v]}
+                </option>
+              ))}
+            </Select>
+            <p className="text-sm text-muted-foreground">
+              {UI_VERSION_DESCRIPTIONS[version]}
+            </p>
           </div>
         </div>
       </Card>
