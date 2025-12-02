@@ -294,12 +294,13 @@ export class LocalStorageService implements StorageService {
   /**
    * Build storage path based on invoice metadata
    *
-   * Structure: invoices/{year}/{month}/{type}/{profileName?}/{invoiceId}/{filename}
+   * Structure:
+   * - Recurring: invoices/{year}/Recurring/{profileName}/{filename}
+   * - One-time:  invoices/{year}/one-time/{monthName}/{filename}
    *
    * Examples:
-   * - Recurring with profile: invoices/2025/01/recurring/Rent/123/file.pdf
-   * - Recurring without profile: invoices/2025/01/recurring/123/file.pdf
-   * - One-time: invoices/2025/02/one-time/456/file.pdf
+   * - Recurring: invoices/2025/Recurring/Rent/file.pdf
+   * - One-time:  invoices/2025/one-time/Dec/file.pdf
    *
    * @param metadata - Upload metadata with invoice details
    * @param filename - Unique filename
@@ -309,27 +310,20 @@ export class LocalStorageService implements StorageService {
     // Use invoice date if available, otherwise fall back to current date
     const date = metadata.invoiceDate ? new Date(metadata.invoiceDate) : new Date();
     const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
 
-    // Determine invoice type folder
-    const typeFolder = metadata.isRecurring ? 'recurring' : 'one-time';
+    // Month names for one-time invoices
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthName = monthNames[date.getMonth()];
 
-    // Build path parts
-    const parts = ['invoices', String(year), month, typeFolder];
-
-    // Add profile name for recurring invoices (sanitize for folder name)
     if (metadata.isRecurring && metadata.profileName) {
+      // Recurring: invoices/2025/Recurring/Rent/file.pdf
       const sanitizedProfileName = this.sanitizeFolderName(metadata.profileName);
-      parts.push(sanitizedProfileName);
+      return path.join('invoices', String(year), 'Recurring', sanitizedProfileName, filename);
+    } else {
+      // One-time: invoices/2025/one-time/Dec/file.pdf
+      return path.join('invoices', String(year), 'one-time', monthName, filename);
     }
-
-    // Add invoice ID for uniqueness
-    parts.push(String(metadata.invoiceId));
-
-    // Add filename
-    parts.push(filename);
-
-    return path.join(...parts);
   }
 
   /**

@@ -26,7 +26,7 @@ async function main() {
       invoiceDate: new Date(),
       isRecurring: false,
     });
-    // Expected path: Invoices/2025/12/one-time/999/test-connection.txt
+    // Expected path: Invoices/2025/one-time/Dec/test-connection.txt
 
     if (result.success) {
       console.log(`   ✅ Upload successful!`);
@@ -69,7 +69,7 @@ async function main() {
       isRecurring: true,
       profileName: 'Monthly Rent',
     });
-    // Expected path: Invoices/2025/12/recurring/Monthly Rent/888/recurring-test.txt
+    // Expected path: Invoices/2025/Recurring/Monthly Rent/recurring-test.txt
 
     if (recurringResult.success) {
       console.log(`   ✅ Upload successful!`);
@@ -88,8 +88,8 @@ async function main() {
     console.log('🎉 All tests passed! SharePoint storage is working.');
     console.log('═'.repeat(50));
     console.log('\nFolder structure:');
-    console.log('  - One-time: {baseFolder}/{year}/{month}/one-time/{invoiceId}/');
-    console.log('  - Recurring: {baseFolder}/{year}/{month}/recurring/{profileName}/{invoiceId}/');
+    console.log('  - Recurring: {baseFolder}/{year}/Recurring/{profileName}/');
+    console.log('  - One-time:  {baseFolder}/{year}/one-time/{monthName}/');
     console.log('\nYou can now use STORAGE_PROVIDER=sharepoint in production.\n');
 
   } catch (error) {

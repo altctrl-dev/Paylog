@@ -238,35 +238,34 @@ export class SharePointStorageService implements StorageService {
 
   /**
    * Build folder path based on invoice metadata
-   * Structure: {baseFolder}/{year}/{month}/{type}/{profileName?}/{invoiceId}
+   *
+   * Structure:
+   * - Recurring: {baseFolder}/{year}/Recurring/{profileName}
+   * - One-time:  {baseFolder}/{year}/one-time/{monthName}
    *
    * Examples:
-   * - Recurring with profile: Invoices/2025/01/recurring/Rent/123
-   * - Recurring without profile: Invoices/2025/01/recurring/123
-   * - One-time: Invoices/2025/02/one-time/456
+   * - Recurring: Invoices/2025/Recurring/Rent
+   * - Recurring: Invoices/2025/Recurring/Internet
+   * - One-time:  Invoices/2025/one-time/Dec
    */
   private buildFolderPath(metadata: UploadMetadata): string {
     // Use invoice date if available, otherwise fall back to current date
     const date = metadata.invoiceDate ? new Date(metadata.invoiceDate) : new Date();
     const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
 
-    // Determine invoice type folder
-    const typeFolder = metadata.isRecurring ? 'recurring' : 'one-time';
+    // Month names for one-time invoices
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthName = monthNames[date.getMonth()];
 
-    // Build path parts
-    const parts = [this.config.baseFolder, String(year), month, typeFolder];
-
-    // Add profile name for recurring invoices (sanitize for folder name)
     if (metadata.isRecurring && metadata.profileName) {
+      // Recurring: Invoices/2025/Recurring/Rent
       const sanitizedProfileName = this.sanitizeFolderName(metadata.profileName);
-      parts.push(sanitizedProfileName);
+      return `${this.config.baseFolder}/${year}/Recurring/${sanitizedProfileName}`;
+    } else {
+      // One-time: Invoices/2025/one-time/Dec
+      return `${this.config.baseFolder}/${year}/one-time/${monthName}`;
     }
-
-    // Add invoice ID for uniqueness
-    parts.push(String(metadata.invoiceId));
-
-    return parts.join('/');
   }
 
   /**
