@@ -33,11 +33,12 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
-import { useInvoices } from '@/hooks/use-invoices';
+import { useInvoices, useDeleteInvoice } from '@/hooks/use-invoices';
 import { usePanel } from '@/hooks/use-panel';
 import { PANEL_WIDTH } from '@/types/panel';
 import { useUIVersion } from '@/lib/stores/ui-version-store';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { type InvoiceStatus, INVOICE_STATUS } from '@/types/invoice';
 
 // ============================================================================
@@ -96,8 +97,11 @@ function formatDate(dateString: string | Date | null): string {
 
 export function AllInvoicesTab() {
   const router = useRouter();
+  const { data: session } = useSession();
+  const isSuperAdmin = session?.user?.role === 'super_admin';
   const { openPanel } = usePanel();
   const { invoiceCreationMode } = useUIVersion();
+  const deleteInvoice = useDeleteInvoice();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedInvoices, setSelectedInvoices] = useState<Set<number>>(new Set());
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -156,13 +160,20 @@ export function AllInvoicesTab() {
     openPanel('invoice-detail', { invoiceId: id });
   };
 
-  const handleEditInvoice = (id: number) => {
-    openPanel('invoice-edit', { invoiceId: id });
+  const handleEditInvoice = (id: number, isRecurring: boolean) => {
+    const panelType = isRecurring ? 'invoice-edit-recurring-v2' : 'invoice-edit-non-recurring-v2';
+    openPanel(panelType, { invoiceId: id }, { width: PANEL_WIDTH.LARGE });
   };
 
   const handleExport = () => {
     // TODO: Implement export functionality
     console.log('Export clicked');
+  };
+
+  const handleDeleteInvoice = (id: number) => {
+    if (confirm('Are you sure you want to delete this invoice? This action cannot be undone.')) {
+      deleteInvoice.mutate(id);
+    }
   };
 
   return (
@@ -334,19 +345,23 @@ export function AllInvoicesTab() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8"
-                          onClick={() => handleEditInvoice(invoice.id)}
+                          onClick={() => handleEditInvoice(invoice.id, invoice.is_recurring)}
                         >
                           <Pencil className="h-4 w-4" />
                           <span className="sr-only">Edit</span>
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          <span className="sr-only">Delete</span>
-                        </Button>
+                        {isSuperAdmin && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            onClick={() => handleDeleteInvoice(invoice.id)}
+                            disabled={deleteInvoice.isPending}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            <span className="sr-only">Delete</span>
+                          </Button>
+                        )}
                       </div>
                     </td>
                   </tr>

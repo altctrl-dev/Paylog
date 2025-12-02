@@ -99,6 +99,7 @@ export interface Invoice {
   hidden_by: number | null;
   hidden_at: Date | null;
   hidden_reason: string | null;
+  is_recurring: boolean;
   created_by: number;
   created_at: Date;
   updated_at: Date;

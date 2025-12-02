@@ -78,13 +78,13 @@ function parseDateFromInput(value: string): Date | null {
  *
  * Phase 4: Integrated with Server Actions and React Query
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function NonRecurringInvoiceForm({ onSuccess: _onSuccess, onCancel }: NonRecurringInvoiceFormProps) {
+export function NonRecurringInvoiceForm({ onSuccess, onCancel }: NonRecurringInvoiceFormProps) {
   const { toast } = useToast();
   const [showPreview, setShowPreview] = React.useState(false);
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
   const [showFileWarning, setShowFileWarning] = React.useState(false);
   const [pendingNewVendorName, setPendingNewVendorName] = React.useState<string | null>(null);
+  const [selectedVendorName, setSelectedVendorName] = React.useState<string>('');
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [_previewData, setPreviewData] = React.useState<NonRecurringInvoiceFormData | null>(null);
   const [showVendorPanel, setShowVendorPanel] = React.useState(false);
@@ -100,8 +100,8 @@ export function NonRecurringInvoiceForm({ onSuccess: _onSuccess, onCancel }: Non
     error,
   } = useInvoiceFormOptions();
 
-  // Create invoice mutation
-  const createInvoice = useCreateNonRecurringInvoice();
+  // Create invoice mutation - wrap onSuccess to ignore invoiceId param
+  const createInvoice = useCreateNonRecurringInvoice(onSuccess ? () => onSuccess(0) : undefined);
 
   // Form setup
   const {
@@ -352,7 +352,7 @@ export function NonRecurringInvoiceForm({ onSuccess: _onSuccess, onCancel }: Non
       invoice_number: formData.invoice_number,
       invoice_date: formData.invoice_date,
       due_date: formData.due_date ?? new Date(),
-      vendor_name: 'TODO Phase 3', // Load from API
+      vendor_name: selectedVendorName || pendingNewVendorName || '',
       vendor_id: formData.vendor_id,
       entity_name: selectedEntity?.name,
       entity_id: formData.entity_id,
@@ -462,6 +462,7 @@ export function NonRecurringInvoiceForm({ onSuccess: _onSuccess, onCancel }: Non
                 value={field.value}
                 onChange={(vendorId, vendorName) => {
                   field.onChange(vendorId || 0);
+                  setSelectedVendorName(vendorName);
                   if (!vendorId && vendorName) {
                     // New vendor - store the name for later
                     setPendingNewVendorName(vendorName);

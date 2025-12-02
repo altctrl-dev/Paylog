@@ -221,7 +221,7 @@ export function usePaymentTypes() {
  * };
  * ```
  */
-export function useCreateRecurringInvoice() {
+export function useCreateRecurringInvoice(onSuccess?: () => void) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const router = useRouter();
@@ -252,6 +252,9 @@ export function useCreateRecurringInvoice() {
 
         // Redirect to invoices list page (detail page for v2 system doesn't exist yet)
         router.push('/invoices');
+
+        // Call optional success callback (e.g., close panel)
+        onSuccess?.();
       } else {
         // Show error toast
         toast({
@@ -289,7 +292,7 @@ export function useCreateRecurringInvoice() {
  * };
  * ```
  */
-export function useCreateNonRecurringInvoice() {
+export function useCreateNonRecurringInvoice(onSuccess?: () => void) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const router = useRouter();
@@ -320,6 +323,9 @@ export function useCreateNonRecurringInvoice() {
 
         // Redirect to invoices list page (detail page for v2 system doesn't exist yet)
         router.push('/invoices');
+
+        // Call optional success callback (e.g., close panel)
+        onSuccess?.();
       } else {
         // Show error toast
         toast({

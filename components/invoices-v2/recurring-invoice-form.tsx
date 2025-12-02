@@ -65,8 +65,7 @@ function parseDateFromInput(value: string): Date | null {
  *
  * Phase 4: Integrated with Server Actions and React Query
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function RecurringInvoiceForm({ onSuccess: _onSuccess, onCancel }: RecurringInvoiceFormProps) {
+export function RecurringInvoiceForm({ onSuccess, onCancel }: RecurringInvoiceFormProps) {
   const { toast } = useToast();
   const [showPreview, setShowPreview] = React.useState(false);
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
@@ -83,8 +82,8 @@ export function RecurringInvoiceForm({ onSuccess: _onSuccess, onCancel }: Recurr
     error,
   } = useInvoiceFormOptions();
 
-  // Create invoice mutation
-  const createInvoice = useCreateRecurringInvoice();
+  // Create invoice mutation - wrap onSuccess to ignore invoiceId param
+  const createInvoice = useCreateRecurringInvoice(onSuccess ? () => onSuccess(0) : undefined);
 
   // Form setup
   const {
@@ -310,9 +309,9 @@ export function RecurringInvoiceForm({ onSuccess: _onSuccess, onCancel }: Recurr
       invoice_received_date: formData.invoice_received_date,
       profile_name: selectedProfile?.name,
       profile_id: formData.invoice_profile_id,
-      vendor_name: 'TODO Phase 3', // Load from profile
-      entity_name: 'TODO Phase 3',
-      category_name: 'TODO Phase 3',
+      vendor_name: selectedProfile?.vendor?.name,
+      entity_name: selectedProfile?.entity?.name,
+      category_name: selectedProfile?.category?.name,
       invoice_amount: formData.invoice_amount,
       currency_code: selectedCurrency?.code,
       currency_symbol: selectedCurrency?.symbol,

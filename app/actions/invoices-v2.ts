@@ -1107,6 +1107,7 @@ export async function getInvoiceV2(
     entity: { select: { id: true; name: true } };
     currency: { select: { id: true; code: true; symbol: true } };
     invoice_profile: { select: { id: true; name: true; description: true } };
+    profile: { select: { id: true; name: true; description: true } };
     payment_type: { select: { id: true; name: true } };
     creator: { select: { id: true; full_name: true; email: true } };
     attachments: {
@@ -1157,6 +1158,13 @@ export async function getInvoiceV2(
           },
         },
         invoice_profile: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+          },
+        },
+        profile: {
           select: {
             id: true,
             name: true,

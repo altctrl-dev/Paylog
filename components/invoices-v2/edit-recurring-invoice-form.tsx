@@ -444,7 +444,7 @@ export function EditRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: Edi
         <Label htmlFor="invoice_profile_id">Invoice Profile *</Label>
         <Input
           type="text"
-          value={invoice?.invoice_profile?.name || 'N/A'}
+          value={invoice?.invoice_profile?.name || invoice?.profile?.name || 'N/A'}
           disabled
           className="bg-muted"
         />

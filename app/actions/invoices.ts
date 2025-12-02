@@ -831,6 +831,14 @@ export async function deleteInvoice(
   try {
     const user = await getCurrentUser();
 
+    // Only super_admin can delete invoices
+    if (user.role !== 'super_admin') {
+      return {
+        success: false,
+        error: 'Only super admins can delete invoices',
+      };
+    }
+
     const existing = await db.invoice.findUnique({
       where: { id },
     });
