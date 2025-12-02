@@ -191,12 +191,14 @@ const statusBadgeVariants = cva(
     variants: {
       status: {
         overdue: 'bg-red-500/10 text-red-400 border-red-500/20',
-        due: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-        paid: 'bg-green-500/10 text-green-400 border-green-500/20',
+        upcoming: 'bg-amber-500/10 text-amber-400 border-amber-500/20', // Due soon (<=3 days)
+        due: 'bg-amber-500/10 text-amber-400 border-amber-500/20', // Due later (>3 days)
+        missed: 'bg-orange-500/10 text-orange-400 border-orange-500/20', // Invoice missed
+        onTrack: 'bg-green-500/10 text-green-400 border-green-500/20', // All clear
       },
     },
     defaultVariants: {
-      status: 'paid',
+      status: 'onTrack',
     },
   }
 );
@@ -209,17 +211,19 @@ export interface RecurringInvoiceCardProps
   extends Omit<React.HTMLAttributes<HTMLDivElement>, 'id'> {
   /** Unique identifier for the recurring invoice */
   id: string;
-  /** Vendor/company name */
+  /** Invoice profile name (main title) */
+  profileName: string;
+  /** Vendor/company name (subtitle) */
   vendorName: string;
-  /** Vendor number/ID (optional) */
-  vendorNumber?: string | number;
   /** Total pending amount */
   pendingAmount: number;
   /** Number of unpaid invoices */
   unpaidCount: number;
   /** Number of overdue invoices */
   overdueCount: number;
-  /** Number of invoices due soon */
+  /** Number of invoices due within 3 days */
+  dueSoonCount: number;
+  /** Number of invoices due in >3 days */
   dueCount: number;
   /** Number of missed invoices */
   invoicesMissed: number;
@@ -253,11 +257,12 @@ export interface RecurringInvoiceCardProps
 
 export function RecurringInvoiceCard({
   id,
+  profileName,
   vendorName,
-  vendorNumber,
   pendingAmount,
   unpaidCount,
   overdueCount,
+  dueSoonCount,
   dueCount,
   invoicesMissed,
   nextExpectedDays,
@@ -312,8 +317,7 @@ export function RecurringInvoiceCard({
       <div className="flex items-start justify-between mb-3">
         <div>
           <p className={cn(amountVariants({ tier }))}>
-            <span className="text-[20px]">₹</span>
-            {formatIndianCurrency(pendingAmount)}
+            ₹{formatIndianCurrency(pendingAmount)}
           </p>
           <p
             className={cn('text-xs', {
@@ -377,15 +381,13 @@ export function RecurringInvoiceCard({
         </div>
       </div>
 
-      {/* Section 2: Title - Vendor Info + Status Icon */}
+      {/* Section 2: Title - Profile Name + Vendor + Status Icon */}
       <div className="flex items-center justify-between mb-4">
         <div className="min-w-0 flex-1 max-w-[200px]">
           <p className="text-base font-semibold text-foreground truncate">
-            {vendorName}
+            {profileName}
           </p>
-          {vendorNumber && (
-            <p className="text-xs text-muted-foreground">#{vendorNumber}</p>
-          )}
+          <p className="text-xs text-muted-foreground truncate">{vendorName}</p>
         </div>
         <div className={cn(statusIconVariants({ tier }))}>
           <StatusIcon className="h-5 w-5" />
@@ -394,12 +396,14 @@ export function RecurringInvoiceCard({
 
       {/* Section 3: Stats - Unpaid Count + Timing */}
       <div className="flex items-center justify-between mb-4">
-        {/* Left: Unpaid Count */}
+        {/* Left: Unpaid Count or All Paid */}
         <div>
           <p className={cn(unpaidCountVariants({ status: unpaidStatus }))}>
-            {unpaidCount}
+            {unpaidCount > 0 ? unpaidCount : 0}
           </p>
-          <p className="text-sm text-muted-foreground">Unpaid</p>
+          <p className="text-sm text-muted-foreground">
+            {unpaidCount > 0 ? 'Unpaid' : 'Unpaid'}
+          </p>
         </div>
 
         {/* Right: Invoice Timing */}
@@ -411,7 +415,7 @@ export function RecurringInvoiceCard({
               </p>
               <p className="text-sm text-muted-foreground">Invoice Missed</p>
             </>
-          ) : timingStatus === 'upcoming' ? (
+          ) : nextExpectedDays !== undefined ? (
             <>
               <p className={cn(timingVariants({ status: 'upcoming' }))}>
                 {nextExpectedDays}d
@@ -428,34 +432,47 @@ export function RecurringInvoiceCard({
       </div>
 
       {/* Section 4: Last Invoice Info */}
-      <div className="rounded-lg bg-gray-800/50 dark:bg-gray-800/50 p-2.5 mb-3">
-        <div className="flex justify-between text-xs">
+      <div className="rounded-lg bg-muted/50 p-2.5 mb-3">
+        <div className="flex flex-col gap-0.5 text-xs">
           <span className="text-muted-foreground">
-            Last Invoice: <span className="text-foreground">{formatDate(lastInvoiceDate)}</span>
+            Last Invoice: <span className="text-foreground font-medium">{formatDate(lastInvoiceDate)}</span>
           </span>
           <span className="text-muted-foreground">
-            Last Paid: <span className="text-foreground">{formatDate(lastPaidDate)}</span>
+            Last Paid: <span className="text-foreground font-medium">{formatDate(lastPaidDate)}</span>
           </span>
         </div>
       </div>
 
       {/* Section 5: Status Badges */}
       <div className="flex flex-wrap gap-2">
+        {/* Overdue badge (red) */}
         {overdueCount > 0 && (
           <span className={cn(statusBadgeVariants({ status: 'overdue' }))}>
-            {overdueCount} Overdue
-            {maxOverdueDays !== undefined && ` by ${maxOverdueDays}d`}
+            {overdueCount} Overdue{maxOverdueDays !== undefined && ` by ${maxOverdueDays}d`}
           </span>
         )}
+        {/* Upcoming badge (yellow) - Due within 3 days */}
+        {dueSoonCount > 0 && (
+          <span className={cn(statusBadgeVariants({ status: 'upcoming' }))}>
+            {dueSoonCount} Upcoming
+          </span>
+        )}
+        {/* Due badge (yellow) - Due in >3 days */}
         {dueCount > 0 && (
           <span className={cn(statusBadgeVariants({ status: 'due' }))}>
-            {dueCount} Due
-            {maxDueDays !== undefined && ` in ${maxDueDays}d`}
+            {dueCount} Due in {maxDueDays ?? 0}d
           </span>
         )}
-        {overdueCount === 0 && dueCount === 0 && unpaidCount === 0 && (
-          <span className={cn(statusBadgeVariants({ status: 'paid' }))}>
-            All Paid
+        {/* Invoice Missed badge (orange) */}
+        {invoicesMissed > 0 && (
+          <span className={cn(statusBadgeVariants({ status: 'missed' }))}>
+            {invoicesMissed} Invoice Missed
+          </span>
+        )}
+        {/* On Track badge (green) - Only when everything is clear */}
+        {overdueCount === 0 && dueSoonCount === 0 && dueCount === 0 && invoicesMissed === 0 && (
+          <span className={cn(statusBadgeVariants({ status: 'onTrack' }))}>
+            On Track
           </span>
         )}
       </div>

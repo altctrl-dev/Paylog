@@ -235,25 +235,40 @@ export async function uploadInvoiceFile(
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
 
-  // 3. Generate unique filename and storage path
+  // 3. Fetch invoice details for folder organization
+  const dbClient = tx || db;
+  const invoice = await dbClient.invoice.findUnique({
+    where: { id: invoiceId },
+    select: {
+      invoice_date: true,
+      is_recurring: true,
+      invoice_profile: {
+        select: { name: true },
+      },
+    },
+  });
+
+  // 4. Generate unique filename and storage path
   const uniqueFilename = generateUniqueFilename(file.name);
   const storagePath = generateStoragePath(invoiceId, uniqueFilename);
 
-  // 4. Upload to storage
+  // 5. Upload to storage with invoice metadata for proper folder routing
   const storage = createStorageService();
   const uploadResult = await storage.upload(buffer, uniqueFilename, {
     invoiceId,
     userId,
     originalName: file.name,
     mimeType: file.type,
+    invoiceDate: invoice?.invoice_date ?? undefined,
+    isRecurring: invoice?.is_recurring ?? false,
+    profileName: invoice?.invoice_profile?.name ?? undefined,
   });
 
   if (!uploadResult.success) {
     throw new Error(uploadResult.error || 'Failed to upload file to storage');
   }
 
-  // 5. Create database record (use transaction context if provided, otherwise fall back to db)
-  const dbClient = tx || db;
+  // 6. Create database record (dbClient already set above)
   const attachment = await dbClient.invoiceAttachment.create({
     data: {
       invoice_id: invoiceId,
@@ -266,7 +281,7 @@ export async function uploadInvoiceFile(
     },
   });
 
-  // 6. Log success
+  // 7. Log success
   console.log('[file-upload-v2] File uploaded successfully:', {
     attachmentId: attachment.id,
     invoiceId,

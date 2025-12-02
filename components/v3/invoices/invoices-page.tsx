@@ -44,12 +44,13 @@ interface ProfileAggregatedStats {
   profileId: number;
   profileName: string;
   vendorName: string;
-  vendorNumber?: number;
   pendingAmount: number;
   unpaidCount: number;
   overdueCount: number;
-  dueCount: number;
+  dueSoonCount: number; // Due within 3 days
+  dueCount: number; // Due in >3 days
   invoicesMissed: number;
+  nextExpectedDays?: number;
   lastInvoiceDate?: Date;
   lastPaidDate?: Date;
   maxOverdueDays?: number;
@@ -69,6 +70,76 @@ function daysDiff(date1: Date, date2: Date): number {
 }
 
 /**
+ * Get billing frequency in days
+ */
+function getBillingFrequencyDays(frequency: string | null | undefined): number {
+  if (!frequency) return 30; // default to monthly
+  switch (frequency.toLowerCase()) {
+    case 'weekly':
+      return 7;
+    case 'biweekly':
+    case 'bi-weekly':
+      return 14;
+    case 'monthly':
+      return 30;
+    case 'bimonthly':
+    case 'bi-monthly':
+      return 60;
+    case 'quarterly':
+      return 90;
+    case 'half-yearly':
+    case 'semi-annual':
+      return 180;
+    case 'yearly':
+    case 'annual':
+      return 365;
+    default:
+      return 30;
+  }
+}
+
+/**
+ * Calculate next expected invoice date and days until next invoice
+ */
+function calculateNextInvoice(
+  lastInvoiceDate: Date | undefined,
+  billingFrequency: string | null | undefined
+): { nextExpectedDays: number; invoicesMissed: number } {
+  if (!lastInvoiceDate) {
+    return { nextExpectedDays: 0, invoicesMissed: 0 };
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const frequencyDays = getBillingFrequencyDays(billingFrequency);
+  const lastDate = new Date(lastInvoiceDate);
+  lastDate.setHours(0, 0, 0, 0);
+
+  // Calculate next expected date
+  const nextExpectedDate = new Date(lastDate);
+  nextExpectedDate.setDate(nextExpectedDate.getDate() + frequencyDays);
+
+  // How many days until next invoice (can be negative if overdue)
+  const daysUntilNext = daysDiff(nextExpectedDate, today);
+
+  // Calculate invoices missed (how many billing cycles have passed without an invoice)
+  let invoicesMissed = 0;
+  if (daysUntilNext < 0) {
+    // Next invoice date has passed, calculate how many cycles missed
+    invoicesMissed = Math.floor(Math.abs(daysUntilNext) / frequencyDays);
+    // Adjust next expected date to next upcoming cycle
+    const cyclesPassed = invoicesMissed + 1;
+    const adjustedNextDate = new Date(lastDate);
+    adjustedNextDate.setDate(adjustedNextDate.getDate() + frequencyDays * cyclesPassed);
+    const adjustedDays = daysDiff(adjustedNextDate, today);
+    return { nextExpectedDays: Math.max(0, adjustedDays), invoicesMissed };
+  }
+
+  return { nextExpectedDays: Math.max(0, daysUntilNext), invoicesMissed: 0 };
+}
+
+/**
  * Check if a date is overdue (before today)
  */
 function isOverdue(dueDate: Date | null | undefined): boolean {
@@ -81,7 +152,7 @@ function isOverdue(dueDate: Date | null | undefined): boolean {
 }
 
 /**
- * Check if a date is due soon (within next 7 days)
+ * Check if a date is due soon (within next 3 days, not overdue)
  */
 function isDueSoon(dueDate: Date | null | undefined): boolean {
   if (!dueDate) return false;
@@ -89,9 +160,23 @@ function isDueSoon(dueDate: Date | null | undefined): boolean {
   today.setHours(0, 0, 0, 0);
   const due = new Date(dueDate);
   due.setHours(0, 0, 0, 0);
-  const sevenDaysFromNow = new Date(today);
-  sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
-  return due >= today && due <= sevenDaysFromNow;
+  const threeDaysFromNow = new Date(today);
+  threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
+  return due >= today && due <= threeDaysFromNow;
+}
+
+/**
+ * Check if a date is due but not urgent (more than 3 days away)
+ */
+function isDueLater(dueDate: Date | null | undefined): boolean {
+  if (!dueDate) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const due = new Date(dueDate);
+  due.setHours(0, 0, 0, 0);
+  const threeDaysFromNow = new Date(today);
+  threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
+  return due > threeDaysFromNow;
 }
 
 // ============================================================================
@@ -202,7 +287,7 @@ export function InvoicesPage({
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    return profiles.map((profile) => {
+    const stats = profiles.map((profile) => {
       // Filter invoices for this profile
       const profileInvoices = invoices.filter(
         (inv) => inv.profile?.id === profile.id
@@ -212,7 +297,8 @@ export function InvoicesPage({
       let pendingAmount = 0;
       let unpaidCount = 0;
       let overdueCount = 0;
-      let dueCount = 0;
+      let dueSoonCount = 0; // Due within 3 days
+      let dueCount = 0; // Due in >3 days
       let maxOverdueDays: number | undefined;
       let maxDueDays: number | undefined;
       let lastInvoiceDate: Date | undefined;
@@ -220,11 +306,11 @@ export function InvoicesPage({
 
       for (const invoice of profileInvoices) {
         // Check if invoice is unpaid (status is unpaid, partial, or pending_approval)
-        const isUnpaid = ['unpaid', 'partial', 'pending_approval'].includes(
+        const isUnpaidStatus = ['unpaid', 'partial', 'pending_approval'].includes(
           invoice.status
         );
 
-        if (isUnpaid) {
+        if (isUnpaidStatus) {
           // Add to pending amount
           const paid = invoice.totalPaid ?? 0;
           pendingAmount += invoice.invoice_amount - paid;
@@ -242,6 +328,14 @@ export function InvoicesPage({
                 maxOverdueDays = overdueDays;
               }
             } else if (isDueSoon(invoice.due_date)) {
+              // Due within 3 days
+              dueSoonCount += 1;
+              const dueDays = daysDiff(dueDate, today);
+              if (maxDueDays === undefined || dueDays < maxDueDays) {
+                maxDueDays = dueDays;
+              }
+            } else if (isDueLater(invoice.due_date)) {
+              // Due in >3 days
               dueCount += 1;
               const dueDays = daysDiff(dueDate, today);
               if (maxDueDays === undefined || dueDays < maxDueDays) {
@@ -268,21 +362,56 @@ export function InvoicesPage({
         }
       }
 
+      // Calculate next expected invoice and missed invoices
+      const { nextExpectedDays, invoicesMissed } = calculateNextInvoice(
+        lastInvoiceDate,
+        profile.billing_frequency
+      );
+
       return {
         profileId: profile.id,
         profileName: profile.name,
         vendorName: profile.vendor.name,
-        vendorNumber: profile.vendor.id,
         pendingAmount,
         unpaidCount,
         overdueCount,
+        dueSoonCount,
         dueCount,
-        invoicesMissed: 0, // TODO: Calculate based on billing frequency
+        invoicesMissed,
+        nextExpectedDays,
         lastInvoiceDate,
         lastPaidDate,
         maxOverdueDays,
         maxDueDays,
       };
+    });
+
+    // Sort by priority: overdue > pending amount > dueSoon > due > missed > nextInvoice
+    return stats.sort((a, b) => {
+      // Priority 1: Overdue count (descending)
+      if (a.overdueCount !== b.overdueCount) {
+        return b.overdueCount - a.overdueCount;
+      }
+      // Priority 2: Pending amount (descending)
+      if (a.pendingAmount !== b.pendingAmount) {
+        return b.pendingAmount - a.pendingAmount;
+      }
+      // Priority 3: Due soon count (descending)
+      if (a.dueSoonCount !== b.dueSoonCount) {
+        return b.dueSoonCount - a.dueSoonCount;
+      }
+      // Priority 4: Due count (descending)
+      if (a.dueCount !== b.dueCount) {
+        return b.dueCount - a.dueCount;
+      }
+      // Priority 5: Invoice missed count (descending)
+      if (a.invoicesMissed !== b.invoicesMissed) {
+        return b.invoicesMissed - a.invoicesMissed;
+      }
+      // Priority 6: Days until next invoice (ascending - sooner = higher priority)
+      const nextA = a.nextExpectedDays ?? Infinity;
+      const nextB = b.nextExpectedDays ?? Infinity;
+      return nextA - nextB;
     });
   }, [profiles, invoicesData]);
 
@@ -353,13 +482,15 @@ export function InvoicesPage({
                   <RecurringInvoiceCard
                     key={stats.profileId}
                     id={String(stats.profileId)}
+                    profileName={stats.profileName}
                     vendorName={stats.vendorName}
-                    vendorNumber={stats.vendorNumber}
                     pendingAmount={stats.pendingAmount}
                     unpaidCount={stats.unpaidCount}
                     overdueCount={stats.overdueCount}
+                    dueSoonCount={stats.dueSoonCount}
                     dueCount={stats.dueCount}
                     invoicesMissed={stats.invoicesMissed}
+                    nextExpectedDays={stats.nextExpectedDays}
                     lastInvoiceDate={stats.lastInvoiceDate}
                     lastPaidDate={stats.lastPaidDate}
                     maxOverdueDays={stats.maxOverdueDays}
