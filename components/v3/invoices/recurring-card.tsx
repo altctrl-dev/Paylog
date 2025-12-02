@@ -395,19 +395,17 @@ export function RecurringInvoiceCard({
       </div>
 
       {/* Section 3: Stats - Unpaid Count + Timing */}
-      <div className="flex items-center justify-between mb-4">
-        {/* Left: Unpaid Count or All Paid */}
-        <div>
+      <div className="flex items-center justify-around mb-4">
+        {/* Left: Unpaid Count */}
+        <div className="text-center">
           <p className={cn(unpaidCountVariants({ status: unpaidStatus }))}>
             {unpaidCount > 0 ? unpaidCount : 0}
           </p>
-          <p className="text-sm text-muted-foreground">
-            {unpaidCount > 0 ? 'Unpaid' : 'Unpaid'}
-          </p>
+          <p className="text-sm text-muted-foreground">Unpaid</p>
         </div>
 
         {/* Right: Invoice Timing */}
-        <div className="text-right">
+        <div className="text-center">
           {timingStatus === 'missed' ? (
             <>
               <p className={cn(timingVariants({ status: 'missed' }))}>
@@ -432,7 +430,7 @@ export function RecurringInvoiceCard({
       </div>
 
       {/* Section 4: Last Invoice Info */}
-      <div className="rounded-lg bg-muted/50 p-2.5 mb-3">
+      <div className="rounded-lg bg-muted/30 p-2.5 mb-3">
         <div className="flex flex-col gap-0.5 text-xs">
           <span className="text-muted-foreground">
             Last Invoice: <span className="text-foreground font-medium">{formatDate(lastInvoiceDate)}</span>
