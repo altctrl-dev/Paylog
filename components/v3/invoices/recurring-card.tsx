@@ -113,7 +113,7 @@ const cardVariants = cva(
 const amountVariants = cva('text-[30px] font-bold leading-tight', {
   variants: {
     tier: {
-      overdue: 'text-red-500',
+      overdue: 'text-red-400',
       unpaid: 'text-amber-500',
       clear: 'text-green-500',
     },
@@ -135,8 +135,8 @@ const statusIconVariants = cva(
     variants: {
       tier: {
         overdue: 'bg-red-500/20 text-red-400',
-        unpaid: 'bg-amber-500/20 text-amber-400',
-        clear: 'bg-green-500/20 text-green-400',
+        unpaid: 'bg-amber-500/20 text-amber-500',
+        clear: 'bg-green-500/20 text-green-500',
       },
     },
     defaultVariants: {
@@ -154,8 +154,8 @@ const statusIconVariants = cva(
 const unpaidCountVariants = cva('text-2xl font-bold', {
   variants: {
     status: {
-      overdue: 'text-red-500',
-      unpaid: 'text-orange-500',
+      overdue: 'text-red-400',
+      unpaid: 'text-amber-500',
       clear: 'text-green-500',
     },
   },
@@ -191,10 +191,10 @@ const statusBadgeVariants = cva(
     variants: {
       status: {
         overdue: 'bg-red-500/10 text-red-400 border-red-500/20',
-        upcoming: 'bg-amber-500/10 text-amber-400 border-amber-500/20', // Due soon (<=3 days)
-        due: 'bg-amber-500/10 text-amber-400 border-amber-500/20', // Due later (>3 days)
-        missed: 'bg-orange-500/10 text-orange-400 border-orange-500/20', // Invoice missed
-        onTrack: 'bg-green-500/10 text-green-400 border-green-500/20', // All clear
+        upcoming: 'bg-amber-500/10 text-amber-500 border-amber-500/20', // Due soon (<=3 days)
+        due: 'bg-amber-500/10 text-amber-500 border-amber-500/20', // Due later (>3 days)
+        missed: 'bg-orange-500/10 text-amber-500 border-orange-500/20', // Invoice missed
+        onTrack: 'bg-green-500/10 text-green-500 border-green-500/20', // All clear
       },
     },
     defaultVariants: {
@@ -395,7 +395,7 @@ export function RecurringInvoiceCard({
       </div>
 
       {/* Section 3: Stats - Unpaid Count + Timing */}
-      <div className="flex items-center justify-between px-6 mb-4">
+      <div className="flex items-center justify-between px-2 mb-4">
         {/* Left: Unpaid Count */}
         <div className="text-center">
           <p className={cn(unpaidCountVariants({ status: unpaidStatus }))}>
