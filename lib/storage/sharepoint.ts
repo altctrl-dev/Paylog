@@ -139,9 +139,11 @@ export class SharePointStorageService implements StorageService {
    */
   async download(path: string): Promise<Buffer> {
     try {
-      // Get file content using Graph API
+      // Get file content using Graph API with responseType blob
       const response = await this.client
         .api(`${this.driveEndpoint}/root:/${path}:/content`)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .responseType('arraybuffer' as any)
         .get();
 
       // Response is already a Buffer or ArrayBuffer
@@ -157,7 +159,23 @@ export class SharePointStorageService implements StorageService {
         return await this.streamToBuffer(response);
       }
 
-      throw new Error('Unexpected response type from Graph API');
+      // Try to convert if it's a Blob-like object
+      if (response && typeof response.arrayBuffer === 'function') {
+        const arrayBuffer = await response.arrayBuffer();
+        return Buffer.from(arrayBuffer);
+      }
+
+      // Last resort: if it's an object with data property (some SDK versions)
+      if (response && response.data) {
+        if (Buffer.isBuffer(response.data)) {
+          return response.data;
+        }
+        if (response.data instanceof ArrayBuffer) {
+          return Buffer.from(response.data);
+        }
+      }
+
+      throw new Error(`Unexpected response type from Graph API: ${typeof response}`);
     } catch (error) {
       console.error('[SharePoint] Download error:', error);
       throw new StorageError(
