@@ -3,28 +3,16 @@
 /**
  * Invoice Tabs Component (v3)
  *
- * Tab navigation for switching between invoice views:
+ * Modern tab navigation for switching between invoice views:
  * - Recurring: Shows recurring invoice cards
  * - All: Shows all invoices in a table/list
  * - TDS: Shows TDS-related invoices
  *
- * Design:
- * ┌─────────────────────────────────────────────────┐
- * │ [Recurring]    [All]    [TDS]                   │
- * └─────────────────────────────────────────────────┘
- *
- * Styling:
- * - Active: Blue/10% bg, Blue-400 text
- * - Inactive: Gray-400 text
- * - Hover: Gray-800 bg
- * - Padding: 8px 16px
- * - Border radius: 8px
- * - Gap: 4px
+ * Design: Clean underline-style tabs with subtle hover states
  */
 
 import * as React from 'react';
 import { cva } from 'class-variance-authority';
-import { RefreshCw, List, Receipt } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // ============================================================================
@@ -48,13 +36,12 @@ export interface InvoiceTabsProps
 interface TabConfig {
   id: InvoiceTab;
   label: string;
-  icon: React.ComponentType<{ className?: string }>;
 }
 
 const TAB_CONFIG: TabConfig[] = [
-  { id: 'recurring', label: 'Recurring', icon: RefreshCw },
-  { id: 'all', label: 'All', icon: List },
-  { id: 'tds', label: 'TDS', icon: Receipt },
+  { id: 'recurring', label: 'Recurring' },
+  { id: 'all', label: 'All Invoices' },
+  { id: 'tds', label: 'TDS' },
 ];
 
 // ============================================================================
@@ -63,16 +50,17 @@ const TAB_CONFIG: TabConfig[] = [
 
 const tabVariants = cva(
   [
-    'inline-flex items-center gap-2 px-4 py-2 rounded-lg',
-    'text-sm font-medium transition-all duration-200',
+    'w-28 py-2',
+    'text-sm font-medium text-center',
+    'transition-all duration-200',
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-    'hover:scale-[1.02]',
+    'rounded-md',
   ],
   {
     variants: {
       state: {
-        active: 'bg-blue-500/10 text-blue-400',
-        inactive: 'text-gray-400 hover:bg-gray-800',
+        active: 'bg-background text-foreground shadow-sm border border-border/50',
+        inactive: 'text-muted-foreground hover:text-foreground',
       },
     },
     defaultVariants: {
@@ -80,18 +68,6 @@ const tabVariants = cva(
     },
   }
 );
-
-const containerVariants = cva('inline-flex items-center gap-1 p-1 rounded-lg', {
-  variants: {
-    variant: {
-      default: 'bg-transparent',
-      contained: 'bg-gray-900/50 border border-gray-800',
-    },
-  },
-  defaultVariants: {
-    variant: 'default',
-  },
-});
 
 // ============================================================================
 // Component
@@ -107,12 +83,15 @@ export function InvoiceTabs({
     <div
       role="tablist"
       aria-label="Invoice views"
-      className={cn(containerVariants({ variant: 'default' }), className)}
+      className={cn(
+        'inline-flex items-center p-1 rounded-lg',
+        'bg-muted',
+        className
+      )}
       {...props}
     >
       {TAB_CONFIG.map((tab) => {
         const isActive = value === tab.id;
-        const Icon = tab.icon;
 
         return (
           <button
@@ -124,8 +103,75 @@ export function InvoiceTabs({
             className={cn(tabVariants({ state: isActive ? 'active' : 'inactive' }))}
             onClick={() => onChange(tab.id)}
           >
-            <Icon className="h-4 w-4" />
-            <span>{tab.label}</span>
+            {tab.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ============================================================================
+// Pill Variant - Contained tabs with background
+// ============================================================================
+
+const pillTabVariants = cva(
+  [
+    'inline-flex items-center justify-center px-4 py-2 rounded-lg',
+    'text-sm font-medium transition-all duration-200',
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+  ],
+  {
+    variants: {
+      state: {
+        active: 'bg-primary text-primary-foreground shadow-sm',
+        inactive: 'text-muted-foreground hover:text-foreground hover:bg-muted/50',
+      },
+    },
+    defaultVariants: {
+      state: 'inactive',
+    },
+  }
+);
+
+export interface InvoiceTabsPillProps
+  extends Omit<React.HTMLAttributes<HTMLDivElement>, 'onChange'> {
+  /** Currently selected tab */
+  value: InvoiceTab;
+  /** Callback when tab selection changes */
+  onChange: (tab: InvoiceTab) => void;
+}
+
+/**
+ * Pill-style tabs with contained background
+ */
+export function InvoiceTabsPill({
+  value,
+  onChange,
+  className,
+  ...props
+}: InvoiceTabsPillProps) {
+  return (
+    <div
+      role="tablist"
+      aria-label="Invoice views"
+      className={cn('inline-flex items-center gap-1 p-1 rounded-lg bg-muted/30', className)}
+      {...props}
+    >
+      {TAB_CONFIG.map((tab) => {
+        const isActive = value === tab.id;
+
+        return (
+          <button
+            key={tab.id}
+            role="tab"
+            aria-selected={isActive}
+            aria-controls={`panel-${tab.id}`}
+            tabIndex={isActive ? 0 : -1}
+            className={cn(pillTabVariants({ state: isActive ? 'active' : 'inactive' }))}
+            onClick={() => onChange(tab.id)}
+          >
+            {tab.label}
           </button>
         );
       })}
@@ -155,9 +201,6 @@ export function InvoiceTabsCompact({
   onChange,
   className,
 }: InvoiceTabsCompactProps) {
-  const activeTab = TAB_CONFIG.find((tab) => tab.id === value);
-  const ActiveIcon = activeTab?.icon ?? List;
-
   return (
     <div className={cn('relative', className)}>
       <select
@@ -165,10 +208,10 @@ export function InvoiceTabsCompact({
         onChange={(e) => onChange(e.target.value as InvoiceTab)}
         className={cn(
           'appearance-none w-full',
-          'pl-10 pr-8 py-2 rounded-lg',
-          'bg-gray-900/50 border border-gray-800',
+          'px-4 pr-8 py-2 rounded-lg',
+          'bg-muted/50 border border-border',
           'text-sm font-medium text-foreground',
-          'focus:outline-none focus:ring-2 focus:ring-blue-500/50',
+          'focus:outline-none focus:ring-2 focus:ring-primary/50',
           'cursor-pointer'
         )}
         aria-label="Select invoice view"
@@ -179,10 +222,9 @@ export function InvoiceTabsCompact({
           </option>
         ))}
       </select>
-      <ActiveIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-blue-400 pointer-events-none" />
       <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
         <svg
-          className="h-4 w-4 text-gray-400"
+          className="h-4 w-4 text-muted-foreground"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -225,9 +267,9 @@ export function InvoiceTabsResponsive({
   breakpoint = 'sm',
 }: InvoiceTabsResponsiveProps) {
   const breakpointClasses = {
-    sm: { hidden: 'sm:hidden', block: 'hidden sm:flex' },
-    md: { hidden: 'md:hidden', block: 'hidden md:flex' },
-    lg: { hidden: 'lg:hidden', block: 'hidden lg:flex' },
+    sm: { hidden: 'sm:hidden', block: 'hidden sm:inline-flex' },
+    md: { hidden: 'md:hidden', block: 'hidden md:inline-flex' },
+    lg: { hidden: 'lg:hidden', block: 'hidden lg:inline-flex' },
   };
 
   const classes = breakpointClasses[breakpoint];

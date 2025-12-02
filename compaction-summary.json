@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-12-01 23:44:10 IST",
+  "timestamp": "2025-12-02 04:25:17 IST",
   "agents_seen": [
     "Main Agent (Direct Work)"
   ],
@@ -10,10 +10,12 @@
   "owned_artifacts": [
     "OMPACTION.md",
     "compaction-summary.json",
-    "lib/auth.ts",
+    "components/v3/invoices/invoice-tabs.tsx",
+    "components/v3/invoices/invoices-page.tsx",
+    "components/v3/invoices/recurring-card.tsx",
     "logs/context-metrics.jsonl",
-    "docs/CONTEXT_RESTORATION_PROMPT_2025_11_25.md",
-    "docs/UI_BUILD_PROMPTS.md"
+    "components/v3/invoices/all-invoices-tab.tsx",
+    "components/v3/invoices/tds-tab.tsx"
   ],
   "contracts_touched": [],
   "files_touched": [
@@ -28,7 +30,17 @@
       "anchors": []
     },
     {
-      "path": "lib/auth.ts",
+      "path": "components/v3/invoices/invoice-tabs.tsx",
+      "reason": "modified",
+      "anchors": []
+    },
+    {
+      "path": "components/v3/invoices/invoices-page.tsx",
+      "reason": "modified",
+      "anchors": []
+    },
+    {
+      "path": "components/v3/invoices/recurring-card.tsx",
       "reason": "modified",
       "anchors": []
     },
@@ -38,12 +50,12 @@
       "anchors": []
     },
     {
-      "path": "docs/CONTEXT_RESTORATION_PROMPT_2025_11_25.md",
+      "path": "components/v3/invoices/all-invoices-tab.tsx",
       "reason": "created",
       "anchors": []
     },
     {
-      "path": "docs/UI_BUILD_PROMPTS.md",
+      "path": "components/v3/invoices/tds-tab.tsx",
       "reason": "created",
       "anchors": []
     }

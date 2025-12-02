@@ -477,8 +477,8 @@ export interface RecurringCardGridProps
  * Responsive 4-column layout:
  * - 1 column on mobile
  * - 2 columns on tablet (sm)
- * - 3 columns on medium screens (md)
- * - 4 columns on large screens (lg)
+ * - 3 columns on medium screens (lg)
+ * - 4 columns on extra large screens (xl)
  */
 export function RecurringCardGrid({
   children,
@@ -489,7 +489,7 @@ export function RecurringCardGrid({
     <div
       className={cn(
         'grid gap-4',
-        'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
+        'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
         className
       )}
       {...props}

@@ -18,6 +18,8 @@ import { useMemo } from 'react';
 import { FileText } from 'lucide-react';
 import { RecurringInvoiceCard, RecurringCardGrid } from './recurring-card';
 import { InvoiceTabsResponsive, type InvoiceTab } from './invoice-tabs';
+import { AllInvoicesTab } from './all-invoices-tab';
+import { TDSTab } from './tds-tab';
 import { useInvoiceProfiles } from '@/hooks/use-invoices-v2';
 import { useInvoices } from '@/hooks/use-invoices';
 import { usePanel } from '@/hooks/use-panel';
@@ -167,43 +169,6 @@ function EmptyState() {
   );
 }
 
-/**
- * Placeholder for All tab content
- */
-function AllTabContent() {
-  return (
-    <div className="flex flex-col items-center justify-center py-16 text-center">
-      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted mb-4">
-        <FileText className="h-8 w-8 text-muted-foreground" />
-      </div>
-      <h3 className="text-lg font-semibold text-foreground mb-2">
-        All Invoices
-      </h3>
-      <p className="text-sm text-muted-foreground max-w-sm">
-        All invoices view coming soon.
-      </p>
-    </div>
-  );
-}
-
-/**
- * Placeholder for TDS tab content
- */
-function TDSTabContent() {
-  return (
-    <div className="flex flex-col items-center justify-center py-16 text-center">
-      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted mb-4">
-        <FileText className="h-8 w-8 text-muted-foreground" />
-      </div>
-      <h3 className="text-lg font-semibold text-foreground mb-2">
-        TDS Invoices
-      </h3>
-      <p className="text-sm text-muted-foreground max-w-sm">
-        TDS invoices view coming soon.
-      </p>
-    </div>
-  );
-}
 
 // ============================================================================
 // Main Component
@@ -410,9 +375,9 @@ export function InvoicesPage({
           </>
         )}
 
-        {activeTab === 'all' && <AllTabContent />}
+        {activeTab === 'all' && <AllInvoicesTab />}
 
-        {activeTab === 'tds' && <TDSTabContent />}
+        {activeTab === 'tds' && <TDSTab />}
       </div>
     </div>
   );

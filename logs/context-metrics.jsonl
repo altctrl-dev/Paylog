@@ -49,3 +49,5 @@
 {"timestamp": "2025-12-01T11:55:17.557219", "pollution_score": 0.0, "token_efficiency": 0.0, "wsi_utilization": 0.0, "context_reuse_rate": 0.0, "details": {}}
 {"timestamp": "2025-12-01T14:37:40.287051", "pollution_score": 0.0, "token_efficiency": 0.0, "wsi_utilization": 0.0, "context_reuse_rate": 0.0, "details": {}}
 {"timestamp": "2025-12-01T18:14:10.425325", "pollution_score": 0.0, "token_efficiency": 0.0, "wsi_utilization": 0.0, "context_reuse_rate": 0.0, "details": {}}
+{"timestamp": "2025-12-01T21:53:54.744349", "pollution_score": 0.0, "token_efficiency": 0.0, "wsi_utilization": 0.0, "context_reuse_rate": 0.0, "details": {}}
+{"timestamp": "2025-12-01T22:55:17.138610", "pollution_score": 0.0, "token_efficiency": 0.0, "wsi_utilization": 0.0, "context_reuse_rate": 0.0, "details": {}}
