@@ -323,17 +323,32 @@ export async function uploadAttachment(
     // 4. Process file upload
     const { file, buffer } = await processFileUpload(formData);
 
-    // 5. Generate unique filename and storage path
+    // 5. Fetch invoice details for folder organization
+    const invoice = await db.invoice.findUnique({
+      where: { id: invoiceId },
+      select: {
+        invoice_date: true,
+        is_recurring: true,
+        invoice_profile: {
+          select: { name: true },
+        },
+      },
+    });
+
+    // 6. Generate unique filename and storage path
     const uniqueFilename = generateUniqueFilename(file.name);
     const storagePath = generateStoragePath(invoiceId, uniqueFilename);
 
-    // 6. Upload to storage
+    // 7. Upload to storage
     const storage = createStorageService();
     const uploadResult = await storage.upload(buffer, uniqueFilename, {
       invoiceId,
       userId: user.id,
       originalName: file.name,
       mimeType: file.type,
+      invoiceDate: invoice?.invoice_date ?? undefined,
+      isRecurring: invoice?.is_recurring ?? false,
+      profileName: invoice?.invoice_profile?.name ?? undefined,
     });
 
     if (!uploadResult.success) {
@@ -346,7 +361,7 @@ export async function uploadAttachment(
       };
     }
 
-    // 7. Create database record
+    // 8. Create database record
     const attachment = await db.invoiceAttachment.create({
       data: {
         invoice_id: invoiceId,
@@ -359,11 +374,11 @@ export async function uploadAttachment(
       },
     });
 
-    // 8. Revalidate cache
+    // 9. Revalidate cache
     revalidatePath('/invoices');
     revalidatePath(`/invoices/${invoiceId}`);
 
-    // 9. Log success
+    // 10. Log success
     logAttachmentOperation('upload', user.id, invoiceId, attachment.id, {
       fileName: file.name,
       fileSize: file.size,

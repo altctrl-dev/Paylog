@@ -98,11 +98,11 @@ export class SharePointStorageService implements StorageService {
     metadata: UploadMetadata
   ): Promise<StorageResult> {
     try {
-      // Build folder path: Paylog/Invoices/{year}/{month}/{invoiceId}
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const folderPath = `${this.config.baseFolder}/Invoices/${year}/${month}/${metadata.invoiceId}`;
+      // Build folder path based on invoice details:
+      // {baseFolder}/{year}/{month}/{type}/{profileName?}/{invoiceId}/{filename}
+      // Example: Invoices/2025/01/recurring/Rent/123/file.pdf
+      // Example: Invoices/2025/02/one-time/456/file.pdf
+      const folderPath = this.buildFolderPath(metadata);
       const fullPath = `${folderPath}/${fileName}`;
 
       // Ensure folder structure exists
@@ -235,6 +235,53 @@ export class SharePointStorageService implements StorageService {
   // ============================================================================
   // PRIVATE HELPERS
   // ============================================================================
+
+  /**
+   * Build folder path based on invoice metadata
+   * Structure: {baseFolder}/{year}/{month}/{type}/{profileName?}/{invoiceId}
+   *
+   * Examples:
+   * - Recurring with profile: Invoices/2025/01/recurring/Rent/123
+   * - Recurring without profile: Invoices/2025/01/recurring/123
+   * - One-time: Invoices/2025/02/one-time/456
+   */
+  private buildFolderPath(metadata: UploadMetadata): string {
+    // Use invoice date if available, otherwise fall back to current date
+    const date = metadata.invoiceDate ? new Date(metadata.invoiceDate) : new Date();
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+
+    // Determine invoice type folder
+    const typeFolder = metadata.isRecurring ? 'recurring' : 'one-time';
+
+    // Build path parts
+    const parts = [this.config.baseFolder, String(year), month, typeFolder];
+
+    // Add profile name for recurring invoices (sanitize for folder name)
+    if (metadata.isRecurring && metadata.profileName) {
+      const sanitizedProfileName = this.sanitizeFolderName(metadata.profileName);
+      parts.push(sanitizedProfileName);
+    }
+
+    // Add invoice ID for uniqueness
+    parts.push(String(metadata.invoiceId));
+
+    return parts.join('/');
+  }
+
+  /**
+   * Sanitize a string for use as a folder name
+   * Removes/replaces characters that are invalid in SharePoint folder names
+   */
+  private sanitizeFolderName(name: string): string {
+    // SharePoint invalid characters: " * : < > ? / \ |
+    // Also replace multiple spaces with single space, trim
+    return name
+      .replace(/[\"*:<>?\/\\|]/g, '-')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .substring(0, 100); // Limit length
+  }
 
   /**
    * Upload small file (< 4MB) using simple PUT

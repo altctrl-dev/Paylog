@@ -62,7 +62,7 @@ export class LocalStorageService implements StorageService {
       // 1. Generate storage path
       const sanitized = sanitizeFilename(fileName);
       const uniqueFilename = this.generateUniqueFilename(sanitized);
-      const relativePath = this.generateStoragePath(metadata.invoiceId, uniqueFilename);
+      const relativePath = this.buildStoragePath(metadata, uniqueFilename);
       const absolutePath = path.join(this.baseDir, relativePath);
 
       // 2. Validate path (security check)
@@ -292,19 +292,58 @@ export class LocalStorageService implements StorageService {
   }
 
   /**
-   * Generate storage path for invoice attachment
+   * Build storage path based on invoice metadata
    *
-   * Format: /uploads/invoices/{year}/{month}/{invoice_id}/{filename}
+   * Structure: invoices/{year}/{month}/{type}/{profileName?}/{invoiceId}/{filename}
    *
-   * @param invoiceId - Invoice ID
+   * Examples:
+   * - Recurring with profile: invoices/2025/01/recurring/Rent/123/file.pdf
+   * - Recurring without profile: invoices/2025/01/recurring/123/file.pdf
+   * - One-time: invoices/2025/02/one-time/456/file.pdf
+   *
+   * @param metadata - Upload metadata with invoice details
    * @param filename - Unique filename
    * @returns Relative storage path
    */
-  private generateStoragePath(invoiceId: number, filename: string): string {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    return path.join('invoices', String(year), month, String(invoiceId), filename);
+  private buildStoragePath(metadata: UploadMetadata, filename: string): string {
+    // Use invoice date if available, otherwise fall back to current date
+    const date = metadata.invoiceDate ? new Date(metadata.invoiceDate) : new Date();
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+
+    // Determine invoice type folder
+    const typeFolder = metadata.isRecurring ? 'recurring' : 'one-time';
+
+    // Build path parts
+    const parts = ['invoices', String(year), month, typeFolder];
+
+    // Add profile name for recurring invoices (sanitize for folder name)
+    if (metadata.isRecurring && metadata.profileName) {
+      const sanitizedProfileName = this.sanitizeFolderName(metadata.profileName);
+      parts.push(sanitizedProfileName);
+    }
+
+    // Add invoice ID for uniqueness
+    parts.push(String(metadata.invoiceId));
+
+    // Add filename
+    parts.push(filename);
+
+    return path.join(...parts);
+  }
+
+  /**
+   * Sanitize a string for use as a folder name
+   * Removes/replaces characters that are invalid in folder names
+   */
+  private sanitizeFolderName(name: string): string {
+    // Invalid characters for most filesystems: / \ : * ? " < > |
+    // Also replace multiple spaces with single space, trim
+    return name
+      .replace(/[\/\\:*?"<>|]/g, '-')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .substring(0, 100); // Limit length
   }
 
   /**

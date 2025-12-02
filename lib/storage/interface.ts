@@ -27,6 +27,10 @@ export interface UploadMetadata {
   userId: number;
   originalName: string;
   mimeType: string;
+  // Invoice details for folder organization
+  invoiceDate?: Date;
+  isRecurring?: boolean;
+  profileName?: string; // Invoice profile name for recurring invoices
 }
 
 // ============================================================================
