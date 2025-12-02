@@ -395,7 +395,7 @@ export function RecurringInvoiceCard({
       </div>
 
       {/* Section 3: Stats - Unpaid Count + Timing */}
-      <div className="flex items-center justify-around mb-4">
+      <div className="flex items-center justify-between px-6 mb-4">
         {/* Left: Unpaid Count */}
         <div className="text-center">
           <p className={cn(unpaidCountVariants({ status: unpaidStatus }))}>
