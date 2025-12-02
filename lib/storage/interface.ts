@@ -106,7 +106,7 @@ export interface StorageService {
  * Storage provider configuration
  */
 export interface StorageConfig {
-  provider: 'local' | 's3' | 'r2';
+  provider: 'local' | 's3' | 'r2' | 'sharepoint';
   baseDir?: string; // For local filesystem
   bucket?: string; // For S3/R2
   region?: string; // For S3/R2

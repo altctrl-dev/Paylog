@@ -7,6 +7,7 @@
 
 import { StorageService, StorageConfig } from './interface';
 import { LocalStorageService } from './local';
+import { createSharePointStorage } from './sharepoint';
 
 // ============================================================================
 // FACTORY FUNCTION
@@ -16,8 +17,16 @@ import { LocalStorageService } from './local';
  * Create a storage service instance based on environment configuration
  *
  * Reads from environment variables:
- * - STORAGE_PROVIDER: 'local' | 's3' | 'r2' (default: 'local')
+ * - STORAGE_PROVIDER: 'local' | 's3' | 'r2' | 'sharepoint' (default: 'local')
  * - UPLOAD_DIR: Base directory for local storage (default: './uploads')
+ *
+ * SharePoint provider env vars:
+ * - AZURE_TENANT_ID
+ * - AZURE_CLIENT_ID
+ * - AZURE_CLIENT_SECRET
+ * - SHAREPOINT_SITE_ID
+ * - SHAREPOINT_DRIVE_ID (optional)
+ * - SHAREPOINT_BASE_FOLDER (default: 'Paylog')
  *
  * Future cloud providers (S3, R2) will read additional env vars:
  * - STORAGE_BUCKET
@@ -36,6 +45,9 @@ export function createStorageService(): StorageService {
     case 'local':
       return createLocalStorage();
 
+    case 'sharepoint':
+      return createSharePointStorage();
+
     case 's3':
       // TODO: Implement S3StorageService
       throw new Error(
@@ -50,7 +62,7 @@ export function createStorageService(): StorageService {
 
     default:
       throw new Error(
-        `Unknown storage provider: ${provider}. Supported: local, s3, r2.`
+        `Unknown storage provider: ${provider}. Supported: local, sharepoint, s3, r2.`
       );
   }
 }
@@ -101,9 +113,9 @@ export function validateStorageConfig(): {
   const config = getStorageConfig();
 
   // Validate provider
-  if (!['local', 's3', 'r2'].includes(config.provider)) {
+  if (!['local', 's3', 'r2', 'sharepoint'].includes(config.provider)) {
     errors.push(
-      `Invalid STORAGE_PROVIDER: ${config.provider}. Must be 'local', 's3', or 'r2'.`
+      `Invalid STORAGE_PROVIDER: ${config.provider}. Must be 'local', 'sharepoint', 's3', or 'r2'.`
     );
   }
 
@@ -145,6 +157,21 @@ export function validateStorageConfig(): {
     }
     if (!process.env.STORAGE_SECRET_ACCESS_KEY) {
       errors.push('STORAGE_SECRET_ACCESS_KEY is required for R2 provider.');
+    }
+  }
+
+  if (config.provider === 'sharepoint') {
+    if (!process.env.AZURE_TENANT_ID) {
+      errors.push('AZURE_TENANT_ID is required for SharePoint provider.');
+    }
+    if (!process.env.AZURE_CLIENT_ID) {
+      errors.push('AZURE_CLIENT_ID is required for SharePoint provider.');
+    }
+    if (!process.env.AZURE_CLIENT_SECRET) {
+      errors.push('AZURE_CLIENT_SECRET is required for SharePoint provider.');
+    }
+    if (!process.env.SHAREPOINT_SITE_ID) {
+      errors.push('SHAREPOINT_SITE_ID is required for SharePoint provider.');
     }
   }
 
