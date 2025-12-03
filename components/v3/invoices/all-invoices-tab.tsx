@@ -23,7 +23,10 @@ import {
   Eye,
   Pencil,
   Trash2,
+  RefreshCw,
+  FileText,
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -129,6 +132,9 @@ export function AllInvoicesTab() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedInvoices, setSelectedInvoices] = useState<Set<number>>(new Set());
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<'invoice_date' | 'invoice_amount' | 'status'>('invoice_date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [showInvoiceTypeMenu, setShowInvoiceTypeMenu] = useState(false);
 
   // Default to current month
   const now = new Date();
@@ -145,8 +151,8 @@ export function AllInvoicesTab() {
     status: statusFilter === 'all' ? undefined : (statusFilter as InvoiceStatus),
     start_date: start,
     end_date: end,
-    sort_by: 'invoice_date',
-    sort_order: 'desc',
+    sort_by: sortBy,
+    sort_order: sortOrder,
   });
 
   const handleMonthChange = (month: number, year: number) => {
@@ -189,11 +195,13 @@ export function AllInvoicesTab() {
     filteredInvoices.length > 0 && selectedInvoices.size === filteredInvoices.length;
 
   // Action handlers
-  const handleNewInvoice = () => {
+  const handleNewInvoice = (type: 'recurring' | 'non-recurring') => {
+    setShowInvoiceTypeMenu(false);
     if (invoiceCreationMode === 'panel') {
-      openPanel('invoice-create-non-recurring', {}, { width: PANEL_WIDTH.LARGE });
+      const panelType = type === 'recurring' ? 'invoice-create-recurring' : 'invoice-create-non-recurring';
+      openPanel(panelType, {}, { width: PANEL_WIDTH.LARGE });
     } else {
-      router.push('/invoices/new/non-recurring');
+      router.push(`/invoices/new/${type}`);
     }
   };
 
@@ -207,8 +215,40 @@ export function AllInvoicesTab() {
   };
 
   const handleExport = () => {
-    // TODO: Implement export functionality
-    console.log('Export clicked');
+    if (filteredInvoices.length === 0) {
+      alert('No invoices to export');
+      return;
+    }
+
+    // Prepare data for export
+    const exportData = filteredInvoices.map((invoice) => ({
+      'Invoice ID': invoice.invoice_number || '',
+      'Vendor': invoice.vendor?.name || '',
+      'Amount': invoice.invoice_amount,
+      'Status': invoice.status,
+      'Date': formatDate(invoice.invoice_date),
+      'Type': invoice.is_recurring ? 'Recurring' : 'One-time',
+    }));
+
+    // Create workbook and worksheet
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Invoices');
+
+    // Generate filename with month/year
+    const filename = `invoices_${monthNames[selectedMonth]}_${selectedYear}.xlsx`;
+
+    // Download
+    XLSX.writeFile(wb, filename);
+  };
+
+  const handleSort = (field: 'invoice_date' | 'invoice_amount' | 'status') => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('desc');
+    }
   };
 
   const handleDeleteInvoice = (id: number) => {
@@ -269,10 +309,25 @@ export function AllInvoicesTab() {
           </DropdownMenu>
 
           {/* Sort */}
-          <Button variant="outline" className="gap-2">
-            <ArrowUpDown className="h-4 w-4" />
-            Sort
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <ArrowUpDown className="h-4 w-4" />
+                Sort
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem onClick={() => handleSort('invoice_date')}>
+                Date {sortBy === 'invoice_date' && (sortOrder === 'asc' ? '↑' : '↓')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleSort('invoice_amount')}>
+                Amount {sortBy === 'invoice_amount' && (sortOrder === 'asc' ? '↑' : '↓')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleSort('status')}>
+                Status {sortBy === 'status' && (sortOrder === 'asc' ? '↑' : '↓')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Right: Month Navigator, Export, New Invoice */}
@@ -286,10 +341,24 @@ export function AllInvoicesTab() {
             <Download className="h-4 w-4" />
             Export
           </Button>
-          <Button className="gap-2 bg-blue-600 hover:bg-blue-700" onClick={handleNewInvoice}>
-            <Plus className="h-4 w-4" />
-            New Invoice
-          </Button>
+          <DropdownMenu open={showInvoiceTypeMenu} onOpenChange={setShowInvoiceTypeMenu}>
+            <DropdownMenuTrigger asChild>
+              <Button className="gap-2 bg-blue-600 hover:bg-blue-700">
+                <Plus className="h-4 w-4" />
+                New Invoice
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handleNewInvoice('recurring')}>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Recurring Invoice
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleNewInvoice('non-recurring')}>
+                <FileText className="mr-2 h-4 w-4" />
+                One-time Invoice
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
