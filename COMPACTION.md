@@ -1,8 +1,8 @@
-# Compaction Summary — 2025-12-02 04:25:17 IST
+# Compaction Summary — 2025-12-03 14:09:27 IST
 
 ## Executive Summary
 - Agents active: Main Agent (Direct Work)
-- Files modified: 8
+- Files modified: 7
 - Contracts affected: 0
 - Open questions: 0
 
@@ -15,12 +15,11 @@
 ## Critical Paths (for JIT retrieval)
 - `OMPACTION.md`
 - `compaction-summary.json`
-- `components/v3/invoices/invoice-tabs.tsx`
-- `components/v3/invoices/invoices-page.tsx`
-- `components/v3/invoices/recurring-card.tsx`
-- `logs/context-metrics.jsonl`
 - `components/v3/invoices/all-invoices-tab.tsx`
 - `components/v3/invoices/tds-tab.tsx`
+- `logs/context-metrics.jsonl`
+- `components/ui/table.tsx`
+- `components/v3/invoices/month-navigator.tsx`
 
 ## Contracts Touched (verify stability)
 - n/a

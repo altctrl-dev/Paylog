@@ -3,60 +3,33 @@
 /**
  * TDS Tab Component (v3)
  *
- * Displays TDS (Tax Deducted at Source) transactions with:
- * - Table: Transaction ID, Client, Gross Amount, TDS Rate, TDS Amount, Net Amount, Date
- * - Summary row: Total TDS Collected, Total Gross Amount, Total Net Amount
+ * Displays invoices with TDS (Tax Deducted at Source) in a table format:
+ * - Invoice Details (profile name for recurring, invoice name for non-recurring)
+ * - Invoice Number
+ * - Invoice Date
+ * - Invoice Amount
+ * - TDS %
+ * - TDS Amount
+ *
+ * Features:
+ * - Month navigation with calendar picker
+ * - Defaults to current month
+ * - Summary row with totals
  */
 
 import * as React from 'react';
-
-// ============================================================================
-// Types
-// ============================================================================
-
-interface TDSTransaction {
-  id: string;
-  client: string;
-  grossAmount: number;
-  tdsRate: string;
-  tdsAmount: number;
-  netAmount: number;
-  date: string;
-}
-
-// ============================================================================
-// Mock Data (Replace with actual API data later)
-// ============================================================================
-
-const MOCK_TDS_DATA: TDSTransaction[] = [
-  {
-    id: 'TDS-001',
-    client: 'Infopark Rent',
-    grossAmount: 125000,
-    tdsRate: '10%',
-    tdsAmount: 12500,
-    netAmount: 112500,
-    date: '2025-10-01',
-  },
-  {
-    id: 'TDS-002',
-    client: 'Infopark Electricity',
-    grossAmount: 50000,
-    tdsRate: '10%',
-    tdsAmount: 5000,
-    netAmount: 45000,
-    date: '2025-10-15',
-  },
-  {
-    id: 'TDS-003',
-    client: 'AC Charges',
-    grossAmount: 75000,
-    tdsRate: '2%',
-    tdsAmount: 1500,
-    netAmount: 73500,
-    date: '2025-09-20',
-  },
-];
+import { useInvoices } from '@/hooks/use-invoices';
+import { MonthNavigator } from './month-navigator';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 // ============================================================================
 // Format Helpers
@@ -66,16 +39,41 @@ function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(amount);
 }
 
-function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString('en-IN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
+function formatDate(dateString: string | Date | null): string {
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
   });
+}
+
+function formatTdsPercentage(percentage: number | null): string {
+  if (percentage === null || percentage === undefined) return '-';
+  return `${percentage.toFixed(1)}%`;
+}
+
+function calculateTdsAmount(invoiceAmount: number, tdsPercentage: number | null): number {
+  if (tdsPercentage === null || tdsPercentage === undefined) return 0;
+  return (invoiceAmount * tdsPercentage) / 100;
+}
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/**
+ * Get start and end dates for a given month/year
+ */
+function getMonthDateRange(month: number, year: number): { start: Date; end: Date } {
+  const start = new Date(year, month, 1);
+  const end = new Date(year, month + 1, 0); // Last day of month
+  return { start, end };
 }
 
 // ============================================================================
@@ -83,112 +81,157 @@ function formatDate(dateString: string): string {
 // ============================================================================
 
 export function TDSTab() {
-  const transactions = MOCK_TDS_DATA;
+  // Default to current month
+  const now = new Date();
+  const [selectedMonth, setSelectedMonth] = React.useState(now.getMonth());
+  const [selectedYear, setSelectedYear] = React.useState(now.getFullYear());
+
+  // Calculate date range for selected month
+  const { start, end } = getMonthDateRange(selectedMonth, selectedYear);
+
+  // Fetch invoices with TDS applicable for selected month
+  const { data, isLoading } = useInvoices({
+    page: 1,
+    per_page: 100,
+    tds_applicable: true,
+    start_date: start,
+    end_date: end,
+    sort_by: 'invoice_date',
+    sort_order: 'asc',
+  });
+
+  const invoices = data?.invoices ?? [];
 
   // Calculate totals
-  const totals = transactions.reduce(
-    (acc, t) => ({
-      tdsCollected: acc.tdsCollected + t.tdsAmount,
-      grossAmount: acc.grossAmount + t.grossAmount,
-      netAmount: acc.netAmount + t.netAmount,
-    }),
-    { tdsCollected: 0, grossAmount: 0, netAmount: 0 }
+  const totals = invoices.reduce(
+    (acc, invoice) => {
+      const tdsAmount = calculateTdsAmount(invoice.invoice_amount, invoice.tds_percentage);
+      return {
+        invoiceAmount: acc.invoiceAmount + invoice.invoice_amount,
+        tdsAmount: acc.tdsAmount + tdsAmount,
+      };
+    },
+    { invoiceAmount: 0, tdsAmount: 0 }
   );
+
+  const handleMonthChange = (month: number, year: number) => {
+    setSelectedMonth(month);
+    setSelectedYear(year);
+  };
+
+  /**
+   * Get invoice details text:
+   * - For recurring: invoice profile name
+   * - For non-recurring: invoice name (stored in description)
+   */
+  const getInvoiceDetails = (invoice: (typeof invoices)[0]): string => {
+    // Cast to access additional fields that may exist from API
+    const inv = invoice as typeof invoice & {
+      invoice_profile?: { name: string } | null;
+      description?: string | null;
+    };
+
+    if (inv.is_recurring) {
+      // Try invoice_profile first, then profile (legacy)
+      return inv.invoice_profile?.name || inv.profile?.name || 'Unknown Profile';
+    }
+    // Non-recurring: use description as invoice name, fall back to notes
+    return inv.description || inv.notes || 'Unnamed Invoice';
+  };
 
   return (
     <div className="space-y-4">
-      {/* Table */}
-      <div className="rounded-lg border border-border overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-border bg-muted/30">
-                <th className="p-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Transaction ID
-                </th>
-                <th className="p-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Client
-                </th>
-                <th className="p-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Gross Amount
-                </th>
-                <th className="p-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  TDS Rate
-                </th>
-                <th className="p-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  TDS Amount
-                </th>
-                <th className="p-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Net Amount
-                </th>
-                <th className="p-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Date
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {transactions.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="p-8 text-center text-muted-foreground">
-                    No TDS transactions found
-                  </td>
-                </tr>
-              ) : (
-                transactions.map((transaction) => (
-                  <tr
-                    key={transaction.id}
-                    className="border-b border-border transition-colors hover:bg-muted/30"
-                  >
-                    <td className="p-4 font-medium">{transaction.id}</td>
-                    <td className="p-4 text-muted-foreground">{transaction.client}</td>
-                    <td className="p-4">{formatCurrency(transaction.grossAmount)}</td>
-                    <td className="p-4 text-muted-foreground">{transaction.tdsRate}</td>
-                    <td className="p-4 text-red-500">
-                      -{formatCurrency(transaction.tdsAmount)}
-                    </td>
-                    <td className="p-4">{formatCurrency(transaction.netAmount)}</td>
-                    <td className="p-4 text-muted-foreground">
-                      {formatDate(transaction.date)}
-                    </td>
-                  </tr>
-                ))
-              )}
+      {/* Header with Month Navigator */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold">TDS Invoices</h2>
+        <MonthNavigator
+          month={selectedMonth}
+          year={selectedYear}
+          onChange={handleMonthChange}
+        />
+      </div>
 
-              {/* Summary Row */}
-              {transactions.length > 0 && (
-                <tr className="bg-muted/20 border-t-2 border-border">
-                  <td colSpan={2} className="p-4" />
-                  <td className="p-4">
-                    <div className="text-xs text-muted-foreground mb-1">
-                      Total Gross Amount
-                    </div>
-                    <div className="font-semibold">
-                      {formatCurrency(totals.grossAmount)}
-                    </div>
-                  </td>
-                  <td className="p-4" />
-                  <td className="p-4">
-                    <div className="text-xs text-muted-foreground mb-1">
-                      Total TDS Collected
-                    </div>
-                    <div className="font-semibold">
-                      {formatCurrency(totals.tdsCollected)}
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <div className="text-xs text-muted-foreground mb-1">
-                      Total Net Amount
-                    </div>
-                    <div className="font-semibold">
-                      {formatCurrency(totals.netAmount)}
-                    </div>
-                  </td>
-                  <td className="p-4" />
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+      {/* Table */}
+      <div className="rounded-lg border">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/50 hover:bg-muted/50">
+              <TableHead className="w-[25%]">Invoice Details</TableHead>
+              <TableHead className="w-[25%]">Invoice Number</TableHead>
+              <TableHead className="w-[15%]">Invoice Date</TableHead>
+              <TableHead className="w-[15%] text-right">Invoice Amt</TableHead>
+              <TableHead className="w-[10%] text-right">TDS %</TableHead>
+              <TableHead className="w-[10%] text-right">TDS Amt</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              // Loading skeleton
+              Array.from({ length: 5 }).map((_, i) => (
+                <TableRow key={i}>
+                  <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                  <TableCell className="text-right"><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
+                  <TableCell className="text-right"><Skeleton className="h-4 w-12 ml-auto" /></TableCell>
+                  <TableCell className="text-right"><Skeleton className="h-4 w-20 ml-auto" /></TableCell>
+                </TableRow>
+              ))
+            ) : invoices.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                  No TDS invoices found for this month
+                </TableCell>
+              </TableRow>
+            ) : (
+              invoices.map((invoice) => {
+                const tdsAmount = calculateTdsAmount(
+                  invoice.invoice_amount,
+                  invoice.tds_percentage
+                );
+
+                return (
+                  <TableRow key={invoice.id}>
+                    <TableCell className="font-medium">
+                      {getInvoiceDetails(invoice)}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {invoice.invoice_number}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {formatDate(invoice.invoice_date)}
+                    </TableCell>
+                    <TableCell className="text-right font-medium">
+                      {formatCurrency(invoice.invoice_amount)}
+                    </TableCell>
+                    <TableCell className="text-right text-muted-foreground">
+                      {formatTdsPercentage(invoice.tds_percentage)}
+                    </TableCell>
+                    <TableCell className="text-right font-medium">
+                      {formatCurrency(tdsAmount)}
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
+          </TableBody>
+          {!isLoading && invoices.length > 0 && (
+            <TableFooter>
+              <TableRow>
+                <TableCell colSpan={3} className="text-right font-semibold">
+                  Total
+                </TableCell>
+                <TableCell className="text-right font-semibold">
+                  {formatCurrency(totals.invoiceAmount)}
+                </TableCell>
+                <TableCell />
+                <TableCell className="text-right font-semibold">
+                  {formatCurrency(totals.tdsAmount)}
+                </TableCell>
+              </TableRow>
+            </TableFooter>
+          )}
+        </Table>
       </div>
     </div>
   );

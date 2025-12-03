@@ -146,7 +146,7 @@ export function SidebarV2() {
               className={cn(
                 'flex items-center rounded-lg py-2 text-sm transition-colors relative overflow-hidden',
                 isActive
-                  ? 'bg-primary text-primary-foreground'
+                  ? 'bg-primary/15 text-primary'
                   : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
                 // Use consistent padding - icons will stay centered via fixed width container
                 'px-3'

@@ -4,6 +4,7 @@
  * All Invoices Tab Component (v3)
  *
  * Displays all invoices in a table format with:
+ * - Month navigation with calendar picker
  * - Search bar
  * - Filter dropdown
  * - Export button
@@ -32,6 +33,15 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { useInvoices, useDeleteInvoice } from '@/hooks/use-invoices';
 import { usePanel } from '@/hooks/use-panel';
@@ -40,6 +50,20 @@ import { useUIVersion } from '@/lib/stores/ui-version-store';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { type InvoiceStatus, INVOICE_STATUS } from '@/types/invoice';
+import { MonthNavigator } from './month-navigator';
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/**
+ * Get start and end dates for a given month/year
+ */
+function getMonthDateRange(month: number, year: number): { start: Date; end: Date } {
+  const start = new Date(year, month, 1);
+  const end = new Date(year, month + 1, 0); // Last day of month
+  return { start, end };
+}
 
 // ============================================================================
 // Status Badge Component
@@ -106,12 +130,29 @@ export function AllInvoicesTab() {
   const [selectedInvoices, setSelectedInvoices] = useState<Set<number>>(new Set());
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
-  // Fetch invoices
+  // Default to current month
+  const now = new Date();
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
+
+  // Calculate date range for selected month
+  const { start, end } = getMonthDateRange(selectedMonth, selectedYear);
+
+  // Fetch invoices for selected month
   const { data, isLoading } = useInvoices({
     page: 1,
     per_page: 100,
     status: statusFilter === 'all' ? undefined : (statusFilter as InvoiceStatus),
+    start_date: start,
+    end_date: end,
+    sort_by: 'invoice_date',
+    sort_order: 'desc',
   });
+
+  const handleMonthChange = (month: number, year: number) => {
+    setSelectedMonth(month);
+    setSelectedYear(year);
+  };
 
   const invoices = data?.invoices ?? [];
 
@@ -178,6 +219,16 @@ export function AllInvoicesTab() {
 
   return (
     <div className="space-y-4">
+      {/* Header with Title and Month Navigator */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold">All Invoices</h2>
+        <MonthNavigator
+          month={selectedMonth}
+          year={selectedYear}
+          onChange={handleMonthChange}
+        />
+      </div>
+
       {/* Action Bar */}
       <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
         <div className="flex flex-1 gap-3">
@@ -185,7 +236,7 @@ export function AllInvoicesTab() {
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search all invoices..."
+              placeholder="Search invoices..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 bg-background"
@@ -237,139 +288,110 @@ export function AllInvoicesTab() {
       </div>
 
       {/* Table */}
-      <div className="rounded-lg border border-border overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-border bg-muted/30">
-                <th className="w-12 p-4">
-                  <Checkbox
-                    checked={isAllSelected}
-                    onCheckedChange={toggleSelectAll}
-                    aria-label="Select all"
-                  />
-                </th>
-                <th className="p-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Invoice ID
-                </th>
-                <th className="p-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Vendor
-                </th>
-                <th className="p-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Amount
-                </th>
-                <th className="p-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="p-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Date
-                </th>
-                <th className="p-4 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                // Loading skeleton
-                Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i} className="border-b border-border">
-                    <td className="p-4">
-                      <div className="h-4 w-4 bg-muted rounded animate-pulse" />
-                    </td>
-                    <td className="p-4">
-                      <div className="h-4 w-28 bg-muted rounded animate-pulse" />
-                    </td>
-                    <td className="p-4">
-                      <div className="h-4 w-32 bg-muted rounded animate-pulse" />
-                    </td>
-                    <td className="p-4">
-                      <div className="h-4 w-20 bg-muted rounded animate-pulse" />
-                    </td>
-                    <td className="p-4">
-                      <div className="h-5 w-16 bg-muted rounded animate-pulse" />
-                    </td>
-                    <td className="p-4">
-                      <div className="h-4 w-24 bg-muted rounded animate-pulse" />
-                    </td>
-                    <td className="p-4">
-                      <div className="h-4 w-20 bg-muted rounded animate-pulse ml-auto" />
-                    </td>
-                  </tr>
-                ))
-              ) : filteredInvoices.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="p-8 text-center text-muted-foreground">
-                    No invoices found
-                  </td>
-                </tr>
-              ) : (
-                filteredInvoices.map((invoice) => (
-                  <tr
-                    key={invoice.id}
-                    className={cn(
-                      'border-b border-border transition-colors hover:bg-muted/30',
-                      selectedInvoices.has(invoice.id) && 'bg-muted/50'
-                    )}
-                  >
-                    <td className="p-4">
-                      <Checkbox
-                        checked={selectedInvoices.has(invoice.id)}
-                        onCheckedChange={() => toggleSelect(invoice.id)}
-                        aria-label={`Select ${invoice.invoice_number}`}
-                      />
-                    </td>
-                    <td className="p-4 font-medium">{invoice.invoice_number}</td>
-                    <td className="p-4 text-muted-foreground">
-                      {invoice.vendor?.name || '-'}
-                    </td>
-                    <td className="p-4">{formatCurrency(invoice.invoice_amount)}</td>
-                    <td className="p-4">
-                      <StatusBadge status={invoice.status as InvoiceStatus} />
-                    </td>
-                    <td className="p-4 text-muted-foreground">
-                      {formatDate(invoice.invoice_date)}
-                    </td>
-                    <td className="p-4">
-                      <div className="flex items-center justify-end gap-1">
+      <div className="rounded-lg border">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/50 hover:bg-muted/50">
+              <TableHead className="w-12">
+                <Checkbox
+                  checked={isAllSelected}
+                  onCheckedChange={toggleSelectAll}
+                  aria-label="Select all"
+                />
+              </TableHead>
+              <TableHead className="w-[20%]">Invoice ID</TableHead>
+              <TableHead className="w-[25%]">Vendor</TableHead>
+              <TableHead className="w-[15%] text-right">Amount</TableHead>
+              <TableHead className="w-[15%]">Status</TableHead>
+              <TableHead className="w-[15%]">Date</TableHead>
+              <TableHead className="w-[10%] text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              // Loading skeleton
+              Array.from({ length: 5 }).map((_, i) => (
+                <TableRow key={i}>
+                  <TableCell><Skeleton className="h-4 w-4" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                  <TableCell className="text-right"><Skeleton className="h-4 w-20 ml-auto" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
+                </TableRow>
+              ))
+            ) : filteredInvoices.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                  No invoices found
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredInvoices.map((invoice) => (
+                <TableRow
+                  key={invoice.id}
+                  data-state={selectedInvoices.has(invoice.id) ? 'selected' : undefined}
+                >
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedInvoices.has(invoice.id)}
+                      onCheckedChange={() => toggleSelect(invoice.id)}
+                      aria-label={`Select ${invoice.invoice_number}`}
+                    />
+                  </TableCell>
+                  <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {invoice.vendor?.name || '-'}
+                  </TableCell>
+                  <TableCell className="text-right font-medium">
+                    {formatCurrency(invoice.invoice_amount)}
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge status={invoice.status as InvoiceStatus} />
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {formatDate(invoice.invoice_date)}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => handleViewInvoice(invoice.id)}
+                      >
+                        <Eye className="h-4 w-4" />
+                        <span className="sr-only">View</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => handleEditInvoice(invoice.id, invoice.is_recurring)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                        <span className="sr-only">Edit</span>
+                      </Button>
+                      {isSuperAdmin && (
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8"
-                          onClick={() => handleViewInvoice(invoice.id)}
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={() => handleDeleteInvoice(invoice.id)}
+                          disabled={deleteInvoice.isPending}
                         >
-                          <Eye className="h-4 w-4" />
-                          <span className="sr-only">View</span>
+                          <Trash2 className="h-4 w-4" />
+                          <span className="sr-only">Delete</span>
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => handleEditInvoice(invoice.id, invoice.is_recurring)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                          <span className="sr-only">Edit</span>
-                        </Button>
-                        {isSuperAdmin && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-destructive hover:text-destructive"
-                            onClick={() => handleDeleteInvoice(invoice.id)}
-                            disabled={deleteInvoice.isPending}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            <span className="sr-only">Delete</span>
-                          </Button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
       </div>
     </div>
   );

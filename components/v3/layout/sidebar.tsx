@@ -132,7 +132,7 @@ function NavLink({ item, isActive, isCollapsed, badgeCount }: NavLinkProps) {
   // Wrap with tooltip only when collapsed
   if (isCollapsed) {
     return (
-      <Tooltip delayDuration={0}>
+      <Tooltip delayDuration={1500}>
         <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
         <TooltipContent side="right" className="flex items-center gap-2">
           {item.label}
@@ -152,7 +152,7 @@ function NavLink({ item, isActive, isCollapsed, badgeCount }: NavLinkProps) {
 function AIAssistantCard({ isCollapsed }: { isCollapsed: boolean }) {
   if (isCollapsed) {
     return (
-      <Tooltip delayDuration={0}>
+      <Tooltip delayDuration={1500}>
         <TooltipTrigger asChild>
           <button className="flex h-10 w-10 mx-auto items-center justify-center rounded-lg text-purple-400 hover:bg-muted transition-colors">
             <Sparkles className="h-5 w-5" />
@@ -195,7 +195,7 @@ function HelpButton({ isCollapsed }: { isCollapsed: boolean }) {
 
   if (isCollapsed) {
     return (
-      <Tooltip delayDuration={0}>
+      <Tooltip delayDuration={1500}>
         <TooltipTrigger asChild>{button}</TooltipTrigger>
         <TooltipContent side="right">Help & Support</TooltipContent>
       </Tooltip>
