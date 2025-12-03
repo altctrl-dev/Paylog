@@ -26,6 +26,7 @@ import { MonthNavigator } from './month-navigator';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -99,6 +100,7 @@ export function TDSTab() {
   const [sortBy, setSortBy] = useState<'invoice_date' | 'invoice_amount' | 'status'>('invoice_date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [tdsFilter, setTdsFilter] = useState<'all' | 'high' | 'low'>('all');
+  const [selectedInvoices, setSelectedInvoices] = useState<Set<number>>(new Set());
 
   // Calculate date range for selected month
   const { start, end } = getMonthDateRange(selectedMonth, selectedYear);
@@ -145,6 +147,28 @@ export function TDSTab() {
     },
     { invoiceAmount: 0, tdsAmount: 0 }
   );
+
+  // Selection handlers
+  const toggleSelectAll = () => {
+    if (selectedInvoices.size === filteredInvoices.length) {
+      setSelectedInvoices(new Set());
+    } else {
+      setSelectedInvoices(new Set(filteredInvoices.map((inv) => inv.id)));
+    }
+  };
+
+  const toggleSelect = (id: number) => {
+    const newSelected = new Set(selectedInvoices);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedInvoices(newSelected);
+  };
+
+  const isAllSelected =
+    filteredInvoices.length > 0 && selectedInvoices.size === filteredInvoices.length;
 
   const handleMonthChange = (month: number, year: number) => {
     setSelectedMonth(month);
@@ -304,22 +328,29 @@ export function TDSTab() {
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/30 hover:bg-muted/30 border-b">
-              <TableHead className="w-[25%] text-xs font-medium text-muted-foreground uppercase tracking-wider pl-4">
+              <TableHead className="w-[50px] pl-4">
+                <Checkbox
+                  checked={isAllSelected}
+                  onCheckedChange={toggleSelectAll}
+                  aria-label="Select all"
+                />
+              </TableHead>
+              <TableHead className="w-[22%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Invoice Details
               </TableHead>
-              <TableHead className="w-[18%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              <TableHead className="w-[16%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Invoice Number
               </TableHead>
-              <TableHead className="w-[14%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              <TableHead className="w-[12%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Invoice Date
               </TableHead>
-              <TableHead className="w-[17%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              <TableHead className="w-[16%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Invoice Amt
               </TableHead>
               <TableHead className="w-[10%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 TDS %
               </TableHead>
-              <TableHead className="w-[16%] text-xs font-medium text-muted-foreground uppercase tracking-wider pl-4">
+              <TableHead className="w-[14%] text-xs font-medium text-muted-foreground uppercase tracking-wider pl-4">
                 TDS Amt
               </TableHead>
             </TableRow>
@@ -329,7 +360,8 @@ export function TDSTab() {
               // Loading skeleton
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell className="pl-4"><Skeleton className="h-4 w-32" /></TableCell>
+                  <TableCell className="pl-4"><Skeleton className="h-4 w-4 rounded" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-28" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
@@ -339,7 +371,7 @@ export function TDSTab() {
               ))
             ) : filteredInvoices.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
                   No TDS invoices found for this month
                 </TableCell>
               </TableRow>
@@ -351,8 +383,19 @@ export function TDSTab() {
                 );
 
                 return (
-                  <TableRow key={invoice.id} className="border-b border-border/50">
-                    <TableCell className="font-medium pl-4">
+                  <TableRow
+                    key={invoice.id}
+                    data-state={selectedInvoices.has(invoice.id) ? 'selected' : undefined}
+                    className="border-b border-border/50"
+                  >
+                    <TableCell className="pl-4">
+                      <Checkbox
+                        checked={selectedInvoices.has(invoice.id)}
+                        onCheckedChange={() => toggleSelect(invoice.id)}
+                        aria-label={`Select ${invoice.invoice_number}`}
+                      />
+                    </TableCell>
+                    <TableCell className="font-medium">
                       {getInvoiceDetails(invoice)}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
