@@ -267,6 +267,7 @@ export async function createRecurringInvoice(
           // Recurring invoice fields
           is_recurring: true,
           profile_id: validated.invoice_profile_id,
+          invoice_profile_id: validated.invoice_profile_id,
 
           // Inline payment fields
           is_paid: validated.is_paid,
@@ -613,7 +614,8 @@ export async function updateRecurringInvoice(
         created_by: true,
         updated_at: true,
         is_recurring: true,
-        invoice_profile_id: true, // FIXED: Use correct field name
+        invoice_profile_id: true,
+        profile_id: true, // Legacy field fallback
         vendor_id: true,
         invoice_number: true,
       },
@@ -626,11 +628,13 @@ export async function updateRecurringInvoice(
       };
     }
 
-    // 4. Verify this is a recurring invoice
-    if (!existing.is_recurring || !existing.invoice_profile_id) {
+    // 4. Verify this is a recurring invoice (check both new and legacy profile fields)
+    const hasProfileId = existing.invoice_profile_id || existing.profile_id;
+    if (!existing.is_recurring || !hasProfileId) {
       console.log('[updateRecurringInvoice] Validation failed:', {
         is_recurring: existing.is_recurring,
         invoice_profile_id: existing.invoice_profile_id,
+        profile_id: existing.profile_id,
       });
       return {
         success: false,

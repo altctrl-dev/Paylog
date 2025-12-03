@@ -249,19 +249,24 @@ export function EditRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: Edi
   // Pre-fill form with existing invoice data
   React.useEffect(() => {
     if (invoice) {
+      // Get profile ID from scalar fields or relation objects
+      // Try invoice_profile_id (new), then profile_id (legacy), then from relations
+      const profileId =
+        invoice.invoice_profile_id ||
+        (invoice as unknown as { profile_id?: number }).profile_id ||
+        invoice.invoice_profile?.id ||
+        invoice.profile?.id;
+
       console.log('[EditRecurringInvoiceForm] Pre-filling form with invoice data:', {
         invoice_profile_id: invoice.invoice_profile_id,
+        profile_id: (invoice as unknown as { profile_id?: number }).profile_id,
         invoice_profile: invoice.invoice_profile,
-        currency_id: invoice.currency_id,
-        full_invoice_keys: Object.keys(invoice),
+        profile: invoice.profile,
+        resolvedProfileId: profileId,
       });
 
-      // Get profile ID from the scalar field (invoice_profile_id) or the relation (invoice_profile.id)
-      const profileId = invoice.invoice_profile_id || invoice.invoice_profile?.id;
-      console.log('[EditRecurringInvoiceForm] Resolved profileId:', profileId);
-
       if (!profileId) {
-        console.error('[EditRecurringInvoiceForm] ERROR: No invoice_profile_id found in invoice data!', invoice);
+        console.error('[EditRecurringInvoiceForm] ERROR: No profile ID found in invoice data!', invoice);
       }
       setValue('invoice_profile_id', profileId || 0);
       setValue('brief_description', invoice.description);
