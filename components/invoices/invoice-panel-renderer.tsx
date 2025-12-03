@@ -10,9 +10,10 @@
 import * as React from 'react';
 import { useSession } from 'next-auth/react';
 import { usePanelStack } from '@/hooks/use-panel-stack';
-import { InvoiceDetailPanel } from './invoice-detail-panel';
 import { InvoiceDetailPanelV2 } from './invoice-detail-panel-v2';
-import { InvoiceFormPanel } from './invoice-form-panel';
+// ARCHIVED: Legacy panels moved to @/components/_archived/invoices/
+// - InvoiceDetailPanel (invoice-detail-panel.tsx)
+// - InvoiceFormPanel (invoice-form-panel.tsx)
 import { InvoiceHoldPanel } from './invoice-hold-panel';
 import { InvoiceRejectPanel } from './invoice-reject-panel';
 import { PaymentFormPanel } from '@/components/payments/payment-form-panel';
@@ -100,32 +101,10 @@ export function InvoicePanelRenderer({
         </PanelLevel>
       );
 
-    case 'invoice-detail':
-      return (
-        <InvoiceDetailPanel
-          config={config}
-          onClose={onClose}
-          invoiceId={props.invoiceId as number}
-        />
-      );
-
-    case 'invoice-create':
-      return (
-        <InvoiceFormPanel
-          config={config}
-          onClose={onClose}
-          // No invoiceId = create mode
-        />
-      );
-
-    case 'invoice-edit':
-      return (
-        <InvoiceFormPanel
-          config={config}
-          onClose={onClose}
-          invoiceId={props.invoiceId as number}
-        />
-      );
+    // ARCHIVED: Legacy panel types - components in @/components/_archived/invoices/
+    // case 'invoice-detail':
+    // case 'invoice-create':
+    // case 'invoice-edit':
 
     case 'invoice-create-recurring':
       return (

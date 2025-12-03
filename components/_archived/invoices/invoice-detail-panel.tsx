@@ -15,7 +15,7 @@ import { PanelLevel } from '@/components/panels/panel-level';
 import { usePanel } from '@/hooks/use-panel';
 import { useInvoice, useApproveInvoice, useRejectInvoice } from '@/hooks/use-invoices';
 import { usePaymentSummary } from '@/hooks/use-payments';
-import { InvoiceStatusBadge } from './invoice-status-badge';
+import { InvoiceStatusBadge } from '@/components/invoices/invoice-status-badge';
 import { PaymentHistoryList } from '@/components/payments/payment-history-list';
 import { CommentList } from '@/components/comments/comment-list';
 import { ActivityLogViewer } from '@/components/activity-log/activity-log-viewer';
