@@ -157,7 +157,7 @@ export function AllInvoicesTab() {
   };
 
   const handleViewInvoice = (id: number) => {
-    openPanel('invoice-detail', { invoiceId: id });
+    openPanel('invoice-v2-detail', { invoiceId: id });
   };
 
   const handleEditInvoice = (id: number, isRecurring: boolean) => {

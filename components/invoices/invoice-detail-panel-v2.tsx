@@ -9,7 +9,7 @@
 
 import * as React from 'react';
 import { format } from 'date-fns';
-import { FileText, Calendar, DollarSign, Building, Tag, Clock, Download, CheckCircle, XCircle, Pencil, Pause } from 'lucide-react';
+import { FileText, Calendar, DollarSign, Building, Tag, Clock, Download, CheckCircle, XCircle, Pencil, Pause, Eye } from 'lucide-react';
 import { PanelLevel } from '@/components/panels/panel-level';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -436,16 +436,35 @@ export function InvoiceDetailPanelV2({ config, onClose, invoiceId, userRole, use
                       </p>
                     </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      // TODO: Implement file download
-                      console.log('Download attachment:', attachment.id);
-                    }}
-                  >
-                    <Download className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        // Open in new tab for viewing
+                        window.open(`/api/attachments/${attachment.id}`, '_blank');
+                      }}
+                      title="View"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        // Force download with ?download=true
+                        const link = document.createElement('a');
+                        link.href = `/api/attachments/${attachment.id}?download=true`;
+                        link.download = attachment.original_name;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                      }}
+                      title="Download"
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>

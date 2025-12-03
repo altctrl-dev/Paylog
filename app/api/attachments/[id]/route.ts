@@ -122,12 +122,16 @@ export async function GET(
       return handleRangeRequest(fileBuffer, range, attachment.mime_type);
     }
 
-    // 7. Return file with proper headers
+    // 7. Check if download is requested (vs inline viewing)
+    const isDownload = request.nextUrl.searchParams.get('download') === 'true';
+    const disposition = isDownload ? 'attachment' : 'inline';
+
+    // 8. Return file with proper headers
     return new NextResponse(fileBuffer as unknown as BodyInit, {
       status: 200,
       headers: {
         'Content-Type': attachment.mime_type,
-        'Content-Disposition': `inline; filename="${encodeURIComponent(
+        'Content-Disposition': `${disposition}; filename="${encodeURIComponent(
           attachment.original_name
         )}"`,
         'Content-Length': attachment.file_size.toString(),
