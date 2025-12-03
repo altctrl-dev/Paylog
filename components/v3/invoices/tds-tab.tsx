@@ -328,23 +328,23 @@ export function TDSTab() {
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/30 hover:bg-muted/30 border-b">
-              <TableHead className="w-10 pl-4">
+              <TableHead className="w-8 pl-4">
                 <Checkbox
                   checked={isAllSelected}
                   onCheckedChange={toggleSelectAll}
                   aria-label="Select all"
                 />
               </TableHead>
-              <TableHead className="w-[22%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              <TableHead className="w-[20%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Invoice Details
               </TableHead>
-              <TableHead className="w-[16%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              <TableHead className="w-[20%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Invoice Number
               </TableHead>
-              <TableHead className="w-[12%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              <TableHead className="w-[14%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Invoice Date
               </TableHead>
-              <TableHead className="w-[16%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              <TableHead className="w-[14%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Invoice Amt
               </TableHead>
               <TableHead className="w-[10%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
