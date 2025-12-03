@@ -17,9 +17,8 @@ export type PanelType = string;
 
 /**
  * Panel level in the stack (1-3)
- * - Level 1: Detail view (350px width, read-only)
- * - Level 2: Edit/Create form (700px width)
- * - Level 3: Nested forms (500px width)
+ * Level determines z-index stacking, not width.
+ * Width should be specified using PANEL_WIDTH tiers.
  */
 export type PanelLevel = 1 | 2 | 3;
 
@@ -36,7 +35,7 @@ export interface PanelConfig<TProps = Record<string, unknown>> {
   /** Props passed to the panel component */
   props: TProps;
 
-  /** Panel width in pixels (default: 350 for L1, 700 for L2, 500 for L3) */
+  /** Panel width in pixels (default: PANEL_WIDTH.MEDIUM = 650px) */
   width?: number;
 
   /** Panel level in the stack (1-3) */
@@ -161,16 +160,6 @@ export const PANEL_Z_INDEX = {
   LEVEL_1: 10001,
   LEVEL_2: 10002,
   LEVEL_3: 10003,
-} as const;
-
-/**
- * Default panel widths by level (legacy - use PANEL_WIDTH instead)
- * @deprecated Use PANEL_WIDTH.SMALL/MEDIUM/LARGE instead
- */
-export const PANEL_WIDTHS = {
-  LEVEL_1: 350,
-  LEVEL_2: 700,
-  LEVEL_3: 500,
 } as const;
 
 /**

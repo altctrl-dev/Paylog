@@ -15,7 +15,7 @@ import type {
 import {
   MAX_PANEL_DEPTH,
   PANEL_Z_INDEX,
-  PANEL_WIDTHS,
+  PANEL_WIDTH,
 } from '@/types/panel';
 
 /**
@@ -42,19 +42,10 @@ function calculateZIndex(level: PanelLevel): number {
 }
 
 /**
- * Calculate default width based on panel level
+ * Default panel width when not specified.
+ * Most panels are forms, so MEDIUM (650px) is the sensible default.
  */
-function getDefaultWidth(level: PanelLevel): number {
-  switch (level) {
-    case 1:
-      return PANEL_WIDTHS.LEVEL_1;
-    case 2:
-    case 3:
-      return PANEL_WIDTHS.LEVEL_2;
-    default:
-      return PANEL_WIDTHS.LEVEL_1;
-  }
-}
+const DEFAULT_PANEL_WIDTH = PANEL_WIDTH.MEDIUM;
 
 /**
  * Global panel store
@@ -97,7 +88,7 @@ export const usePanelStore = create<PanelStackStore>((set, get) => ({
     const zIndex = calculateZIndex(level);
 
     // Determine width (use custom or default)
-    const width = options?.width ?? getDefaultWidth(level);
+    const width = options?.width ?? DEFAULT_PANEL_WIDTH;
 
     // Create panel config
     const panelConfig: PanelConfig = {
