@@ -328,7 +328,7 @@ export function TDSTab() {
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/30 hover:bg-muted/30 border-b">
-              <TableHead className="w-[50px] pl-4">
+              <TableHead className="w-10 pl-4">
                 <Checkbox
                   checked={isAllSelected}
                   onCheckedChange={toggleSelectAll}
