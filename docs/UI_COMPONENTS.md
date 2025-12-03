@@ -26,6 +26,7 @@ This document provides an overview of all reusable UI components and where they 
 | `outline` | Border only, transparent bg, orange border/text on hover | Secondary actions (Cancel, Filter, Sort, Export) |
 | `destructive` | Red bg for danger actions | Delete, Reject actions |
 | `ghost` | No background, subtle hover | Icon buttons, navigation, toggles |
+| `subtle` | Transparent bg, rounded-xl on hover, muted bg (light) / zinc-800 bg (dark) | Navbar icons, sidebar buttons |
 | `secondary` | Muted background | *Currently unused* |
 | `link` | Text with underline on hover | *Currently unused* |
 
@@ -110,8 +111,6 @@ Minimal buttons for icons and subtle interactions.
 
 | Location | Usage |
 |----------|-------|
-| **Navbar** | Theme toggle, notifications, user menu triggers |
-| **Sidebar** | Navigation links, collapse toggle |
 | **Month Navigator** | Previous/Next arrows |
 | **Data Tables** | Pagination arrows, row actions |
 | **Comment Components** | Formatting buttons (bold, italic, etc.) |
@@ -120,6 +119,26 @@ Minimal buttons for icons and subtle interactions.
 | **Recurring Cards** | View, Edit action buttons |
 | **Panel Header** | Close button |
 | **Calendar** | Navigation arrows |
+
+---
+
+### Subtle Variant (`variant="subtle"`)
+
+Transparent background with soft rounded hover state. Used for navbar and sidebar icon buttons.
+
+**Styling:**
+- Light theme: No background → muted/60 bg with rounded-xl on hover
+- Dark theme: No background → zinc-800 bg with rounded-xl on hover
+
+**Files using this variant:**
+
+| File | Line | Description |
+|------|------|-------------|
+| `components/v3/layout/navbar.tsx` | 182 | Quick actions (+) button |
+| `components/v3/layout/navbar.tsx` | 239 | Theme toggle button |
+| `components/v3/layout/navbar.tsx` | 260 | Notification bell button |
+| `components/v3/layout/sidebar.tsx` | 183 | Help & Support button |
+| `components/v3/layout/sidebar.tsx` | 275 | Sidebar collapse toggle |
 
 ---
 

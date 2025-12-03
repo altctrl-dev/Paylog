@@ -179,7 +179,7 @@ function QuickActionsMenu({ invoiceCreationMode = 'page' }: QuickActionsMenuProp
   return (
     <DropdownMenu modal={false} open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-9 w-9">
+        <Button variant="subtle" size="icon" className="h-9 w-9">
           <Plus className="h-5 w-5" />
           <span className="sr-only">Quick actions</span>
         </Button>
@@ -236,7 +236,7 @@ function ThemeToggle({ className }: ThemeToggleProps) {
 
   return (
     <Button
-      variant="ghost"
+      variant="subtle"
       size="icon"
       onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
       className={cn('h-9 w-9', className)}
@@ -257,7 +257,7 @@ function NotificationBell() {
   const hasNotifications = true; // TODO: Connect to real notification state
 
   return (
-    <Button variant="ghost" size="icon" className="h-9 w-9 relative">
+    <Button variant="subtle" size="icon" className="h-9 w-9 relative">
       <Bell className="h-5 w-5" />
       {hasNotifications && (
         <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-red-500" />

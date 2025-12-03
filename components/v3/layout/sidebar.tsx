@@ -180,17 +180,17 @@ function AIAssistantCard({ isCollapsed }: { isCollapsed: boolean }) {
 
 function HelpButton({ isCollapsed }: { isCollapsed: boolean }) {
   const button = (
-    <button
+    <Button
+      variant="subtle"
       className={cn(
-        'flex items-center gap-3 rounded-lg px-3 py-2 text-sm',
-        'text-muted-foreground hover:bg-muted hover:text-foreground',
-        'transition-colors duration-150',
-        isCollapsed ? 'justify-center w-10 mx-auto' : 'w-full'
+        'flex items-center gap-3 px-3 py-2 text-sm h-auto',
+        'text-muted-foreground',
+        isCollapsed ? 'justify-center w-10 mx-auto' : 'w-full justify-start'
       )}
     >
       <HelpCircle className="h-5 w-5 flex-shrink-0" />
       {!isCollapsed && <span>Help & Support</span>}
-    </button>
+    </Button>
   );
 
   if (isCollapsed) {
@@ -272,7 +272,7 @@ export function Sidebar({ userRole, badgeCounts = {} }: SidebarProps) {
           )}
 
           <Button
-            variant="ghost"
+            variant="subtle"
             size="icon"
             onClick={toggleCollapsed}
             className="hidden md:flex h-8 w-8"
