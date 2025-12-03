@@ -20,11 +20,18 @@
 import * as React from 'react';
 import { useState } from 'react';
 import { Search, Filter, ArrowUpDown, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { useInvoices } from '@/hooks/use-invoices';
 import { MonthNavigator } from './month-navigator';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Table,
   TableBody,
@@ -89,6 +96,9 @@ export function TDSTab() {
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<'invoice_date' | 'invoice_amount' | 'status'>('invoice_date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [tdsFilter, setTdsFilter] = useState<'all' | 'high' | 'low'>('all');
 
   // Calculate date range for selected month
   const { start, end } = getMonthDateRange(selectedMonth, selectedYear);
@@ -100,21 +110,28 @@ export function TDSTab() {
     tds_applicable: true,
     start_date: start,
     end_date: end,
-    sort_by: 'invoice_date',
-    sort_order: 'asc',
+    sort_by: sortBy,
+    sort_order: sortOrder,
   });
 
   const invoices = data?.invoices ?? [];
 
-  // Filter by search query
+  // Filter by search query and TDS percentage
   const filteredInvoices = invoices.filter((invoice) => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    const details = getInvoiceDetails(invoice).toLowerCase();
-    return (
-      details.includes(query) ||
-      invoice.invoice_number?.toLowerCase().includes(query)
-    );
+    // Search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      const details = getInvoiceDetails(invoice).toLowerCase();
+      if (!details.includes(query) && !invoice.invoice_number?.toLowerCase().includes(query)) {
+        return false;
+      }
+    }
+
+    // TDS percentage filter
+    if (tdsFilter === 'high' && (invoice.tds_percentage || 0) < 10) return false;
+    if (tdsFilter === 'low' && (invoice.tds_percentage || 0) >= 10) return false;
+
+    return true;
   });
 
   // Calculate totals from filtered invoices
@@ -135,8 +152,53 @@ export function TDSTab() {
   };
 
   const handleExport = () => {
-    // TODO: Implement export functionality
-    console.log('Export clicked');
+    if (filteredInvoices.length === 0) {
+      alert('No TDS invoices to export');
+      return;
+    }
+
+    // Prepare data for export
+    const exportData = filteredInvoices.map((invoice) => {
+      const tdsAmount = calculateTdsAmount(invoice.invoice_amount, invoice.tds_percentage);
+      return {
+        'Invoice Details': getInvoiceDetails(invoice),
+        'Invoice Number': invoice.invoice_number || '',
+        'Invoice Date': formatDate(invoice.invoice_date),
+        'Invoice Amount': invoice.invoice_amount,
+        'TDS %': invoice.tds_percentage || 0,
+        'TDS Amount': tdsAmount,
+      };
+    });
+
+    // Add totals row
+    exportData.push({
+      'Invoice Details': 'TOTAL',
+      'Invoice Number': '',
+      'Invoice Date': '',
+      'Invoice Amount': totals.invoiceAmount,
+      'TDS %': 0,
+      'TDS Amount': totals.tdsAmount,
+    });
+
+    // Create workbook and worksheet
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'TDS');
+
+    // Generate filename with month/year
+    const filename = `tds_${monthNames[selectedMonth]}_${selectedYear}.xlsx`;
+
+    // Download
+    XLSX.writeFile(wb, filename);
+  };
+
+  const handleSort = (field: 'invoice_date' | 'invoice_amount' | 'status') => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('desc');
+    }
   };
 
   /**
@@ -184,16 +246,43 @@ export function TDSTab() {
           </div>
 
           {/* Filter */}
-          <Button variant="outline" className="gap-2">
-            <Filter className="h-4 w-4" />
-            Filter
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <Filter className="h-4 w-4" />
+                Filter
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem onClick={() => setTdsFilter('all')}>
+                All TDS Rates {tdsFilter === 'all' && '✓'}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTdsFilter('high')}>
+                High TDS (≥10%) {tdsFilter === 'high' && '✓'}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTdsFilter('low')}>
+                Low TDS ({'<'}10%) {tdsFilter === 'low' && '✓'}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* Sort */}
-          <Button variant="outline" className="gap-2">
-            <ArrowUpDown className="h-4 w-4" />
-            Sort
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <ArrowUpDown className="h-4 w-4" />
+                Sort
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem onClick={() => handleSort('invoice_date')}>
+                Date {sortBy === 'invoice_date' && (sortOrder === 'asc' ? '↑' : '↓')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleSort('invoice_amount')}>
+                Amount {sortBy === 'invoice_amount' && (sortOrder === 'asc' ? '↑' : '↓')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Right: Month Navigator, Export */}
