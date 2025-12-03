@@ -422,12 +422,8 @@ export function TDSTab() {
 
         {/* Summary Footer - Inside Table Border */}
         {!isLoading && filteredInvoices.length > 0 && (
-          <div className="flex justify-between items-center px-4 py-4 border-t bg-muted/30">
-            <div>
-              <div className="text-xs text-muted-foreground uppercase tracking-wider">Total Invoice Amount</div>
-              <div className="text-xl font-semibold">{formatCurrency(totals.invoiceAmount)}</div>
-            </div>
-            <div className="text-right">
+          <div className="flex justify-center items-center px-4 py-4 border-t bg-muted/30">
+            <div className="text-center">
               <div className="text-xs text-muted-foreground uppercase tracking-wider">Total TDS Amount</div>
               <div className="text-xl font-semibold">{formatCurrency(totals.tdsAmount)}</div>
             </div>
