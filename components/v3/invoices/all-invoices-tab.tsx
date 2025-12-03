@@ -17,12 +17,12 @@ import { useState } from 'react';
 import {
   Search,
   Filter,
+  ArrowUpDown,
   Download,
   Plus,
   Eye,
   Pencil,
   Trash2,
-  ChevronDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -217,23 +217,21 @@ export function AllInvoicesTab() {
     }
   };
 
+  // Format month name for title
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const titleMonth = `${monthNames[selectedMonth]} ${selectedYear}`;
+
   return (
     <div className="space-y-4">
-      {/* Header with Title and Month Navigator */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">All Invoices</h2>
-        <MonthNavigator
-          month={selectedMonth}
-          year={selectedYear}
-          onChange={handleMonthChange}
-        />
-      </div>
+      {/* Title with Month */}
+      <h2 className="text-lg font-semibold">All Invoices - {titleMonth}</h2>
 
       {/* Action Bar */}
       <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-        <div className="flex flex-1 gap-3">
+        {/* Left: Search, Filter, Sort */}
+        <div className="flex flex-1 gap-2">
           {/* Search */}
-          <div className="relative flex-1 max-w-sm">
+          <div className="relative flex-1 max-w-xs">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search invoices..."
@@ -249,7 +247,6 @@ export function AllInvoicesTab() {
               <Button variant="outline" className="gap-2">
                 <Filter className="h-4 w-4" />
                 Filter
-                <ChevronDown className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
@@ -270,16 +267,25 @@ export function AllInvoicesTab() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {/* Sort */}
+          <Button variant="outline" className="gap-2">
+            <ArrowUpDown className="h-4 w-4" />
+            Sort
+          </Button>
         </div>
 
-        <div className="flex gap-3">
-          {/* Export */}
+        {/* Right: Month Navigator, Export, New Invoice */}
+        <div className="flex items-center gap-2">
+          <MonthNavigator
+            month={selectedMonth}
+            year={selectedYear}
+            onChange={handleMonthChange}
+          />
           <Button variant="outline" className="gap-2" onClick={handleExport}>
             <Download className="h-4 w-4" />
             Export
           </Button>
-
-          {/* New Invoice */}
           <Button className="gap-2 bg-blue-600 hover:bg-blue-700" onClick={handleNewInvoice}>
             <Plus className="h-4 w-4" />
             New Invoice
@@ -288,23 +294,35 @@ export function AllInvoicesTab() {
       </div>
 
       {/* Table */}
-      <div className="rounded-lg border">
+      <div className="rounded-lg border overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow className="bg-muted/50 hover:bg-muted/50">
-              <TableHead className="w-12">
+            <TableRow className="bg-muted/30 hover:bg-muted/30 border-b">
+              <TableHead className="w-[50px] pl-4">
                 <Checkbox
                   checked={isAllSelected}
                   onCheckedChange={toggleSelectAll}
                   aria-label="Select all"
                 />
               </TableHead>
-              <TableHead className="w-[20%]">Invoice ID</TableHead>
-              <TableHead className="w-[25%]">Vendor</TableHead>
-              <TableHead className="w-[15%] text-right">Amount</TableHead>
-              <TableHead className="w-[15%]">Status</TableHead>
-              <TableHead className="w-[15%]">Date</TableHead>
-              <TableHead className="w-[10%] text-right">Actions</TableHead>
+              <TableHead className="w-[18%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Invoice ID
+              </TableHead>
+              <TableHead className="w-[22%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Vendor
+              </TableHead>
+              <TableHead className="w-[14%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Amount
+              </TableHead>
+              <TableHead className="w-[12%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Status
+              </TableHead>
+              <TableHead className="w-[14%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Date
+              </TableHead>
+              <TableHead className="w-[12%] text-xs font-medium text-muted-foreground uppercase tracking-wider text-right pr-6">
+                Actions
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -312,13 +330,13 @@ export function AllInvoicesTab() {
               // Loading skeleton
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell><Skeleton className="h-4 w-4" /></TableCell>
+                  <TableCell className="pl-4"><Skeleton className="h-5 w-5 rounded" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-28" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                  <TableCell className="text-right"><Skeleton className="h-4 w-20 ml-auto" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-16 rounded-full" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
+                  <TableCell className="pr-6"><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
                 </TableRow>
               ))
             ) : filteredInvoices.length === 0 ? (
@@ -332,8 +350,9 @@ export function AllInvoicesTab() {
                 <TableRow
                   key={invoice.id}
                   data-state={selectedInvoices.has(invoice.id) ? 'selected' : undefined}
+                  className="border-b border-border/50"
                 >
-                  <TableCell>
+                  <TableCell className="pl-4">
                     <Checkbox
                       checked={selectedInvoices.has(invoice.id)}
                       onCheckedChange={() => toggleSelect(invoice.id)}
@@ -344,7 +363,7 @@ export function AllInvoicesTab() {
                   <TableCell className="text-muted-foreground">
                     {invoice.vendor?.name || '-'}
                   </TableCell>
-                  <TableCell className="text-right font-medium">
+                  <TableCell className="font-medium">
                     {formatCurrency(invoice.invoice_amount)}
                   </TableCell>
                   <TableCell>
@@ -353,37 +372,31 @@ export function AllInvoicesTab() {
                   <TableCell className="text-muted-foreground">
                     {formatDate(invoice.invoice_date)}
                   </TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
+                  <TableCell className="pr-6">
+                    <div className="flex items-center justify-end gap-3">
+                      <button
+                        className="text-muted-foreground hover:text-foreground transition-colors"
                         onClick={() => handleViewInvoice(invoice.id)}
                       >
                         <Eye className="h-4 w-4" />
                         <span className="sr-only">View</span>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
+                      </button>
+                      <button
+                        className="text-muted-foreground hover:text-foreground transition-colors"
                         onClick={() => handleEditInvoice(invoice.id, invoice.is_recurring)}
                       >
                         <Pencil className="h-4 w-4" />
                         <span className="sr-only">Edit</span>
-                      </Button>
+                      </button>
                       {isSuperAdmin && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive"
+                        <button
+                          className="text-muted-foreground hover:text-destructive transition-colors"
                           onClick={() => handleDeleteInvoice(invoice.id)}
                           disabled={deleteInvoice.isPending}
                         >
                           <Trash2 className="h-4 w-4" />
                           <span className="sr-only">Delete</span>
-                        </Button>
+                        </button>
                       )}
                     </div>
                   </TableCell>

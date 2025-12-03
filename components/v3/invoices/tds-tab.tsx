@@ -12,20 +12,23 @@
  * - TDS Amount
  *
  * Features:
- * - Month navigation with calendar picker
- * - Defaults to current month
- * - Summary row with totals
+ * - Search bar, Filter, and Sort on the left
+ * - Month navigation and Export on the right
+ * - Summary row with labeled totals
  */
 
 import * as React from 'react';
+import { useState } from 'react';
+import { Search, Filter, ArrowUpDown, Download } from 'lucide-react';
 import { useInvoices } from '@/hooks/use-invoices';
 import { MonthNavigator } from './month-navigator';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
   TableBody,
   TableCell,
-  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -83,8 +86,9 @@ function getMonthDateRange(month: number, year: number): { start: Date; end: Dat
 export function TDSTab() {
   // Default to current month
   const now = new Date();
-  const [selectedMonth, setSelectedMonth] = React.useState(now.getMonth());
-  const [selectedYear, setSelectedYear] = React.useState(now.getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Calculate date range for selected month
   const { start, end } = getMonthDateRange(selectedMonth, selectedYear);
@@ -102,8 +106,19 @@ export function TDSTab() {
 
   const invoices = data?.invoices ?? [];
 
-  // Calculate totals
-  const totals = invoices.reduce(
+  // Filter by search query
+  const filteredInvoices = invoices.filter((invoice) => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    const details = getInvoiceDetails(invoice).toLowerCase();
+    return (
+      details.includes(query) ||
+      invoice.invoice_number?.toLowerCase().includes(query)
+    );
+  });
+
+  // Calculate totals from filtered invoices
+  const totals = filteredInvoices.reduce(
     (acc, invoice) => {
       const tdsAmount = calculateTdsAmount(invoice.invoice_amount, invoice.tds_percentage);
       return {
@@ -119,12 +134,17 @@ export function TDSTab() {
     setSelectedYear(year);
   };
 
+  const handleExport = () => {
+    // TODO: Implement export functionality
+    console.log('Export clicked');
+  };
+
   /**
    * Get invoice details text:
    * - For recurring: invoice profile name
    * - For non-recurring: invoice name (stored in description)
    */
-  const getInvoiceDetails = (invoice: (typeof invoices)[0]): string => {
+  function getInvoiceDetails(invoice: (typeof invoices)[0]): string {
     // Cast to access additional fields that may exist from API
     const inv = invoice as typeof invoice & {
       invoice_profile?: { name: string } | null;
@@ -137,31 +157,82 @@ export function TDSTab() {
     }
     // Non-recurring: use description as invoice name, fall back to notes
     return inv.description || inv.notes || 'Unnamed Invoice';
-  };
+  }
+
+  // Format month name for title
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const titleMonth = `${monthNames[selectedMonth]} ${selectedYear}`;
 
   return (
     <div className="space-y-4">
-      {/* Header with Month Navigator */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">TDS Invoices</h2>
-        <MonthNavigator
-          month={selectedMonth}
-          year={selectedYear}
-          onChange={handleMonthChange}
-        />
+      {/* Title with Month */}
+      <h2 className="text-lg font-semibold">TDS - {titleMonth}</h2>
+
+      {/* Action Bar */}
+      <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+        {/* Left: Search, Filter, Sort */}
+        <div className="flex flex-1 gap-2">
+          {/* Search */}
+          <div className="relative flex-1 max-w-xs">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search invoices..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 bg-background"
+            />
+          </div>
+
+          {/* Filter */}
+          <Button variant="outline" className="gap-2">
+            <Filter className="h-4 w-4" />
+            Filter
+          </Button>
+
+          {/* Sort */}
+          <Button variant="outline" className="gap-2">
+            <ArrowUpDown className="h-4 w-4" />
+            Sort
+          </Button>
+        </div>
+
+        {/* Right: Month Navigator, Export */}
+        <div className="flex items-center gap-2">
+          <MonthNavigator
+            month={selectedMonth}
+            year={selectedYear}
+            onChange={handleMonthChange}
+          />
+          <Button variant="outline" className="gap-2" onClick={handleExport}>
+            <Download className="h-4 w-4" />
+            Export
+          </Button>
+        </div>
       </div>
 
-      {/* Table */}
-      <div className="rounded-lg border">
+      {/* Table with Summary Footer inside */}
+      <div className="rounded-lg border overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow className="bg-muted/50 hover:bg-muted/50">
-              <TableHead className="w-[25%]">Invoice Details</TableHead>
-              <TableHead className="w-[25%]">Invoice Number</TableHead>
-              <TableHead className="w-[15%]">Invoice Date</TableHead>
-              <TableHead className="w-[15%] text-right">Invoice Amt</TableHead>
-              <TableHead className="w-[10%] text-right">TDS %</TableHead>
-              <TableHead className="w-[10%] text-right">TDS Amt</TableHead>
+            <TableRow className="bg-muted/30 hover:bg-muted/30 border-b">
+              <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider pl-4">
+                Invoice Details
+              </TableHead>
+              <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Invoice Number
+              </TableHead>
+              <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Invoice Date
+              </TableHead>
+              <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider text-right">
+                Invoice Amt
+              </TableHead>
+              <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider text-right">
+                TDS %
+              </TableHead>
+              <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider text-right pr-4">
+                TDS Amt
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -169,30 +240,30 @@ export function TDSTab() {
               // Loading skeleton
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                  <TableCell className="pl-4"><Skeleton className="h-4 w-32" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-28" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                   <TableCell className="text-right"><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
                   <TableCell className="text-right"><Skeleton className="h-4 w-12 ml-auto" /></TableCell>
-                  <TableCell className="text-right"><Skeleton className="h-4 w-20 ml-auto" /></TableCell>
+                  <TableCell className="text-right pr-4"><Skeleton className="h-4 w-20 ml-auto" /></TableCell>
                 </TableRow>
               ))
-            ) : invoices.length === 0 ? (
+            ) : filteredInvoices.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                   No TDS invoices found for this month
                 </TableCell>
               </TableRow>
             ) : (
-              invoices.map((invoice) => {
+              filteredInvoices.map((invoice) => {
                 const tdsAmount = calculateTdsAmount(
                   invoice.invoice_amount,
                   invoice.tds_percentage
                 );
 
                 return (
-                  <TableRow key={invoice.id}>
-                    <TableCell className="font-medium">
+                  <TableRow key={invoice.id} className="border-b border-border/50">
+                    <TableCell className="font-medium pl-4">
                       {getInvoiceDetails(invoice)}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
@@ -207,7 +278,7 @@ export function TDSTab() {
                     <TableCell className="text-right text-muted-foreground">
                       {formatTdsPercentage(invoice.tds_percentage)}
                     </TableCell>
-                    <TableCell className="text-right font-medium">
+                    <TableCell className="text-right font-medium pr-4">
                       {formatCurrency(tdsAmount)}
                     </TableCell>
                   </TableRow>
@@ -215,23 +286,21 @@ export function TDSTab() {
               })
             )}
           </TableBody>
-          {!isLoading && invoices.length > 0 && (
-            <TableFooter>
-              <TableRow>
-                <TableCell colSpan={3} className="text-right font-semibold">
-                  Total
-                </TableCell>
-                <TableCell className="text-right font-semibold">
-                  {formatCurrency(totals.invoiceAmount)}
-                </TableCell>
-                <TableCell />
-                <TableCell className="text-right font-semibold">
-                  {formatCurrency(totals.tdsAmount)}
-                </TableCell>
-              </TableRow>
-            </TableFooter>
-          )}
         </Table>
+
+        {/* Summary Footer - Inside Table Border */}
+        {!isLoading && filteredInvoices.length > 0 && (
+          <div className="flex justify-between items-center px-4 py-4 border-t bg-muted/30">
+            <div>
+              <div className="text-xs text-muted-foreground uppercase tracking-wider">Total Invoice Amount</div>
+              <div className="text-xl font-semibold">{formatCurrency(totals.invoiceAmount)}</div>
+            </div>
+            <div className="text-right">
+              <div className="text-xs text-muted-foreground uppercase tracking-wider">Total TDS Amount</div>
+              <div className="text-xl font-semibold">{formatCurrency(totals.tdsAmount)}</div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
