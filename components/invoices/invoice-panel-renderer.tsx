@@ -20,6 +20,7 @@ import { PaymentFormPanel } from '@/components/payments/payment-form-panel';
 import { VendorFormPanel } from '@/components/master-data/vendor-form-panel';
 import { CategoryFormPanel } from '@/components/master-data/category-form-panel';
 import { PaymentTypeFormPanel } from '@/components/master-data/payment-type-form-panel';
+import { EntityFormPanel } from '@/components/master-data/entity-form-panel';
 import { EditRecurringInvoiceForm } from '@/components/invoices-v2/edit-recurring-invoice-form';
 import { EditNonRecurringInvoiceForm } from '@/components/invoices-v2/edit-non-recurring-invoice-form';
 import { RecurringInvoiceFormPanel } from '@/components/invoices-v2/recurring-invoice-form-panel';
@@ -179,6 +180,19 @@ export function InvoicePanelRenderer({
           paymentType={
             props.paymentType as
               | { id: number; name: string; description?: string | null; requires_reference: boolean }
+              | undefined
+          }
+        />
+      );
+
+    case 'entity-form':
+      return (
+        <EntityFormPanel
+          config={config}
+          onClose={onClose}
+          entity={
+            props.entity as
+              | { id: number; name: string; description?: string | null; address: string; country: string }
               | undefined
           }
         />
