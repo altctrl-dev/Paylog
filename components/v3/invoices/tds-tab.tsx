@@ -328,7 +328,7 @@ export function TDSTab() {
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/30 hover:bg-muted/30 border-b">
-              <TableHead className="w-[50px] pl-4">
+              <TableHead className="w-[40px] pl-3">
                 <Checkbox
                   checked={isAllSelected}
                   onCheckedChange={toggleSelectAll}
@@ -360,7 +360,7 @@ export function TDSTab() {
               // Loading skeleton
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell className="pl-4"><Skeleton className="h-4 w-4 rounded" /></TableCell>
+                  <TableCell className="pl-3"><Skeleton className="h-4 w-4 rounded" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-28" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-16" /></TableCell>
@@ -388,7 +388,7 @@ export function TDSTab() {
                     data-state={selectedInvoices.has(invoice.id) ? 'selected' : undefined}
                     className="border-b border-border/50"
                   >
-                    <TableCell className="pl-4">
+                    <TableCell className="pl-3">
                       <Checkbox
                         checked={selectedInvoices.has(invoice.id)}
                         onCheckedChange={() => toggleSelect(invoice.id)}
