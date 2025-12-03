@@ -50,7 +50,7 @@ const TAB_CONFIG: TabConfig[] = [
 
 const tabVariants = cva(
   [
-    'w-28 py-2',
+    'w-28 py-1.5',
     'text-sm font-medium text-center',
     'transition-all duration-200',
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
@@ -85,7 +85,7 @@ export function InvoiceTabs({
       aria-label="Invoice views"
       className={cn(
         'inline-flex items-center p-1 rounded-lg',
-        'bg-muted',
+        'bg-muted/50',
         className
       )}
       {...props}
