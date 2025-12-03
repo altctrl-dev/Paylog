@@ -264,7 +264,7 @@ export function AllInvoicesTab() {
   return (
     <div className="space-y-4">
       {/* Title with Month */}
-      <h2 className="text-lg font-semibold">All Invoices - {titleMonth}</h2>
+      <h2 className="text-lg font-semibold pl-1">All Invoices - {titleMonth}</h2>
 
       {/* Action Bar */}
       <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
@@ -343,7 +343,7 @@ export function AllInvoicesTab() {
           </Button>
           <DropdownMenu open={showInvoiceTypeMenu} onOpenChange={setShowInvoiceTypeMenu}>
             <DropdownMenuTrigger asChild>
-              <Button className="gap-2 bg-blue-600 hover:bg-blue-700">
+              <Button className="gap-2">
                 <Plus className="h-4 w-4" />
                 New Invoice
               </Button>
