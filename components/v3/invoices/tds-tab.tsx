@@ -304,22 +304,22 @@ export function TDSTab() {
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/30 hover:bg-muted/30 border-b">
-              <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider pl-4">
+              <TableHead className="w-[25%] text-xs font-medium text-muted-foreground uppercase tracking-wider pl-4">
                 Invoice Details
               </TableHead>
-              <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              <TableHead className="w-[18%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Invoice Number
               </TableHead>
-              <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              <TableHead className="w-[14%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Invoice Date
               </TableHead>
-              <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider text-right">
+              <TableHead className="w-[17%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Invoice Amt
               </TableHead>
-              <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider text-right">
+              <TableHead className="w-[10%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 TDS %
               </TableHead>
-              <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider text-right pr-4">
+              <TableHead className="w-[16%] text-xs font-medium text-muted-foreground uppercase tracking-wider pl-4">
                 TDS Amt
               </TableHead>
             </TableRow>
@@ -332,9 +332,9 @@ export function TDSTab() {
                   <TableCell className="pl-4"><Skeleton className="h-4 w-32" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-28" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                  <TableCell className="text-right"><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
-                  <TableCell className="text-right"><Skeleton className="h-4 w-12 ml-auto" /></TableCell>
-                  <TableCell className="text-right pr-4"><Skeleton className="h-4 w-20 ml-auto" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-12" /></TableCell>
+                  <TableCell className="pl-4"><Skeleton className="h-4 w-20" /></TableCell>
                 </TableRow>
               ))
             ) : filteredInvoices.length === 0 ? (
@@ -361,13 +361,13 @@ export function TDSTab() {
                     <TableCell className="text-muted-foreground">
                       {formatDate(invoice.invoice_date)}
                     </TableCell>
-                    <TableCell className="text-right font-medium">
+                    <TableCell className="font-medium">
                       {formatCurrency(invoice.invoice_amount)}
                     </TableCell>
-                    <TableCell className="text-right text-muted-foreground">
+                    <TableCell className="text-muted-foreground">
                       {formatTdsPercentage(invoice.tds_percentage)}
                     </TableCell>
-                    <TableCell className="text-right font-medium pr-4">
+                    <TableCell className="font-medium pl-4">
                       {formatCurrency(tdsAmount)}
                     </TableCell>
                   </TableRow>
