@@ -305,7 +305,7 @@ export function AllInvoicesTab() {
                   aria-label="Select all"
                 />
               </TableHead>
-              <TableHead className="w-[18%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              <TableHead className="w-[18%] text-xs font-medium text-muted-foreground uppercase tracking-wider Text-left">
                 Invoice ID
               </TableHead>
               <TableHead className="w-[22%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -320,7 +320,7 @@ export function AllInvoicesTab() {
               <TableHead className="w-[14%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Date
               </TableHead>
-              <TableHead className="w-[12%] text-xs font-medium text-muted-foreground uppercase tracking-wider text-right pr-6">
+              <TableHead className="w-[12%] text-xs font-medium text-muted-foreground uppercase tracking-wider text-left pr-6">
                 Actions
               </TableHead>
             </TableRow>
@@ -372,8 +372,8 @@ export function AllInvoicesTab() {
                   <TableCell className="text-muted-foreground">
                     {formatDate(invoice.invoice_date)}
                   </TableCell>
-                  <TableCell className="pr-6">
-                    <div className="flex items-center justify-end gap-3">
+                  <TableCell className="pl-4">
+                    <div className="flex items-center gap-3">
                       <button
                         className="text-muted-foreground hover:text-foreground transition-colors"
                         onClick={() => handleViewInvoice(invoice.id)}
