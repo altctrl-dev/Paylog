@@ -206,7 +206,7 @@ export function AllInvoicesTab() {
   };
 
   const handleViewInvoice = (id: number) => {
-    openPanel('invoice-v2-detail', { invoiceId: id });
+    openPanel('invoice-v2-detail', { invoiceId: id }, { width: PANEL_WIDTH.LARGE });
   };
 
   const handleEditInvoice = (id: number, isRecurring: boolean) => {

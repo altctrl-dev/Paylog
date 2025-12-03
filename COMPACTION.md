@@ -1,4 +1,4 @@
-# Compaction Summary — 2025-12-03 15:52:32 IST
+# Compaction Summary — 2025-12-03 23:13:07 IST
 
 ## Executive Summary
 - Agents active: Main Agent (Direct Work)
@@ -7,15 +7,17 @@
 - Open questions: 0
 
 ## Key Decisions (retain for context)
-- Configuration and hook updates
+- chore: archive legacy invoice panels
+- style(tds): simplify footer to show only centered TDS total
+- style(tds): adjust table column widths
 
 ## Next Steps (actionable)
 - n/a
 
 ## Critical Paths (for JIT retrieval)
-- `omponents/ui/checkbox.tsx`
-- `components/v3/invoices/all-invoices-tab.tsx`
+- `components/invoices/invoice-panel-renderer.tsx`
 - `components/v3/invoices/tds-tab.tsx`
+- `components/_archived/README.md`
 
 ## Contracts Touched (verify stability)
 - n/a

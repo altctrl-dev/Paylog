@@ -1,32 +1,34 @@
 {
-  "timestamp": "2025-12-03 15:52:32 IST",
+  "timestamp": "2025-12-03 23:13:07 IST",
   "agents_seen": [
     "Main Agent (Direct Work)"
   ],
   "decisions": [
-    "Configuration and hook updates"
+    "chore: archive legacy invoice panels",
+    "style(tds): simplify footer to show only centered TDS total",
+    "style(tds): adjust table column widths"
   ],
   "open_questions": [],
   "owned_artifacts": [
-    "omponents/ui/checkbox.tsx",
-    "components/v3/invoices/all-invoices-tab.tsx",
-    "components/v3/invoices/tds-tab.tsx"
+    "components/invoices/invoice-panel-renderer.tsx",
+    "components/v3/invoices/tds-tab.tsx",
+    "components/_archived/README.md"
   ],
   "contracts_touched": [],
   "files_touched": [
     {
-      "path": "omponents/ui/checkbox.tsx",
-      "reason": "modified",
-      "anchors": []
-    },
-    {
-      "path": "components/v3/invoices/all-invoices-tab.tsx",
+      "path": "components/invoices/invoice-panel-renderer.tsx",
       "reason": "modified",
       "anchors": []
     },
     {
       "path": "components/v3/invoices/tds-tab.tsx",
       "reason": "modified",
+      "anchors": []
+    },
+    {
+      "path": "components/_archived/README.md",
+      "reason": "created",
       "anchors": []
     }
   ],
