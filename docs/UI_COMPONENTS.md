@@ -60,6 +60,7 @@ All main pages should follow a consistent structure pattern for visual cohesion.
 |------|-----------|----------|
 | Invoices | `InvoicesPage` | `components/v3/invoices/invoices-page.tsx` |
 | Settings | `SettingsPage` | `components/v3/settings/settings-page.tsx` |
+| Admin | `AdminPage` | `components/v3/admin/admin-page.tsx` |
 
 ---
 
@@ -85,6 +86,10 @@ Tab components provide navigation between sections within a page.
 |-----------|----------|------|
 | `InvoiceTabs` | `components/v3/invoices/invoice-tabs.tsx` | Recurring, All Invoices, TDS |
 | `SettingsTabs` | `components/v3/settings/settings-tabs.tsx` | Profile, Security, Activities |
+| `AdminTabs` | `components/v3/admin/admin-tabs.tsx` | Dashboard, Master Data, User Management* |
+| `MasterDataTabs` | `components/v3/admin/master-data-tabs.tsx` | All Requests, Vendors, Categories, Entities, Payment Types, Currencies, Invoice Profiles |
+
+*User Management tab only visible to super_admin users
 
 ### Creating New Tab Components
 
