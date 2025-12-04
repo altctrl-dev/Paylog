@@ -41,6 +41,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useUIVersion } from '@/lib/stores/ui-version-store';
+import { toast } from 'sonner';
 
 // ============================================================================
 // Types
@@ -164,12 +165,19 @@ function NavLink({ item, isActive, isCollapsed, badgeCount }: NavLinkProps) {
 }
 
 function AIAssistantCard({ isCollapsed }: { isCollapsed: boolean }) {
+  const handleClick = () => {
+    toast.info('This feature is work in progress');
+  };
+
   // Collapsed: Simple icon button (matches original design)
   if (isCollapsed) {
     return (
       <Tooltip delayDuration={1500}>
         <TooltipTrigger asChild>
-          <button className="flex h-10 w-10 mx-auto items-center justify-center rounded-lg text-purple-400 hover:bg-muted transition-colors">
+          <button
+            onClick={handleClick}
+            className="flex h-10 w-10 mx-auto items-center justify-center rounded-lg text-purple-400 hover:bg-muted transition-colors"
+          >
             <Sparkles className="h-5 w-5" />
           </button>
         </TooltipTrigger>
@@ -178,19 +186,17 @@ function AIAssistantCard({ isCollapsed }: { isCollapsed: boolean }) {
     );
   }
 
-  // Expanded: Full card with gradient
+  // Expanded: Clickable card with gradient
   return (
-    <div className="mx-2 rounded-lg bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/20 p-3">
-      <div className="flex items-start gap-2">
-        <Sparkles className="h-5 w-5 text-purple-400 flex-shrink-0 mt-0.5" />
-        <div className="flex-1 min-w-0">
-          <div className="font-medium text-sm text-purple-400">AI Assistant</div>
-          <div className="text-xs text-muted-foreground truncate">
-            Ask me anything about your invoices
-          </div>
-        </div>
+    <button
+      onClick={handleClick}
+      className="mx-2 w-[calc(100%-16px)] rounded-lg bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/20 p-3 text-left hover:from-blue-500/15 hover:to-purple-500/15 transition-colors"
+    >
+      <div className="flex items-center gap-2">
+        <Sparkles className="h-5 w-5 text-purple-400 flex-shrink-0" />
+        <span className="font-medium text-sm text-purple-400">AI Assistant</span>
       </div>
-    </div>
+    </button>
   );
 }
 
