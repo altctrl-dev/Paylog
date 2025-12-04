@@ -16,7 +16,7 @@ import { emailService, sendEmailAsync } from '@/lib/email';
 // TYPES
 // ============================================================================
 
-export type MasterDataEntityType = 'vendor' | 'category' | 'invoice_profile' | 'payment_type';
+export type MasterDataEntityType = 'vendor' | 'category' | 'invoice_profile' | 'payment_type' | 'invoice_archive';
 export type MasterDataRequestStatus = 'draft' | 'pending_approval' | 'approved' | 'rejected';
 
 export interface VendorRequestData {
@@ -52,11 +52,18 @@ export interface PaymentTypeRequestData {
   is_active?: boolean;
 }
 
+export interface InvoiceArchiveRequestData {
+  invoice_id: number;
+  invoice_number: string;
+  reason?: string;
+}
+
 export type RequestData =
   | VendorRequestData
   | CategoryRequestData
   | InvoiceProfileRequestData
-  | PaymentTypeRequestData;
+  | PaymentTypeRequestData
+  | InvoiceArchiveRequestData;
 
 export interface MasterDataRequestWithDetails {
   id: number;
@@ -125,6 +132,8 @@ function validateRequestData(entityType: MasterDataEntityType, data: unknown): R
       return invoiceProfileRequestSchema.parse(data);
     case 'payment_type':
       return paymentTypeRequestSchema.parse(data);
+    case 'invoice_archive':
+      return invoiceArchiveRequestSchema.parse(data);
     default:
       throw new Error(`Unknown entity type: ${entityType}`);
   }
@@ -165,6 +174,12 @@ const paymentTypeRequestSchema = z.object({
   description: z.string().max(1000, 'Description too long').optional().nullable(),
   requires_reference: z.boolean().default(false),
   is_active: z.boolean().default(true),
+});
+
+const invoiceArchiveRequestSchema = z.object({
+  invoice_id: z.number().min(1, 'Invoice ID is required'),
+  invoice_number: z.string().min(1, 'Invoice number is required'),
+  reason: z.string().max(1000, 'Reason too long').optional(),
 });
 
 // ============================================================================
@@ -768,6 +783,7 @@ function getEntityDisplayName(entityType: MasterDataEntityType): string {
     category: 'Category',
     invoice_profile: 'Invoice Profile',
     payment_type: 'Payment Type',
+    invoice_archive: 'Invoice Archive',
   };
   return labels[entityType] || entityType;
 }

@@ -363,26 +363,44 @@ export function AdminRequestReviewPanel({ config, onClose, requestId }: AdminReq
               </div>
 
               <div className="space-y-4">
-                {/* Name Field (all entity types have name) */}
-                <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">Name *</label>
-                  {isEditing ? (
-                    <Input
-                      value={(getFinalValue('name') as string | undefined) ?? ''}
-                      onChange={(e) => handleEditField('name', e.target.value)}
-                      placeholder="Enter name"
-                    />
-                  ) : (
-                    <div className="text-sm p-2 bg-gray-50 rounded border border-gray-200">
-                      {(getFinalValue('name') as string | undefined) || '-'}
+                {/* Invoice Archive specific fields */}
+                {request.entity_type === 'invoice_archive' ? (
+                  <>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 mb-1 block">Invoice Number</label>
+                      <div className="text-sm p-2 bg-gray-50 rounded border border-gray-200">
+                        {(request.request_data as { invoice_number?: string }).invoice_number || '-'}
+                      </div>
                     </div>
-                  )}
-                  {editedName !== undefined && editedName !== request.request_data.name && (
-                    <p className="text-xs text-blue-600 mt-1">
-                      Original: {request.request_data.name}
-                    </p>
-                  )}
-                </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 mb-1 block">Reason</label>
+                      <div className="text-sm p-2 bg-gray-50 rounded border border-gray-200">
+                        {(request.request_data as { reason?: string }).reason || 'No reason provided'}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  /* Name Field (vendor, category, invoice_profile, payment_type have name) */
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-1 block">Name *</label>
+                    {isEditing ? (
+                      <Input
+                        value={(getFinalValue('name') as string | undefined) ?? ''}
+                        onChange={(e) => handleEditField('name', e.target.value)}
+                        placeholder="Enter name"
+                      />
+                    ) : (
+                      <div className="text-sm p-2 bg-gray-50 rounded border border-gray-200">
+                        {(getFinalValue('name') as string | undefined) || '-'}
+                      </div>
+                    )}
+                    {editedName !== undefined && editedName !== (request.request_data as { name?: string }).name && (
+                      <p className="text-xs text-blue-600 mt-1">
+                        Original: {(request.request_data as { name?: string }).name}
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 {/* Vendor-specific fields */}
                 {request.entity_type === 'vendor' && (

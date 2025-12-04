@@ -78,6 +78,8 @@ function getEntityDisplayName(entityType: MasterDataEntityType): string {
       return 'Invoice Profile';
     case 'payment_type':
       return 'Payment Type';
+    case 'invoice_archive':
+      return 'Invoice Archive';
   }
 }
 

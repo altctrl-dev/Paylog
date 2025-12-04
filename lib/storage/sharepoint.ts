@@ -222,6 +222,63 @@ export class SharePointStorageService implements StorageService {
   }
 
   /**
+   * Move a file to a different path in SharePoint
+   *
+   * Uses PATCH with parentReference to move file to new location.
+   * Creates destination folder if it doesn't exist.
+   *
+   * @param sourcePath - Current file path (e.g., "Invoices/2025/Recurring/Rent/invoice.pdf")
+   * @param destinationPath - New file path (e.g., "Invoices/2025/Recurring/Archived/2025-01-01/invoice.pdf")
+   */
+  async move(sourcePath: string, destinationPath: string): Promise<StorageResult> {
+    try {
+      // Extract destination folder and filename from destination path
+      const lastSlashIndex = destinationPath.lastIndexOf('/');
+      const destinationFolder = destinationPath.substring(0, lastSlashIndex);
+      const newFileName = destinationPath.substring(lastSlashIndex + 1);
+
+      // Ensure destination folder exists
+      await this.ensureFolderPath(destinationFolder);
+
+      // Get the destination folder's ID
+      const folderItem = await this.client
+        .api(`${this.driveEndpoint}/root:/${destinationFolder}`)
+        .get();
+
+      // Move the file using PATCH with parentReference
+      const movedItem = await this.client
+        .api(`${this.driveEndpoint}/root:/${sourcePath}`)
+        .patch({
+          parentReference: {
+            id: folderItem.id,
+          },
+          name: newFileName,
+        });
+
+      return {
+        success: true,
+        path: destinationPath,
+        size: movedItem.size,
+      };
+    } catch (error) {
+      console.error('[SharePoint] Move error:', error);
+
+      // Check if source file doesn't exist
+      if (this.isNotFoundError(error)) {
+        return {
+          success: false,
+          error: `Source file not found: ${sourcePath}`,
+        };
+      }
+
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Move failed',
+      };
+    }
+  }
+
+  /**
    * Get a shareable URL for the file
    */
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -230,6 +287,41 @@ export class SharePointStorageService implements StorageService {
     // Return undefined - files should be served through our API
     // which handles authentication
     return undefined;
+  }
+
+  /**
+   * Upload a file to a specific path
+   *
+   * Unlike regular upload, this doesn't use the auto-generated folder structure.
+   * Used for info documents and other files that need to be placed at specific locations.
+   *
+   * @param file - File buffer
+   * @param path - Full storage path (e.g., "Invoices/2025/Archived/2025-01-01/_INFO.txt")
+   */
+  async uploadToPath(file: Buffer, path: string): Promise<StorageResult> {
+    try {
+      // Extract folder path
+      const lastSlashIndex = path.lastIndexOf('/');
+      const folderPath = path.substring(0, lastSlashIndex);
+
+      // Ensure folder structure exists
+      await this.ensureFolderPath(folderPath);
+
+      // Upload file
+      const driveItem = await this.uploadSmallFile(file, path);
+
+      return {
+        success: true,
+        path: path,
+        size: driveItem.size,
+      };
+    } catch (error) {
+      console.error('[SharePoint] UploadToPath error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Upload failed',
+      };
+    }
   }
 
   // ============================================================================

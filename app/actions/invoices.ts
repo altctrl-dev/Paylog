@@ -225,6 +225,15 @@ export async function getInvoices(
       is_hidden: false, // Always exclude hidden invoices by default
     };
 
+    // Handle archived filter
+    if (validated.show_archived) {
+      // Show only archived invoices
+      where.is_archived = true;
+    } else {
+      // Default: exclude archived invoices
+      where.is_archived = false;
+    }
+
     if (validated.search) {
       where.OR = [
         {
@@ -470,6 +479,13 @@ export async function getInvoiceById(
       return {
         success: false,
         error: 'Invoice is hidden and cannot be accessed',
+      };
+    }
+
+    if (invoice.is_archived) {
+      return {
+        success: false,
+        error: 'Invoice is archived and cannot be accessed',
       };
     }
 
@@ -1501,6 +1517,592 @@ export async function approveInvoiceAndVendor(
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to approve invoice and vendor',
+    };
+  }
+}
+
+// ============================================================================
+// ARCHIVE REQUEST (Creates a request for admin approval)
+// ============================================================================
+
+/**
+ * Create an invoice archive request
+ *
+ * For standard users: Creates a pending request for admin approval
+ * For admin/super_admin: Directly archives the invoice
+ *
+ * @param invoiceId - Invoice ID to archive
+ * @param reason - Optional reason for archiving
+ * @returns Success result with request ID or direct archive result
+ */
+export async function createInvoiceArchiveRequest(
+  invoiceId: number,
+  reason?: string
+): Promise<ServerActionResult<{ requestId?: number; archived?: boolean }>> {
+  try {
+    const user = await getCurrentUser();
+
+    // Check if invoice exists
+    const invoice = await db.invoice.findUnique({
+      where: { id: invoiceId },
+      select: {
+        id: true,
+        invoice_number: true,
+        is_archived: true,
+      },
+    });
+
+    if (!invoice) {
+      return {
+        success: false,
+        error: 'Invoice not found',
+      };
+    }
+
+    if (invoice.is_archived) {
+      return {
+        success: false,
+        error: 'Invoice is already archived',
+      };
+    }
+
+    // Check if there's already a pending archive request for this invoice
+    const existingRequest = await db.masterDataRequest.findFirst({
+      where: {
+        entity_type: 'invoice_archive',
+        status: 'pending_approval',
+        request_data: {
+          contains: `"invoice_id":${invoiceId}`,
+        },
+      },
+    });
+
+    if (existingRequest) {
+      return {
+        success: false,
+        error: 'An archive request for this invoice is already pending approval',
+      };
+    }
+
+    // For admin/super_admin, archive directly
+    if (user.role === 'admin' || user.role === 'super_admin') {
+      const result = await archiveInvoice(invoiceId, reason);
+      if (result.success) {
+        return {
+          success: true,
+          data: { archived: true },
+        };
+      }
+      return result as ServerActionResult<{ requestId?: number; archived?: boolean }>;
+    }
+
+    // For standard users, create an archive request
+    const request = await db.masterDataRequest.create({
+      data: {
+        entity_type: 'invoice_archive',
+        status: 'pending_approval',
+        requester_id: user.id,
+        request_data: JSON.stringify({
+          invoice_id: invoiceId,
+          invoice_number: invoice.invoice_number,
+          reason: reason || 'User requested archive',
+        }),
+      },
+    });
+
+    revalidatePath('/invoices');
+
+    return {
+      success: true,
+      data: { requestId: request.id },
+    };
+  } catch (error) {
+    console.error('createInvoiceArchiveRequest error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to create archive request',
+    };
+  }
+}
+
+// ============================================================================
+// ARCHIVE & PERMANENT DELETE OPERATIONS
+// ============================================================================
+
+/**
+ * Generate info document content for archive/delete operations
+ */
+function generateInfoDocument(params: {
+  invoiceNumber: string;
+  action: 'archived' | 'deleted';
+  userName: string;
+  userEmail: string;
+  timestamp: Date;
+  reason?: string;
+  originalFiles: string[];
+  invoiceData: Record<string, unknown>;
+}): string {
+  const dateStr = params.timestamp.toISOString();
+  const localDate = params.timestamp.toLocaleString('en-US', {
+    dateStyle: 'full',
+    timeStyle: 'long',
+    timeZone: 'Asia/Kolkata',
+  });
+
+  return `================================================================================
+INVOICE ${params.action.toUpperCase()} - INFO DOCUMENT
+================================================================================
+
+Invoice Number: ${params.invoiceNumber}
+Action: ${params.action.charAt(0).toUpperCase() + params.action.slice(1)}
+Date/Time: ${localDate}
+ISO Timestamp: ${dateStr}
+
+--------------------------------------------------------------------------------
+PERFORMED BY
+--------------------------------------------------------------------------------
+Name: ${params.userName}
+Email: ${params.userEmail}
+
+--------------------------------------------------------------------------------
+REASON
+--------------------------------------------------------------------------------
+${params.reason || 'No reason provided'}
+
+--------------------------------------------------------------------------------
+ORIGINAL FILE LOCATIONS
+--------------------------------------------------------------------------------
+${params.originalFiles.length > 0 ? params.originalFiles.map((f, i) => `${i + 1}. ${f}`).join('\n') : 'No files attached'}
+
+--------------------------------------------------------------------------------
+INVOICE DATA AT TIME OF ${params.action.toUpperCase()}
+--------------------------------------------------------------------------------
+${Object.entries(params.invoiceData)
+  .map(([key, value]) => `${key}: ${value}`)
+  .join('\n')}
+
+================================================================================
+This document was automatically generated by Paylog on ${params.action}.
+================================================================================
+`;
+}
+
+/**
+ * Archive invoice (admin/super_admin only)
+ *
+ * Moves invoice files to Archived folder and marks invoice as archived.
+ * Files are NEVER deleted from SharePoint, only moved.
+ *
+ * @param id - Invoice ID
+ * @param reason - Optional reason for archiving
+ * @returns Success result
+ */
+export async function archiveInvoice(
+  id: number,
+  reason?: string
+): Promise<ServerActionResult<void>> {
+  try {
+    const user = await getCurrentUser();
+
+    // Only admin/super_admin can archive invoices
+    if (user.role !== 'admin' && user.role !== 'super_admin') {
+      return {
+        success: false,
+        error: 'Only admins can archive invoices',
+      };
+    }
+
+    // Get user details for info document
+    const userDetails = await db.user.findUnique({
+      where: { id: user.id },
+      select: { full_name: true, email: true },
+    });
+
+    const existing = await db.invoice.findUnique({
+      where: { id },
+      include: {
+        attachments: {
+          where: { deleted_at: null },
+          select: { id: true, storage_path: true, file_name: true },
+        },
+        profile: {
+          select: { name: true },
+        },
+        vendor: {
+          select: { name: true },
+        },
+        category: {
+          select: { name: true },
+        },
+      },
+    });
+
+    if (!existing) {
+      return {
+        success: false,
+        error: 'Invoice not found',
+      };
+    }
+
+    if (existing.is_archived) {
+      return {
+        success: false,
+        error: 'Invoice is already archived',
+      };
+    }
+
+    // Move files to Archived folder if SharePoint is configured
+    const archiveDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const movedFiles: Array<{ originalPath: string; newPath: string }> = [];
+
+    if (
+      process.env.SHAREPOINT_SITE_ID &&
+      process.env.AZURE_CLIENT_ID &&
+      existing.attachments.length > 0
+    ) {
+      const { createSharePointStorage } = await import('@/lib/storage/sharepoint');
+      const storage = createSharePointStorage();
+
+      for (const attachment of existing.attachments) {
+        if (attachment.storage_path) {
+          // Build archive path
+          // Original: Invoices/2025/Recurring/Rent/invoice.pdf
+          // Archived: Invoices/2025/Recurring/Archived/2025-01-01/invoice.pdf
+          const pathParts = attachment.storage_path.split('/');
+          const fileName = pathParts.pop() || attachment.file_name;
+
+          // Find the index of either "Recurring" or "one-time" in path
+          const recurringIndex = pathParts.indexOf('Recurring');
+          const oneTimeIndex = pathParts.indexOf('one-time');
+          const typeIndex = recurringIndex >= 0 ? recurringIndex : oneTimeIndex;
+
+          if (typeIndex >= 0) {
+            // Insert "Archived/{date}" after the type folder
+            const basePath = pathParts.slice(0, typeIndex + 1).join('/');
+            const archivePath = `${basePath}/Archived/${archiveDate}/${fileName}`;
+
+            const moveResult = await storage.move(
+              attachment.storage_path,
+              archivePath
+            );
+
+            if (moveResult.success) {
+              movedFiles.push({
+                originalPath: attachment.storage_path,
+                newPath: archivePath,
+              });
+
+              // Update attachment path in database
+              await db.invoiceAttachment.update({
+                where: { id: attachment.id },
+                data: { storage_path: archivePath },
+              });
+            } else {
+              console.error(`Failed to move file ${attachment.storage_path}: ${moveResult.error}`);
+            }
+          }
+        }
+      }
+
+      // Create info document in the archive folder
+      if (movedFiles.length > 0) {
+        const archiveTimestamp = new Date();
+        const infoContent = generateInfoDocument({
+          invoiceNumber: existing.invoice_number,
+          action: 'archived',
+          userName: userDetails?.full_name || user.email,
+          userEmail: userDetails?.email || user.email,
+          timestamp: archiveTimestamp,
+          reason,
+          originalFiles: existing.attachments.map((a) => a.storage_path || a.file_name),
+          invoiceData: {
+            invoice_id: existing.id,
+            invoice_number: existing.invoice_number,
+            vendor: existing.vendor?.name || 'N/A',
+            category: existing.category?.name || 'N/A',
+            profile: existing.profile?.name || 'N/A',
+            amount: existing.invoice_amount,
+            status: existing.status,
+            invoice_date: existing.invoice_date?.toISOString().split('T')[0] || 'N/A',
+            due_date: existing.due_date?.toISOString().split('T')[0] || 'N/A',
+          },
+        });
+
+        // Determine archive folder from moved files path
+        const firstMovedPath = movedFiles[0].newPath;
+        const archiveFolder = firstMovedPath.substring(0, firstMovedPath.lastIndexOf('/'));
+        const infoFileName = `_INFO_${existing.invoice_number.replace(/[\/\\:*?"<>|]/g, '-')}.txt`;
+        const infoPath = `${archiveFolder}/${infoFileName}`;
+
+        // Upload info document to the archive folder
+        try {
+          const infoResult = await storage.uploadToPath(
+            Buffer.from(infoContent, 'utf-8'),
+            infoPath
+          );
+          if (infoResult.success) {
+            console.log(`[Archive] Info document created at: ${infoPath}`);
+          } else {
+            console.error(`[Archive] Failed to create info document: ${infoResult.error}`);
+          }
+        } catch (infoError) {
+          console.error('[Archive] Failed to create info document:', infoError);
+          // Non-blocking - continue even if info doc fails
+        }
+      }
+    }
+
+    // Update invoice to archived status
+    await db.invoice.update({
+      where: { id },
+      data: {
+        is_archived: true,
+        archived_by: user.id,
+        archived_at: new Date(),
+        archived_reason: reason || 'Archived by admin',
+      },
+    });
+
+    // Log activity
+    await createActivityLog({
+      invoice_id: id,
+      user_id: user.id,
+      action: ACTIVITY_ACTION.INVOICE_ARCHIVED,
+      old_data: {
+        invoice_number: existing.invoice_number,
+        status: existing.status,
+        is_archived: false,
+      },
+      new_data: {
+        is_archived: true,
+        archived_reason: reason || 'Archived by admin',
+        files_moved: movedFiles.length,
+      },
+    });
+
+    revalidatePath('/invoices');
+
+    return {
+      success: true,
+      data: undefined,
+    };
+  } catch (error) {
+    console.error('archiveInvoice error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to archive invoice',
+    };
+  }
+}
+
+/**
+ * Permanently delete invoice (super_admin only)
+ *
+ * Moves invoice files to Deleted folder, then hard deletes from database.
+ * Files are NEVER deleted from SharePoint, only moved.
+ *
+ * @param id - Invoice ID
+ * @param reason - Optional reason for deletion
+ * @returns Success result
+ */
+export async function permanentDeleteInvoice(
+  id: number,
+  reason?: string
+): Promise<ServerActionResult<void>> {
+  try {
+    const user = await getCurrentUser();
+
+    // Only super_admin can permanently delete invoices
+    if (user.role !== 'super_admin') {
+      return {
+        success: false,
+        error: 'Only super admins can permanently delete invoices',
+      };
+    }
+
+    // Get user details for info document
+    const userDetails = await db.user.findUnique({
+      where: { id: user.id },
+      select: { full_name: true, email: true },
+    });
+
+    const existing = await db.invoice.findUnique({
+      where: { id },
+      include: {
+        attachments: {
+          select: { id: true, storage_path: true, file_name: true },
+        },
+        profile: {
+          select: { name: true },
+        },
+        vendor: {
+          select: { name: true },
+        },
+        category: {
+          select: { name: true },
+        },
+      },
+    });
+
+    if (!existing) {
+      return {
+        success: false,
+        error: 'Invoice not found',
+      };
+    }
+
+    // Move files to Deleted folder if SharePoint is configured
+    const deleteDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const movedFiles: Array<{ originalPath: string; newPath: string }> = [];
+
+    if (
+      process.env.SHAREPOINT_SITE_ID &&
+      process.env.AZURE_CLIENT_ID &&
+      existing.attachments.length > 0
+    ) {
+      const { createSharePointStorage } = await import('@/lib/storage/sharepoint');
+      const storage = createSharePointStorage();
+
+      for (const attachment of existing.attachments) {
+        if (attachment.storage_path) {
+          // Build delete path
+          // Original: Invoices/2025/Recurring/Rent/invoice.pdf
+          // Deleted: Invoices/2025/Recurring/Deleted/2025-01-01/invoice.pdf
+          const pathParts = attachment.storage_path.split('/');
+          const fileName = pathParts.pop() || attachment.file_name;
+
+          // Find the index of either "Recurring" or "one-time" in path
+          const recurringIndex = pathParts.indexOf('Recurring');
+          const oneTimeIndex = pathParts.indexOf('one-time');
+          const typeIndex = recurringIndex >= 0 ? recurringIndex : oneTimeIndex;
+
+          if (typeIndex >= 0) {
+            // Insert "Deleted/{date}" after the type folder
+            const basePath = pathParts.slice(0, typeIndex + 1).join('/');
+            const deletePath = `${basePath}/Deleted/${deleteDate}/${fileName}`;
+
+            const moveResult = await storage.move(
+              attachment.storage_path,
+              deletePath
+            );
+
+            if (moveResult.success) {
+              movedFiles.push({
+                originalPath: attachment.storage_path,
+                newPath: deletePath,
+              });
+            } else {
+              console.error(`Failed to move file ${attachment.storage_path}: ${moveResult.error}`);
+            }
+          }
+        }
+      }
+
+      // Create info document in the deleted folder
+      if (movedFiles.length > 0) {
+        const deleteTimestamp = new Date();
+        const infoContent = generateInfoDocument({
+          invoiceNumber: existing.invoice_number,
+          action: 'deleted',
+          userName: userDetails?.full_name || user.email,
+          userEmail: userDetails?.email || user.email,
+          timestamp: deleteTimestamp,
+          reason,
+          originalFiles: existing.attachments.map((a) => a.storage_path || a.file_name),
+          invoiceData: {
+            invoice_id: existing.id,
+            invoice_number: existing.invoice_number,
+            vendor: existing.vendor?.name || 'N/A',
+            category: existing.category?.name || 'N/A',
+            profile: existing.profile?.name || 'N/A',
+            amount: existing.invoice_amount,
+            status: existing.status,
+            invoice_date: existing.invoice_date?.toISOString().split('T')[0] || 'N/A',
+            due_date: existing.due_date?.toISOString().split('T')[0] || 'N/A',
+          },
+        });
+
+        // Determine deleted folder from moved files path
+        const firstMovedPath = movedFiles[0].newPath;
+        const deleteFolder = firstMovedPath.substring(0, firstMovedPath.lastIndexOf('/'));
+        const infoFileName = `_INFO_${existing.invoice_number.replace(/[\/\\:*?"<>|]/g, '-')}.txt`;
+        const infoPath = `${deleteFolder}/${infoFileName}`;
+
+        // Upload info document to the deleted folder
+        try {
+          const infoResult = await storage.uploadToPath(
+            Buffer.from(infoContent, 'utf-8'),
+            infoPath
+          );
+          if (infoResult.success) {
+            console.log(`[Delete] Info document created at: ${infoPath}`);
+          } else {
+            console.error(`[Delete] Failed to create info document: ${infoResult.error}`);
+          }
+        } catch (infoError) {
+          console.error('[Delete] Failed to create info document:', infoError);
+          // Non-blocking - continue even if info doc fails
+        }
+      }
+    }
+
+    // Log activity BEFORE deleting (to preserve invoice_id reference)
+    await createActivityLog({
+      invoice_id: id,
+      user_id: user.id,
+      action: ACTIVITY_ACTION.INVOICE_DELETED,
+      old_data: {
+        invoice_number: existing.invoice_number,
+        vendor_id: existing.vendor_id,
+        invoice_amount: existing.invoice_amount,
+        status: existing.status,
+        deletion_reason: reason || 'Permanently deleted by super admin',
+      },
+      new_data: {
+        deleted: true,
+        files_moved: movedFiles.length,
+      },
+    });
+
+    // Delete all related records in transaction
+    await db.$transaction(async (tx) => {
+      // Delete payments
+      await tx.payment.deleteMany({
+        where: { invoice_id: id },
+      });
+
+      // Delete attachments
+      await tx.invoiceAttachment.deleteMany({
+        where: { invoice_id: id },
+      });
+
+      // Delete comments
+      await tx.invoiceComment.deleteMany({
+        where: { invoice_id: id },
+      });
+
+      // Delete activity logs (optional - can keep for audit trail)
+      // await tx.activityLog.deleteMany({
+      //   where: { invoice_id: id },
+      // });
+
+      // Finally delete the invoice
+      await tx.invoice.delete({
+        where: { id },
+      });
+    });
+
+    revalidatePath('/invoices');
+
+    return {
+      success: true,
+      data: undefined,
+    };
+  } catch (error) {
+    console.error('permanentDeleteInvoice error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to permanently delete invoice',
     };
   }
 }

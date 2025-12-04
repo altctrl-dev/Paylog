@@ -27,6 +27,7 @@ model User {
   created_invoices         Invoice[]               @relation("InvoiceCreator")
   hidden_invoices          Invoice[]               @relation("InvoiceHider")
   held_invoices            Invoice[]               @relation("InvoiceHolder")
+  archived_invoices        Invoice[]               @relation("InvoiceArchiver")
   rejected_invoices        Invoice[]               @relation("InvoiceRejector")
   created_requests         MasterDataRequest[]     @relation("RequestRequester")
   reviewed_master_requests MasterDataRequest[]     @relation("RequestReviewer")
@@ -190,6 +191,11 @@ model Invoice {
   hidden_by          Int?
   hidden_at          DateTime?
   hidden_reason      String?
+  // Archive fields (soft archive with file move)
+  is_archived        Boolean             @default(false)
+  archived_by        Int?
+  archived_at        DateTime?
+  archived_reason    String?
   created_by         Int
   created_at         DateTime            @default(now())
   updated_at         DateTime            @updatedAt
@@ -216,6 +222,7 @@ model Invoice {
   entity             Entity?             @relation(fields: [entity_id], references: [id], onUpdate: NoAction)
   hider              User?               @relation("InvoiceHider", fields: [hidden_by], references: [id], onDelete: Restrict)
   holder             User?               @relation("InvoiceHolder", fields: [hold_by], references: [id], onDelete: Restrict)
+  archiver           User?               @relation("InvoiceArchiver", fields: [archived_by], references: [id], onDelete: Restrict)
   profile            InvoiceProfile?     @relation("InvoiceProfileLegacy", fields: [profile_id], references: [id])
   invoice_profile    InvoiceProfile?     @relation("InvoiceProfileToInvoice", fields: [invoice_profile_id], references: [id], onDelete: SetNull)
   payment_type       PaymentType?        @relation(fields: [payment_type_id], references: [id], onDelete: SetNull)
@@ -228,6 +235,7 @@ model Invoice {
   @@index([status], map: "idx_invoices_on_hold")
   @@index([is_hidden], map: "idx_invoices_hidden")
   @@index([is_hidden], map: "idx_invoices_active")
+  @@index([is_archived], map: "idx_invoices_archived")
   @@index([submission_count], map: "idx_invoices_submission_count")
   @@index([created_at], map: "idx_invoices_created_at")
   @@index([sub_entity_id], map: "idx_invoices_sub_entity")

@@ -42,6 +42,9 @@ export const ACTIVITY_ACTION = {
   /** Invoice unhidden by admin (is_hidden: true → false) */
   INVOICE_UNHIDDEN: 'invoice_unhidden',
 
+  /** Invoice archived by admin (moves files to Archived folder) */
+  INVOICE_ARCHIVED: 'invoice_archived',
+
   /** Invoice duplicated by user (creates copy with new invoice_number) */
   INVOICE_DUPLICATED: 'invoice_duplicated',
 
@@ -124,6 +127,7 @@ export const ACTIVITY_ACTION_LABELS: Record<ActivityAction, string> = {
   [ACTIVITY_ACTION.INVOICE_HOLD_RELEASED]: 'Released invoice from hold',
   [ACTIVITY_ACTION.INVOICE_HIDDEN]: 'Hidden invoice',
   [ACTIVITY_ACTION.INVOICE_UNHIDDEN]: 'Unhidden invoice',
+  [ACTIVITY_ACTION.INVOICE_ARCHIVED]: 'Archived invoice',
   [ACTIVITY_ACTION.INVOICE_DUPLICATED]: 'Duplicated invoice',
   [ACTIVITY_ACTION.INVOICE_DELETED]: 'Deleted invoice',
   [ACTIVITY_ACTION.PAYMENT_ADDED]: 'Added payment',
@@ -150,6 +154,7 @@ export const ACTIVITY_ACTION_ICONS: Record<ActivityAction, string> = {
   [ACTIVITY_ACTION.INVOICE_HOLD_RELEASED]: 'Play',
   [ACTIVITY_ACTION.INVOICE_HIDDEN]: 'EyeOff',
   [ACTIVITY_ACTION.INVOICE_UNHIDDEN]: 'Eye',
+  [ACTIVITY_ACTION.INVOICE_ARCHIVED]: 'Archive',
   [ACTIVITY_ACTION.INVOICE_DUPLICATED]: 'Copy',
   [ACTIVITY_ACTION.INVOICE_DELETED]: 'Trash2',
   [ACTIVITY_ACTION.PAYMENT_ADDED]: 'DollarSign',
@@ -248,6 +253,7 @@ export const activityActionSchema = z.enum([
   ACTIVITY_ACTION.INVOICE_HOLD_RELEASED,
   ACTIVITY_ACTION.INVOICE_HIDDEN,
   ACTIVITY_ACTION.INVOICE_UNHIDDEN,
+  ACTIVITY_ACTION.INVOICE_ARCHIVED,
   ACTIVITY_ACTION.INVOICE_DUPLICATED,
   ACTIVITY_ACTION.INVOICE_DELETED,
   ACTIVITY_ACTION.PAYMENT_ADDED,

@@ -15,7 +15,9 @@ import type {
   MasterDataRequestWithDetails,
   ServerActionResult,
   RequestData,
+  InvoiceArchiveRequestData,
 } from '../master-data-requests';
+import { archiveInvoice } from '../invoices';
 
 interface RawMasterDataRequest {
   id: number;
@@ -303,6 +305,25 @@ export async function approveRequest(
           },
         });
         createdEntityId = `PMT-${paymentType.id}`;
+        break;
+      }
+
+      case 'invoice_archive': {
+        // Archive the invoice (move files to Archived folder)
+        const archiveData = finalData as InvoiceArchiveRequestData;
+        const archiveResult = await archiveInvoice(
+          archiveData.invoice_id,
+          archiveData.reason || 'Archived via approved request'
+        );
+
+        if (!archiveResult.success) {
+          return {
+            success: false,
+            error: archiveResult.error || 'Failed to archive invoice',
+          };
+        }
+
+        createdEntityId = `ARC-${archiveData.invoice_id}`;
         break;
       }
 
@@ -618,6 +639,7 @@ function getEntityDisplayName(entityType: MasterDataEntityType): string {
     category: 'Category',
     invoice_profile: 'Invoice Profile',
     payment_type: 'Payment Type',
+    invoice_archive: 'Invoice Archive',
   };
   return labels[entityType] || entityType;
 }

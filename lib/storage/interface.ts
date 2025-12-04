@@ -100,6 +100,30 @@ export interface StorageService {
    * @returns Public URL or undefined
    */
   getPublicUrl?(path: string): string | undefined;
+
+  /**
+   * Move a file to a different path (optional)
+   *
+   * Used for archiving and moving files without deleting.
+   * If not implemented, caller should use copy + delete pattern.
+   *
+   * @param sourcePath - Current storage path
+   * @param destinationPath - New storage path
+   * @returns Storage result with new path
+   */
+  move?(sourcePath: string, destinationPath: string): Promise<StorageResult>;
+
+  /**
+   * Upload a file to a specific path (optional)
+   *
+   * Used for creating info documents or other files at specific locations.
+   * Unlike regular upload, this doesn't use the auto-generated folder structure.
+   *
+   * @param file - File buffer
+   * @param path - Full storage path (e.g., "Invoices/2025/Archived/2025-01-01/_INFO.txt")
+   * @returns Storage result with path
+   */
+  uploadToPath?(file: Buffer, path: string): Promise<StorageResult>;
 }
 
 // ============================================================================
@@ -137,6 +161,7 @@ export enum StorageErrorType {
   UPLOAD_FAILED = 'UPLOAD_FAILED',
   DELETE_FAILED = 'DELETE_FAILED',
   DOWNLOAD_FAILED = 'DOWNLOAD_FAILED',
+  MOVE_FAILED = 'MOVE_FAILED',
 }
 
 /**

@@ -173,6 +173,8 @@ export const invoiceFiltersSchema = z
     is_recurring: z.boolean().optional(),
     tds_applicable: z.boolean().optional(),
     invoice_profile_id: z.number().int().positive().optional(),
+    // Archive filter - when true, shows only archived invoices
+    show_archived: z.boolean().optional(),
     // Date range filters for invoice_date
     start_date: z.date().optional(),
     end_date: z.date().optional(),

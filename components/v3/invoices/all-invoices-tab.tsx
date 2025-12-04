@@ -23,6 +23,7 @@ import {
   Eye,
   Pencil,
   Trash2,
+  Archive,
   RefreshCw,
   FileText,
 } from 'lucide-react';
@@ -46,7 +47,9 @@ import {
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import { useInvoices, useDeleteInvoice } from '@/hooks/use-invoices';
+import { useInvoices } from '@/hooks/use-invoices';
+import { createInvoiceArchiveRequest, permanentDeleteInvoice } from '@/app/actions/invoices';
+import { toast } from 'sonner';
 import { usePanel } from '@/hooks/use-panel';
 import { PANEL_WIDTH } from '@/types/panel';
 import { useUIVersion } from '@/lib/stores/ui-version-store';
@@ -128,10 +131,11 @@ export function AllInvoicesTab() {
   const isSuperAdmin = session?.user?.role === 'super_admin';
   const { openPanel } = usePanel();
   const { invoiceCreationMode } = useUIVersion();
-  const deleteInvoice = useDeleteInvoice();
   const [searchQuery, setSearchQuery] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
   const [selectedInvoices, setSelectedInvoices] = useState<Set<number>>(new Set());
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [showArchived, setShowArchived] = useState(false);
   const [sortBy, setSortBy] = useState<'invoice_date' | 'invoice_amount' | 'status'>('invoice_date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [showInvoiceTypeMenu, setShowInvoiceTypeMenu] = useState(false);
@@ -148,11 +152,12 @@ export function AllInvoicesTab() {
   const { data, isLoading } = useInvoices({
     page: 1,
     per_page: 100,
-    status: statusFilter === 'all' ? undefined : (statusFilter as InvoiceStatus),
-    start_date: start,
-    end_date: end,
+    status: showArchived ? undefined : (statusFilter === 'all' ? undefined : (statusFilter as InvoiceStatus)),
+    start_date: showArchived ? undefined : start, // Don't filter by date when showing archived
+    end_date: showArchived ? undefined : end,
     sort_by: sortBy,
     sort_order: sortOrder,
+    show_archived: showArchived,
   });
 
   const handleMonthChange = (month: number, year: number) => {
@@ -251,9 +256,46 @@ export function AllInvoicesTab() {
     }
   };
 
-  const handleDeleteInvoice = (id: number) => {
-    if (confirm('Are you sure you want to delete this invoice? This action cannot be undone.')) {
-      deleteInvoice.mutate(id);
+  const handleDeleteInvoice = async (invoiceId: number, invoiceNumber: string) => {
+    const reason = prompt('Enter a reason for deletion (required):');
+    if (!reason) {
+      toast.error('Deletion reason is required');
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to permanently delete invoice ${invoiceNumber}? This will:\n\n• Remove the invoice from the database\n• Move all files to the Deleted folder\n• This action CANNOT be undone`)) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const result = await permanentDeleteInvoice(invoiceId, reason);
+      if (result.success) {
+        toast.success(`Invoice ${invoiceNumber} has been permanently deleted`);
+      } else {
+        toast.error(result.error || 'Failed to delete invoice');
+      }
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast.error('An unexpected error occurred');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleArchiveInvoice = async (id: number, invoiceNumber: string) => {
+    const reason = prompt('Enter a reason for archiving (optional):');
+
+    const result = await createInvoiceArchiveRequest(id, reason || undefined);
+
+    if (result.success) {
+      if (result.data?.archived) {
+        toast.success(`Invoice ${invoiceNumber} has been archived`);
+      } else {
+        toast.success(`Archive request submitted for approval`);
+      }
+    } else {
+      toast.error(result.error || 'Failed to create archive request');
     }
   };
 
@@ -264,7 +306,9 @@ export function AllInvoicesTab() {
   return (
     <div className="space-y-4">
       {/* Title with Month */}
-      <h2 className="text-lg font-semibold pl-1">All Invoices - {titleMonth}</h2>
+      <h2 className="text-lg font-semibold pl-1">
+        {showArchived ? 'Archived Invoices' : `All Invoices - ${titleMonth}`}
+      </h2>
 
       {/* Action Bar */}
       <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
@@ -284,26 +328,32 @@ export function AllInvoicesTab() {
           {/* Filter */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2">
-                <Filter className="h-4 w-4" />
-                Filter
+              <Button
+                variant={showArchived ? 'default' : 'outline'}
+                className={cn('gap-2', showArchived && 'bg-amber-600 hover:bg-amber-700 text-white')}
+              >
+                {showArchived ? <Archive className="h-4 w-4" /> : <Filter className="h-4 w-4" />}
+                {showArchived ? 'Archived' : 'Filter'}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
-              <DropdownMenuItem onClick={() => setStatusFilter('all')}>
+              <DropdownMenuItem onClick={() => { setStatusFilter('all'); setShowArchived(false); }}>
                 All Statuses
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setStatusFilter(INVOICE_STATUS.PAID)}>
+              <DropdownMenuItem onClick={() => { setStatusFilter(INVOICE_STATUS.PAID); setShowArchived(false); }}>
                 Paid
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setStatusFilter(INVOICE_STATUS.UNPAID)}>
+              <DropdownMenuItem onClick={() => { setStatusFilter(INVOICE_STATUS.UNPAID); setShowArchived(false); }}>
                 Unpaid
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setStatusFilter(INVOICE_STATUS.OVERDUE)}>
+              <DropdownMenuItem onClick={() => { setStatusFilter(INVOICE_STATUS.OVERDUE); setShowArchived(false); }}>
                 Overdue
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setStatusFilter(INVOICE_STATUS.PENDING_APPROVAL)}>
+              <DropdownMenuItem onClick={() => { setStatusFilter(INVOICE_STATUS.PENDING_APPROVAL); setShowArchived(false); }}>
                 Pending Approval
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { setShowArchived(true); setStatusFilter('all'); }}>
+                Archived
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -332,11 +382,13 @@ export function AllInvoicesTab() {
 
         {/* Right: Month Navigator, Export, New Invoice */}
         <div className="flex items-center gap-2">
-          <MonthNavigator
-            month={selectedMonth}
-            year={selectedYear}
-            onChange={handleMonthChange}
-          />
+          {!showArchived && (
+            <MonthNavigator
+              month={selectedMonth}
+              year={selectedYear}
+              onChange={handleMonthChange}
+            />
+          )}
           <Button variant="outline" className="gap-2" onClick={handleExport}>
             <Download className="h-4 w-4" />
             Export
@@ -446,22 +498,37 @@ export function AllInvoicesTab() {
                       <button
                         className="text-muted-foreground hover:text-foreground transition-colors"
                         onClick={() => handleViewInvoice(invoice.id)}
+                        title="View"
                       >
                         <Eye className="h-4 w-4" />
                         <span className="sr-only">View</span>
                       </button>
-                      <button
-                        className="text-muted-foreground hover:text-foreground transition-colors"
-                        onClick={() => handleEditInvoice(invoice.id, invoice.is_recurring)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                        <span className="sr-only">Edit</span>
-                      </button>
+                      {!showArchived && (
+                        <button
+                          className="text-muted-foreground hover:text-foreground transition-colors"
+                          onClick={() => handleEditInvoice(invoice.id, invoice.is_recurring)}
+                          title="Edit"
+                        >
+                          <Pencil className="h-4 w-4" />
+                          <span className="sr-only">Edit</span>
+                        </button>
+                      )}
+                      {!showArchived && (
+                        <button
+                          className="text-muted-foreground hover:text-amber-500 transition-colors"
+                          onClick={() => handleArchiveInvoice(invoice.id, invoice.invoice_number)}
+                          title="Archive"
+                        >
+                          <Archive className="h-4 w-4" />
+                          <span className="sr-only">Archive</span>
+                        </button>
+                      )}
                       {isSuperAdmin && (
                         <button
                           className="text-muted-foreground hover:text-destructive transition-colors"
-                          onClick={() => handleDeleteInvoice(invoice.id)}
-                          disabled={deleteInvoice.isPending}
+                          onClick={() => handleDeleteInvoice(invoice.id, invoice.invoice_number)}
+                          disabled={isDeleting}
+                          title="Permanently Delete"
                         >
                           <Trash2 className="h-4 w-4" />
                           <span className="sr-only">Delete</span>

@@ -9,9 +9,8 @@
 
 import * as React from 'react';
 import { usePanelStack } from '@/hooks/use-panel-stack';
-import { MasterDataRequestFormPanel } from './master-data-request-form-panel';
+import { MasterDataRequestFormPanel, type FormEntityType } from './master-data-request-form-panel';
 import { MasterDataRequestDetailPanel } from './master-data-request-detail-panel';
-import type { MasterDataEntityType } from '@/app/actions/master-data-requests';
 
 interface MasterDataRequestPanelRendererProps {
   id: string;
@@ -44,7 +43,7 @@ export function MasterDataRequestPanelRenderer({
         <MasterDataRequestFormPanel
           config={config}
           onClose={onClose}
-          entityType={props.entityType as MasterDataEntityType}
+          entityType={props.entityType as FormEntityType}
           initialData={props.initialData as Record<string, unknown> | undefined}
           isResubmit={props.isResubmit as boolean | undefined}
         />

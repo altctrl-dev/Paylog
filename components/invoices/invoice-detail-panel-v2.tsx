@@ -9,7 +9,7 @@
 
 import * as React from 'react';
 import { format } from 'date-fns';
-import { FileText, Calendar, DollarSign, Building, Tag, Clock, Download, CheckCircle, XCircle, Pencil, Pause, Eye } from 'lucide-react';
+import { FileText, Calendar, DollarSign, Building, Tag, Clock, Download, CheckCircle, XCircle, Pencil, Pause, Eye, Archive, Trash2 } from 'lucide-react';
 import { PanelLevel } from '@/components/panels/panel-level';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useInvoiceV2, useApproveInvoiceV2, useRejectInvoiceV2 } from '@/hooks/use-invoices-v2';
 import { usePanel } from '@/hooks/use-panel';
+import { ArchiveInvoiceDialog } from '@/components/invoices/archive-invoice-dialog';
+import { DeleteInvoiceDialog } from '@/components/invoices/delete-invoice-dialog';
 import { formatCurrency, formatFileSize } from '@/lib/utils/format';
 import { INVOICE_STATUS_CONFIG, INVOICE_STATUS } from '@/types/invoice';
 import { VENDOR_STATUS_CONFIG } from '@/types/vendor';
@@ -49,6 +51,10 @@ export function InvoiceDetailPanelV2({ config, onClose, invoiceId, userRole, use
   // Approval/Rejection state
   const [isRejectDialogOpen, setIsRejectDialogOpen] = React.useState(false);
   const [rejectionReason, setRejectionReason] = React.useState('');
+
+  // Archive/Delete state
+  const [isArchiveDialogOpen, setIsArchiveDialogOpen] = React.useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
 
   // Mutations with close callback
   const approveInvoice = useApproveInvoiceV2(onClose);
@@ -97,6 +103,7 @@ export function InvoiceDetailPanelV2({ config, onClose, invoiceId, userRole, use
 
   // Check permissions
   const isAdmin = userRole === 'admin' || userRole === 'super_admin';
+  const isSuperAdmin = userRole === 'super_admin';
   const isOwner = invoice?.created_by === Number(userId);
   const isInvoicePending = invoice?.status === INVOICE_STATUS.PENDING_APPROVAL;
 
@@ -111,6 +118,12 @@ export function InvoiceDetailPanelV2({ config, onClose, invoiceId, userRole, use
   // - Admins can always edit
   // - Standard users: can edit own invoices, but NOT while pending approval
   const canEdit = isAdmin || (isOwner && !isInvoicePending);
+
+  // Archive permission: admin or super_admin, invoice not already archived
+  const canArchive = isAdmin && !invoice?.is_archived;
+
+  // Delete permission: super_admin only
+  const canDelete = isSuperAdmin;
 
   const isMutationPending = approveInvoice.isPending || rejectInvoice.isPending;
 
@@ -187,6 +200,28 @@ export function InvoiceDetailPanelV2({ config, onClose, invoiceId, userRole, use
                 >
                   <Pause className="h-4 w-4 mr-2" />
                   Put On Hold
+                </Button>
+              )}
+              {canArchive && (
+                <Button
+                  variant="outline"
+                  onClick={() => setIsArchiveDialogOpen(true)}
+                  size="sm"
+                  className="text-amber-600 hover:text-amber-700"
+                >
+                  <Archive className="h-4 w-4 mr-2" />
+                  Archive
+                </Button>
+              )}
+              {canDelete && (
+                <Button
+                  variant="outline"
+                  onClick={() => setIsDeleteDialogOpen(true)}
+                  size="sm"
+                  className="text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
                 </Button>
               )}
             </div>
@@ -541,6 +576,28 @@ export function InvoiceDetailPanelV2({ config, onClose, invoiceId, userRole, use
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+
+    {/* Archive Dialog */}
+    {invoice && (
+      <ArchiveInvoiceDialog
+        open={isArchiveDialogOpen}
+        onOpenChange={setIsArchiveDialogOpen}
+        invoiceId={invoice.id}
+        invoiceNumber={invoice.invoice_number}
+        onSuccess={onClose}
+      />
+    )}
+
+    {/* Delete Dialog */}
+    {invoice && (
+      <DeleteInvoiceDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        invoiceId={invoice.id}
+        invoiceNumber={invoice.invoice_number}
+        onSuccess={onClose}
+      />
+    )}
   </>
   );
 }

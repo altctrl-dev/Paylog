@@ -28,10 +28,13 @@ import { getEntities } from '@/app/actions/admin/entities';
 import { getVendors, getCategories } from '@/app/actions/master-data';
 import type { PanelConfig } from '@/types/panel';
 
+// Form-based entity types (excludes invoice_archive which is created from invoice list)
+export type FormEntityType = Exclude<MasterDataEntityType, 'invoice_archive'>;
+
 interface MasterDataRequestFormPanelProps {
   config: PanelConfig;
   onClose: () => void;
-  entityType: MasterDataEntityType;
+  entityType: FormEntityType;
   initialData?: Record<string, unknown>; // For resubmission
   isResubmit?: boolean;
 }
@@ -70,8 +73,8 @@ const paymentTypeRequestSchema = z.object({
   // Note: is_active is controlled by admin during approval, not by requester
 });
 
-// Get schema based on entity type
-function getSchema(entityType: MasterDataEntityType) {
+// Get schema based on entity type (excludes invoice_archive as it's not form-created)
+function getSchema(entityType: Exclude<MasterDataEntityType, 'invoice_archive'>) {
   switch (entityType) {
     case 'vendor':
       return vendorRequestSchema;
@@ -95,6 +98,8 @@ function getEntityDisplayName(entityType: MasterDataEntityType): string {
       return 'Invoice Profile';
     case 'payment_type':
       return 'Payment Type';
+    case 'invoice_archive':
+      return 'Invoice Archive';
   }
 }
 
@@ -310,8 +315,8 @@ export function MasterDataRequestFormPanel({
   );
 }
 
-// Default values by entity type
-function getDefaultValues(entityType: MasterDataEntityType): Record<string, unknown> {
+// Default values by entity type (excludes invoice_archive as it's not form-created)
+function getDefaultValues(entityType: FormEntityType): Record<string, unknown> {
   switch (entityType) {
     case 'vendor':
       return {

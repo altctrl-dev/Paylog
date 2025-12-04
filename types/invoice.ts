@@ -223,6 +223,8 @@ export interface InvoiceFilters {
   is_recurring?: boolean;
   tds_applicable?: boolean;
   invoice_profile_id?: number;
+  // Archive filter - when true, shows only archived invoices
+  show_archived?: boolean;
   start_date?: Date;
   end_date?: Date;
   sort_by?: 'invoice_date' | 'due_date' | 'invoice_amount' | 'status' | 'created_at';
