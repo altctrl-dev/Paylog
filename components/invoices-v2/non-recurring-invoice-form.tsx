@@ -42,6 +42,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useInvoiceFormOptions, useCreateNonRecurringInvoice } from '@/hooks/use-invoices-v2';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useSession } from 'next-auth/react';
 
 /**
  * Props interface for NonRecurringInvoiceForm
@@ -80,6 +81,8 @@ function parseDateFromInput(value: string): Date | null {
  */
 export function NonRecurringInvoiceForm({ onSuccess, onCancel }: NonRecurringInvoiceFormProps) {
   const { toast } = useToast();
+  const { data: session } = useSession();
+  const isAdminOrSuperAdmin = session?.user?.role === 'admin' || session?.user?.role === 'super_admin';
   const [showPreview, setShowPreview] = React.useState(false);
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
   const [showFileWarning, setShowFileWarning] = React.useState(false);
@@ -655,22 +658,25 @@ export function NonRecurringInvoiceForm({ onSuccess, onCancel }: NonRecurringInv
           showDefaultsInfo={false}
         />
 
-        {/* Payment Section */}
-        <InlinePaymentFields
-          isPaid={watchedIsPaid}
-          onIsPaidChange={(isPaid) => setValue('is_paid', isPaid)}
-          paidDate={watch('paid_date') ?? null}
-          paidAmount={watch('paid_amount') ?? null}
-          paidCurrency={watch('paid_currency') ?? null}
-          paymentTypeId={watch('payment_type_id') ?? null}
-          paymentReference={watch('payment_reference') ?? null}
-          onFieldChange={(field, value) => setValue(field as keyof NonRecurringInvoiceFormData, value)}
-          invoiceCurrency={currencies.find((c) => c.id === watchedCurrencyId)?.code}
-          currencies={currencies}
-          paymentTypes={paymentTypes}
-          errors={errors as Record<string, { message?: string }>}
-          control={control as any} // eslint-disable-line @typescript-eslint/no-explicit-any
-        />
+        {/* Payment Section - Only visible for admin/super_admin */}
+        {/* Standard users must wait for invoice approval before adding payments */}
+        {isAdminOrSuperAdmin && (
+          <InlinePaymentFields
+            isPaid={watchedIsPaid}
+            onIsPaidChange={(isPaid) => setValue('is_paid', isPaid)}
+            paidDate={watch('paid_date') ?? null}
+            paidAmount={watch('paid_amount') ?? null}
+            paidCurrency={watch('paid_currency') ?? null}
+            paymentTypeId={watch('payment_type_id') ?? null}
+            paymentReference={watch('payment_reference') ?? null}
+            onFieldChange={(field, value) => setValue(field as keyof NonRecurringInvoiceFormData, value)}
+            invoiceCurrency={currencies.find((c) => c.id === watchedCurrencyId)?.code}
+            currencies={currencies}
+            paymentTypes={paymentTypes}
+            errors={errors as Record<string, { message?: string }>}
+            control={control as any} // eslint-disable-line @typescript-eslint/no-explicit-any
+          />
+        )}
 
         {/* Action Buttons */}
         <div className="flex items-center justify-end gap-3 pt-4 border-t">

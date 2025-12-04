@@ -294,6 +294,30 @@ export async function createPayment(
       };
     }
 
+    // Block payments for invoices pending approval
+    if (invoice.status === INVOICE_STATUS.PENDING_APPROVAL) {
+      return {
+        success: false,
+        error: 'Cannot add payment to invoice pending approval. Please wait for admin approval first.',
+      };
+    }
+
+    // Block payments for rejected invoices
+    if (invoice.status === INVOICE_STATUS.REJECTED) {
+      return {
+        success: false,
+        error: 'Cannot add payment to rejected invoice.',
+      };
+    }
+
+    // Block payments for invoices on hold
+    if (invoice.status === INVOICE_STATUS.ON_HOLD) {
+      return {
+        success: false,
+        error: 'Cannot add payment to invoice on hold.',
+      };
+    }
+
     // Calculate current payment summary
     const summaryResult = await getPaymentSummary(invoiceId);
     if (!summaryResult.success) {
