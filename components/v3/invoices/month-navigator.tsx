@@ -126,7 +126,7 @@ export function MonthNavigator({
     <div className={cn('flex items-center gap-1', className)}>
       {/* Previous Month Button */}
       <Button
-        variant="ghost"
+        variant="subtle"
         size="icon"
         className="h-8 w-8"
         onClick={handlePrevMonth}
@@ -204,7 +204,7 @@ export function MonthNavigator({
 
       {/* Next Month Button */}
       <Button
-        variant="ghost"
+        variant="subtle"
         size="icon"
         className="h-8 w-8"
         onClick={handleNextMonth}
