@@ -169,35 +169,37 @@ function AIAssistantCard({ isCollapsed }: { isCollapsed: boolean }) {
     toast.info('This feature is work in progress');
   };
 
-  // Collapsed: Simple icon button (matches original design)
+  const button = (
+    <button
+      onClick={handleClick}
+      className={cn(
+        'flex items-center gap-3 w-full rounded-lg px-3 py-2.5 text-left',
+        'transition-all duration-300 overflow-hidden',
+        'text-purple-400 hover:bg-muted'
+      )}
+    >
+      <Sparkles className="h-5 w-5 flex-shrink-0" />
+      <span
+        className={cn(
+          'font-medium text-sm whitespace-nowrap transition-all duration-300',
+          isCollapsed ? 'opacity-0 w-0' : 'opacity-100'
+        )}
+      >
+        AI Assistant
+      </span>
+    </button>
+  );
+
   if (isCollapsed) {
     return (
       <Tooltip delayDuration={1500}>
-        <TooltipTrigger asChild>
-          <button
-            onClick={handleClick}
-            className="flex h-10 w-10 mx-auto items-center justify-center rounded-lg text-purple-400 hover:bg-muted transition-colors"
-          >
-            <Sparkles className="h-5 w-5" />
-          </button>
-        </TooltipTrigger>
+        <TooltipTrigger asChild>{button}</TooltipTrigger>
         <TooltipContent side="right">AI Assistant</TooltipContent>
       </Tooltip>
     );
   }
 
-  // Expanded: Clickable card with gradient
-  return (
-    <button
-      onClick={handleClick}
-      className="mx-2 w-[calc(100%-16px)] rounded-lg bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/20 p-3 text-left hover:from-blue-500/15 hover:to-purple-500/15 transition-colors"
-    >
-      <div className="flex items-center gap-2">
-        <Sparkles className="h-5 w-5 text-purple-400 flex-shrink-0" />
-        <span className="font-medium text-sm text-purple-400">AI Assistant</span>
-      </div>
-    </button>
-  );
+  return button;
 }
 
 function HelpButton({ isCollapsed }: { isCollapsed: boolean }) {
