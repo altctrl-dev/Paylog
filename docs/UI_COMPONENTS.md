@@ -6,11 +6,126 @@ This document provides an overview of all reusable UI components and where they 
 
 ## Table of Contents
 
-1. [Button Component](#button-component)
-2. [Badge Component](#badge-component)
-3. [Input Components](#input-components)
-4. [Dialog & Alert Components](#dialog--alert-components)
-5. [Other UI Components](#other-ui-components)
+1. [Page Structure Pattern](#page-structure-pattern)
+2. [Tab Components](#tab-components)
+3. [Button Component](#button-component)
+4. [Badge Component](#badge-component)
+5. [Input Components](#input-components)
+6. [Dialog & Alert Components](#dialog--alert-components)
+7. [Other UI Components](#other-ui-components)
+
+---
+
+## Page Structure Pattern
+
+All main pages should follow a consistent structure pattern for visual cohesion.
+
+### Standard Page Layout
+
+```tsx
+<div className="space-y-6">
+  {/* Page Header */}
+  <div>
+    <h1 className="text-2xl font-bold text-foreground">Page Title</h1>
+    <p className="text-sm text-muted-foreground mt-1">
+      Brief description of the page
+    </p>
+  </div>
+
+  {/* Tab Navigation */}
+  <TabsResponsive
+    value={activeTab}
+    onChange={handleTabChange}
+    breakpoint="sm"
+  />
+
+  {/* Tab Content */}
+  <div role="tabpanel" id={`panel-${activeTab}`}>
+    {/* Content based on active tab */}
+  </div>
+</div>
+```
+
+### Page Header Styling
+
+| Element | Styling |
+|---------|---------|
+| Title | `text-2xl font-bold text-foreground` |
+| Description | `text-sm text-muted-foreground mt-1` |
+| Container | `space-y-6` for consistent vertical spacing |
+
+### Pages Following This Pattern
+
+| Page | Component | Location |
+|------|-----------|----------|
+| Invoices | `InvoicesPage` | `components/v3/invoices/invoices-page.tsx` |
+| Settings | `SettingsPage` | `components/v3/settings/settings-page.tsx` |
+
+---
+
+## Tab Components
+
+Tab components provide navigation between sections within a page.
+
+### Design Specifications
+
+| Property | Value |
+|----------|-------|
+| Container | `bg-muted/40`, `p-1`, `rounded-lg` |
+| Tab Width | `w-[170px]` |
+| Tab Padding | `py-1.5` |
+| Font | `text-sm font-medium font-bold text-center` |
+| Active State | `bg-background text-foreground shadow-sm border border-border/50` |
+| Inactive State | `text-muted-foreground hover:text-foreground` |
+| Transition | `transition-all duration-200` |
+
+### Available Tab Components
+
+| Component | Location | Tabs |
+|-----------|----------|------|
+| `InvoiceTabs` | `components/v3/invoices/invoice-tabs.tsx` | Recurring, All Invoices, TDS |
+| `SettingsTabs` | `components/v3/settings/settings-tabs.tsx` | Profile, Security, Activities |
+
+### Creating New Tab Components
+
+To create tabs for a new page, follow this template:
+
+```tsx
+'use client';
+
+import * as React from 'react';
+import { cva } from 'class-variance-authority';
+import { cn } from '@/lib/utils';
+
+// 1. Define tab type
+export type YourTab = 'tab1' | 'tab2' | 'tab3';
+
+// 2. Define tab configuration
+const TAB_CONFIG: { id: YourTab; label: string }[] = [
+  { id: 'tab1', label: 'Tab One' },
+  { id: 'tab2', label: 'Tab Two' },
+  { id: 'tab3', label: 'Tab Three' },
+];
+
+// 3. Use standard tab variants (copy from invoice-tabs.tsx)
+const tabVariants = cva([...], { variants: {...} });
+
+// 4. Create component following InvoiceTabs pattern
+export function YourTabs({ value, onChange, className }: YourTabsProps) {
+  // ... implementation
+}
+
+// 5. Create responsive wrapper
+export function YourTabsResponsive({ value, onChange, breakpoint = 'sm' }: Props) {
+  // ... implementation
+}
+```
+
+### Responsive Behavior
+
+- **Mobile**: Shows as dropdown selector (`<select>`)
+- **Desktop**: Shows as horizontal pill tabs
+- **Breakpoint**: Default `sm` (640px)
 
 ---
 
