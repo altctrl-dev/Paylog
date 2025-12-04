@@ -226,12 +226,15 @@ export async function getInvoices(
     };
 
     // Handle archived filter
+    // Use NOT for backwards compatibility (handles null values correctly)
     if (validated.show_archived) {
       // Show only archived invoices
       where.is_archived = true;
     } else {
-      // Default: exclude archived invoices
-      where.is_archived = false;
+      // Default: exclude archived invoices (NOT true = false OR null)
+      where.NOT = {
+        is_archived: true,
+      };
     }
 
     if (validated.search) {
