@@ -91,11 +91,10 @@ function NavLink({ item, isActive, isCollapsed, badgeCount }: NavLinkProps) {
     <Link
       href={item.href}
       className={cn(
-        // Base styles
+        // Base styles - always left-aligned, icons stay in place
         'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium',
-        'transition-all duration-150',
-        // Width handling for collapsed state
-        isCollapsed ? 'justify-center w-10 mx-auto' : 'w-full',
+        'transition-all duration-300 ease-in-out',
+        'w-full overflow-hidden',
         // Active vs inactive states
         isActive
           ? 'bg-primary/10 text-primary'
@@ -110,21 +109,36 @@ function NavLink({ item, isActive, isCollapsed, badgeCount }: NavLinkProps) {
           )}
         />
         {/* Badge dot indicator for collapsed state */}
-        {isCollapsed && badgeCount && badgeCount > 0 && (
-          <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-blue-500" />
+        {badgeCount && badgeCount > 0 && (
+          <span
+            className={cn(
+              'absolute -top-1 -right-1 h-2 w-2 rounded-full bg-blue-500',
+              'transition-opacity duration-300',
+              isCollapsed ? 'opacity-100' : 'opacity-0'
+            )}
+          />
         )}
       </div>
 
-      {/* Label and badge for expanded state */}
-      {!isCollapsed && (
-        <>
-          <span className="flex-1">{item.label}</span>
-          {badgeCount && badgeCount > 0 && (
-            <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-blue-500/20 px-1.5 text-xs font-medium text-blue-400">
-              {badgeCount > 99 ? '99+' : badgeCount}
-            </span>
+      {/* Label and badge - fade in/out with transition */}
+      <span
+        className={cn(
+          'flex-1 whitespace-nowrap transition-all duration-300',
+          isCollapsed ? 'opacity-0 w-0' : 'opacity-100'
+        )}
+      >
+        {item.label}
+      </span>
+      {badgeCount && badgeCount > 0 && (
+        <span
+          className={cn(
+            'flex h-5 min-w-[20px] items-center justify-center rounded-full bg-blue-500/20 px-1.5 text-xs font-medium text-blue-400',
+            'transition-all duration-300',
+            isCollapsed ? 'opacity-0 w-0 min-w-0 px-0' : 'opacity-100'
           )}
-        </>
+        >
+          {badgeCount > 99 ? '99+' : badgeCount}
+        </span>
       )}
     </Link>
   );
@@ -150,32 +164,41 @@ function NavLink({ item, isActive, isCollapsed, badgeCount }: NavLinkProps) {
 }
 
 function AIAssistantCard({ isCollapsed }: { isCollapsed: boolean }) {
-  if (isCollapsed) {
-    return (
-      <Tooltip delayDuration={1500}>
-        <TooltipTrigger asChild>
-          <button className="flex h-10 w-10 mx-auto items-center justify-center rounded-lg text-purple-400 hover:bg-muted transition-colors">
-            <Sparkles className="h-5 w-5" />
-          </button>
-        </TooltipTrigger>
-        <TooltipContent side="right">AI Assistant</TooltipContent>
-      </Tooltip>
-    );
-  }
-
-  return (
-    <div className="mx-2 rounded-lg bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/20 p-3">
+  const content = (
+    <div
+      className={cn(
+        'mx-2 rounded-lg bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/20 p-3',
+        'transition-all duration-300 overflow-hidden',
+        isCollapsed && 'mx-0 p-2 bg-transparent border-transparent'
+      )}
+    >
       <div className="flex items-start gap-2">
         <Sparkles className="h-5 w-5 text-purple-400 flex-shrink-0 mt-0.5" />
-        <div className="flex-1 min-w-0">
-          <div className="font-medium text-sm text-purple-400">AI Assistant</div>
-          <div className="text-xs text-muted-foreground truncate">
+        <div
+          className={cn(
+            'flex-1 min-w-0 transition-all duration-300',
+            isCollapsed ? 'opacity-0 w-0' : 'opacity-100'
+          )}
+        >
+          <div className="font-medium text-sm text-purple-400 whitespace-nowrap">AI Assistant</div>
+          <div className="text-xs text-muted-foreground truncate whitespace-nowrap">
             Ask me anything about your invoices
           </div>
         </div>
       </div>
     </div>
   );
+
+  if (isCollapsed) {
+    return (
+      <Tooltip delayDuration={1500}>
+        <TooltipTrigger asChild>{content}</TooltipTrigger>
+        <TooltipContent side="right">AI Assistant</TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  return content;
 }
 
 function HelpButton({ isCollapsed }: { isCollapsed: boolean }) {
@@ -184,12 +207,19 @@ function HelpButton({ isCollapsed }: { isCollapsed: boolean }) {
       variant="subtle"
       className={cn(
         'flex items-center gap-3 px-3 py-2 text-sm h-auto',
-        'text-muted-foreground',
-        isCollapsed ? 'justify-center w-10 mx-auto' : 'w-full justify-start'
+        'text-muted-foreground w-full justify-start overflow-hidden',
+        'transition-all duration-300'
       )}
     >
       <HelpCircle className="h-5 w-5 flex-shrink-0" />
-      {!isCollapsed && <span>Help & Support</span>}
+      <span
+        className={cn(
+          'whitespace-nowrap transition-all duration-300',
+          isCollapsed ? 'opacity-0 w-0' : 'opacity-100'
+        )}
+      >
+        Help & Support
+      </span>
     </Button>
   );
 
@@ -261,21 +291,22 @@ export function Sidebar({ userRole, badgeCounts = {} }: SidebarProps) {
         )}
       >
         {/* Header: Logo + Collapse Toggle */}
-        <div
-          className={cn(
-            'flex h-16 items-center border-b border-border',
-            isCollapsed ? 'justify-center px-2' : 'justify-between px-4'
-          )}
-        >
-          {!isCollapsed && (
-            <span className="text-xl font-bold tracking-tight">PAYLOG</span>
-          )}
+        <div className="flex h-16 items-center border-b border-border px-4 justify-between overflow-hidden">
+          {/* Logo - fades out when collapsed */}
+          <span
+            className={cn(
+              'text-xl font-bold tracking-tight whitespace-nowrap transition-all duration-300',
+              isCollapsed ? 'opacity-0 w-0' : 'opacity-100'
+            )}
+          >
+            PAYLOG
+          </span>
 
           <Button
             variant="subtle"
             size="icon"
             onClick={toggleCollapsed}
-            className="hidden md:flex h-8 w-8"
+            className="hidden md:flex h-8 w-8 flex-shrink-0"
             aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {isCollapsed ? (
