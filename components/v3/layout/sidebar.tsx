@@ -175,7 +175,11 @@ function AIAssistantCard({ isCollapsed }: { isCollapsed: boolean }) {
       className={cn(
         'flex items-center gap-3 w-full rounded-lg px-3 py-2.5 text-left',
         'transition-all duration-300 overflow-hidden',
-        'text-purple-400 hover:bg-muted'
+        'text-purple-400',
+        // Background styling - transitions smoothly
+        isCollapsed
+          ? 'hover:bg-muted'
+          : 'bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/20 hover:from-blue-500/15 hover:to-purple-500/15'
       )}
     >
       <Sparkles className="h-5 w-5 flex-shrink-0" />
