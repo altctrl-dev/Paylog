@@ -164,41 +164,34 @@ function NavLink({ item, isActive, isCollapsed, badgeCount }: NavLinkProps) {
 }
 
 function AIAssistantCard({ isCollapsed }: { isCollapsed: boolean }) {
-  const content = (
-    <div
-      className={cn(
-        'mx-2 rounded-lg bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/20 p-3',
-        'transition-all duration-300 overflow-hidden',
-        isCollapsed && 'mx-0 p-2 bg-transparent border-transparent'
-      )}
-    >
+  // Collapsed: Simple icon button (matches original design)
+  if (isCollapsed) {
+    return (
+      <Tooltip delayDuration={1500}>
+        <TooltipTrigger asChild>
+          <button className="flex h-10 w-10 mx-auto items-center justify-center rounded-lg text-purple-400 hover:bg-muted transition-colors">
+            <Sparkles className="h-5 w-5" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="right">AI Assistant</TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  // Expanded: Full card with gradient
+  return (
+    <div className="mx-2 rounded-lg bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/20 p-3">
       <div className="flex items-start gap-2">
         <Sparkles className="h-5 w-5 text-purple-400 flex-shrink-0 mt-0.5" />
-        <div
-          className={cn(
-            'flex-1 min-w-0 transition-all duration-300',
-            isCollapsed ? 'opacity-0 w-0' : 'opacity-100'
-          )}
-        >
-          <div className="font-medium text-sm text-purple-400 whitespace-nowrap">AI Assistant</div>
-          <div className="text-xs text-muted-foreground truncate whitespace-nowrap">
+        <div className="flex-1 min-w-0">
+          <div className="font-medium text-sm text-purple-400">AI Assistant</div>
+          <div className="text-xs text-muted-foreground truncate">
             Ask me anything about your invoices
           </div>
         </div>
       </div>
     </div>
   );
-
-  if (isCollapsed) {
-    return (
-      <Tooltip delayDuration={1500}>
-        <TooltipTrigger asChild>{content}</TooltipTrigger>
-        <TooltipContent side="right">AI Assistant</TooltipContent>
-      </Tooltip>
-    );
-  }
-
-  return content;
 }
 
 function HelpButton({ isCollapsed }: { isCollapsed: boolean }) {
@@ -291,22 +284,22 @@ export function Sidebar({ userRole, badgeCounts = {} }: SidebarProps) {
         )}
       >
         {/* Header: Logo + Collapse Toggle */}
-        <div className="flex h-16 items-center border-b border-border px-4 justify-between overflow-hidden">
-          {/* Logo - fades out when collapsed */}
-          <span
-            className={cn(
-              'text-xl font-bold tracking-tight whitespace-nowrap transition-all duration-300',
-              isCollapsed ? 'opacity-0 w-0' : 'opacity-100'
-            )}
-          >
-            PAYLOG
-          </span>
+        <div
+          className={cn(
+            'flex h-16 items-center border-b border-border',
+            isCollapsed ? 'justify-center px-2' : 'justify-between px-4'
+          )}
+        >
+          {/* Logo - hidden when collapsed */}
+          {!isCollapsed && (
+            <span className="text-xl font-bold tracking-tight">PAYLOG</span>
+          )}
 
           <Button
             variant="subtle"
             size="icon"
             onClick={toggleCollapsed}
-            className="hidden md:flex h-8 w-8 flex-shrink-0"
+            className="hidden md:flex h-8 w-8"
             aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {isCollapsed ? (
