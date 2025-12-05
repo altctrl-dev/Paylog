@@ -11,6 +11,7 @@ import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { z } from 'zod';
 import { emailService, sendEmailAsync } from '@/lib/email';
+import { notifyMasterDataRequestPending } from '@/app/actions/notifications';
 
 // ============================================================================
 // TYPES
@@ -226,8 +227,9 @@ export async function createRequest(
       },
     });
 
-    // Send email notification if created with pending_approval status
+    // Send notifications if created with pending_approval status
     if (status === 'pending_approval') {
+      // Send email notification
       sendEmailAsync(() =>
         emailService.sendNewRequestNotification({
           requestId: request.id.toString(),
@@ -240,6 +242,13 @@ export async function createRequest(
       ).catch((error) => {
         console.error('[createRequest] Email notification error:', error);
       });
+
+      // Send in-app notification to admins
+      await notifyMasterDataRequestPending(
+        request.id,
+        entityType,
+        request.requester.full_name
+      );
 
       // Small delay to ensure email async function starts before returning
       await new Promise(resolve => setTimeout(resolve, 50));

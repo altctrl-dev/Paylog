@@ -304,7 +304,7 @@ export function Sidebar({ userRole, badgeCounts = {} }: SidebarProps) {
         >
           {/* Logo - hidden when collapsed */}
           {!isCollapsed && (
-            <span className="text-xl font-bold tracking-tight">PAYLOG</span>
+            <span className="text-xl font-bold tracking-tight pl-2">PAYLOG</span>
           )}
 
           <Button

@@ -18,6 +18,10 @@ import type {
   InvoiceArchiveRequestData,
 } from '../master-data-requests';
 import { archiveInvoice } from '../invoices';
+import {
+  notifyMasterDataRequestApproved,
+  notifyMasterDataRequestRejected,
+} from '@/app/actions/notifications';
 
 interface RawMasterDataRequest {
   id: number;
@@ -389,6 +393,13 @@ export async function approveRequest(
       );
     }
 
+    // Send in-app notification to requester
+    await notifyMasterDataRequestApproved(
+      updatedRequest.requester_id,
+      requestId,
+      updatedRequest.entity_type
+    );
+
     return {
       success: true,
       data: {
@@ -490,6 +501,14 @@ export async function rejectRequest(
         )
       );
     }
+
+    // Send in-app notification to requester
+    await notifyMasterDataRequestRejected(
+      updatedRequest.requester_id,
+      requestId,
+      updatedRequest.entity_type,
+      reason
+    );
 
     return {
       success: true,

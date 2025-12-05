@@ -20,7 +20,6 @@ import { useTheme } from 'next-themes';
 import {
   Sun,
   Moon,
-  Bell,
   Menu,
   Plus,
   Command,
@@ -51,6 +50,7 @@ import { usePanel } from '@/hooks/use-panel';
 import { PANEL_WIDTH } from '@/types/panel';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { NotificationPanel } from '@/components/notifications/notification-panel';
 
 // ============================================================================
 // Types
@@ -253,19 +253,7 @@ function ThemeToggle({ className }: ThemeToggleProps) {
   );
 }
 
-function NotificationBell() {
-  const hasNotifications = true; // TODO: Connect to real notification state
-
-  return (
-    <Button variant="subtle" size="icon" className="h-9 w-9 relative">
-      <Bell className="h-5 w-5" />
-      {hasNotifications && (
-        <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-red-500" />
-      )}
-      <span className="sr-only">Notifications</span>
-    </Button>
-  );
-}
+// NotificationBell has been replaced by NotificationPanel component
 
 interface UserProfileMenuProps {
   user?: {
@@ -364,7 +352,7 @@ export function Navbar({ user, onOpenCommandPalette }: NavbarProps) {
       {/* Logo - Only when sidebar is collapsed */}
       <div
         className={cn(
-          'hidden md:flex items-center gap-4 transition-all duration-300',
+          'hidden md:flex items-center gap-4 pl-2 transition-all duration-300',
           isCollapsed ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'
         )}
       >
@@ -384,7 +372,7 @@ export function Navbar({ user, onOpenCommandPalette }: NavbarProps) {
       <div className="flex items-center gap-2">
         <QuickActionsMenu invoiceCreationMode={invoiceCreationMode} />
         <ThemeToggle />
-        <NotificationBell />
+        <NotificationPanel />
         <UserProfileMenu user={user} />
       </div>
     </header>
