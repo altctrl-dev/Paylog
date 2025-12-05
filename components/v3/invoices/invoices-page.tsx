@@ -307,8 +307,9 @@ export function InvoicesPage({
       let lastPaidDate: Date | undefined;
 
       for (const invoice of profileInvoices) {
-        // Check if invoice is unpaid (status is unpaid, partial, or pending_approval)
-        const isUnpaidStatus = ['unpaid', 'partial', 'pending_approval'].includes(
+        // Check if invoice is unpaid (status is unpaid or partial)
+        // Note: pending_approval invoices should NOT be counted until approved
+        const isUnpaidStatus = ['unpaid', 'partial'].includes(
           invoice.status
         );
 
