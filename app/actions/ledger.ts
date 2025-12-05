@@ -163,9 +163,13 @@ export async function getLedgerByProfile(
     }
 
     // Build invoice where clause
+    // Exclude pending_approval and rejected invoices - they shouldn't appear in ledger until approved
     const invoiceWhere: Record<string, unknown> = {
       profile_id: profileId,
       is_hidden: false,
+      status: {
+        notIn: ['pending_approval', 'rejected'],
+      },
     };
 
     if (startDate || endDate) {
@@ -406,10 +410,14 @@ export async function getLedgerSummary(
     }
 
     // Fetch all invoices for this profile
+    // Exclude pending_approval and rejected invoices - they shouldn't appear in ledger until approved
     const invoices = await db.invoice.findMany({
       where: {
         profile_id: profileId,
         is_hidden: false,
+        status: {
+          notIn: ['pending_approval', 'rejected'],
+        },
       },
       select: {
         id: true,
