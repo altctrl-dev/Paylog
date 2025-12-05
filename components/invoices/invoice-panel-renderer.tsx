@@ -151,6 +151,8 @@ export function InvoicePanelRenderer({
           invoiceNumber={props.invoiceNumber as string}
           invoiceAmount={props.invoiceAmount as number}
           remainingBalance={props.remainingBalance as number}
+          tdsApplicable={props.tdsApplicable as boolean | undefined}
+          tdsPercentage={props.tdsPercentage as number | undefined}
         />
       );
 

@@ -106,7 +106,10 @@ export interface Payment {
   amount_paid: number;
   payment_date: Date;
   payment_method: string | null;
+  payment_reference: string | null;
   status: PaymentStatus;
+  tds_amount_applied: number | null;
+  tds_rounded: boolean;
   created_at: Date;
   updated_at: Date;
 }
@@ -155,6 +158,9 @@ export interface PaymentFormData {
   amount_paid: number;
   payment_date: Date; // Required (non-null) for form submission
   payment_method: PaymentMethod;
+  payment_reference?: string | null;
+  tds_amount_applied?: number | null;
+  tds_rounded?: boolean;
 }
 
 /**

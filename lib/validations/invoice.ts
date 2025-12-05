@@ -61,6 +61,20 @@ export const invoiceFormSchema = z
       .max(100, 'TDS percentage cannot exceed 100')
       .nullable(),
     notes: z.string().max(1000, 'Notes too long').optional().nullable(),
+    // Inline payment fields (optional - for recording payment at invoice creation)
+    is_paid: z.boolean().optional().default(false),
+    paid_date: z.date({
+      invalid_type_error: 'Invalid payment date format',
+    }).nullable().optional(),
+    paid_amount: z
+      .number()
+      .min(0.01, 'Payment amount must be greater than 0')
+      .max(999999999, 'Payment amount too large')
+      .nullable()
+      .optional(),
+    paid_currency: z.string().max(10).nullable().optional(),
+    payment_type_id: z.number().int().positive().nullable().optional(),
+    payment_reference: z.string().max(100).nullable().optional(),
   })
   .refine(
     (data) => {
@@ -108,6 +122,21 @@ export const invoiceFormSchema = z
     {
       message: 'Due date cannot be before invoice date',
       path: ['due_date'],
+    }
+  )
+  .refine(
+    (data) => {
+      // Validation: if is_paid is true, payment fields are required
+      if (data.is_paid) {
+        if (!data.paid_date) return false;
+        if (!data.paid_amount || data.paid_amount <= 0) return false;
+        if (!data.payment_type_id) return false;
+      }
+      return true;
+    },
+    {
+      message: 'Payment date, amount, and payment type are required when marking as paid',
+      path: ['paid_amount'],
     }
   );
 
@@ -176,8 +205,9 @@ export const invoiceFiltersSchema = z
     // Archive filter - when true, shows only archived invoices
     show_archived: z.boolean().optional(),
     // Date range filters for invoice_date
-    start_date: z.date().optional(),
-    end_date: z.date().optional(),
+    // Use coerce to handle string dates from client-server serialization
+    start_date: z.coerce.date().optional(),
+    end_date: z.coerce.date().optional(),
     // Sorting parameters
     sort_by: z
       .enum(['invoice_date', 'due_date', 'invoice_amount', 'status', 'created_at'])

@@ -26,26 +26,46 @@ import {
 import { revalidatePath } from 'next/cache';
 import { createActivityLog } from '@/app/actions/activity-log';
 import { ACTIVITY_ACTION } from '@/docs/SPRINT7_ACTIVITY_ACTIONS';
+import {
+  notifyInvoicePendingApproval,
+  notifyInvoiceApproved,
+  notifyInvoiceRejected,
+  notifyInvoiceOnHold,
+  notifyArchiveRequestPending,
+} from '@/app/actions/notifications';
 
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
 
 /**
- * Get current authenticated user
+ * Get current authenticated user with optional full name lookup
  * Throws error if not authenticated
  */
-async function getCurrentUser() {
+async function getCurrentUser(includeFullName = false) {
   const session = await auth();
 
   if (!session?.user?.id) {
     throw new Error('Unauthorized: You must be logged in');
   }
 
+  const userId = parseInt(session.user.id);
+
+  // Optionally fetch full_name from database for notifications
+  let fullName: string | null = null;
+  if (includeFullName) {
+    const dbUser = await db.user.findUnique({
+      where: { id: userId },
+      select: { full_name: true },
+    });
+    fullName = dbUser?.full_name || null;
+  }
+
   return {
-    id: parseInt(session.user.id),
+    id: userId,
     email: session.user.email!,
     role: session.user.role as string,
+    fullName,
   };
 }
 
@@ -555,7 +575,7 @@ export async function createInvoice(
   data: unknown
 ): Promise<ServerActionResult<InvoiceWithRelations>> {
   try {
-    const user = await getCurrentUser();
+    const user = await getCurrentUser(true); // Include full name for notifications
 
     // Validate input
     const validated = invoiceFormSchema.parse(data);
@@ -625,21 +645,64 @@ export async function createInvoice(
       }
     }
 
-    // Determine initial status based on user role (PHASE 3.5 Change 5)
-    const initialStatus =
-      user.role === 'admin' || user.role === 'super_admin'
-        ? INVOICE_STATUS.UNPAID // Admins skip approval
-        : INVOICE_STATUS.PENDING_APPROVAL; // Standard users need approval
+    // Determine if user is admin
+    const isAdmin = user.role === 'admin' || user.role === 'super_admin';
+    const hasPendingPayment = validated.is_paid && validated.paid_amount && validated.paid_amount > 0;
 
-    // Create invoice
+    // Determine initial status based on user role and payment status
+    let initialStatus: string;
+    if (isAdmin) {
+      // Admin: If paid, set to paid; otherwise unpaid
+      initialStatus = hasPendingPayment ? INVOICE_STATUS.PAID : INVOICE_STATUS.UNPAID;
+    } else {
+      // Standard user: Always pending approval first
+      initialStatus = INVOICE_STATUS.PENDING_APPROVAL;
+    }
+
+    // Extract payment data from validated (these may be stripped by Zod if not provided)
+    const paymentData = {
+      is_paid: validated.is_paid ?? false,
+      paid_date: validated.paid_date ?? null,
+      paid_amount: validated.paid_amount ?? null,
+      paid_currency: validated.paid_currency ?? null,
+      payment_type_id: validated.payment_type_id ?? null,
+      payment_reference: validated.payment_reference ?? null,
+    };
+
+    // Prepare invoice data (exclude payment fields from direct spread)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { is_paid, paid_date, paid_amount, paid_currency, payment_type_id, payment_reference, ...invoiceData } = validated;
+
+    // Create invoice with inline payment fields
     const invoice = await db.invoice.create({
       data: {
-        ...validated,
+        ...invoiceData,
         status: initialStatus,
         created_by: user.id,
+        // Store payment data in invoice (for standard users, this will be used on approval)
+        is_paid: paymentData.is_paid,
+        paid_date: paymentData.paid_date,
+        paid_amount: paymentData.paid_amount,
+        paid_currency: paymentData.paid_currency,
+        payment_type_id: paymentData.payment_type_id,
+        payment_reference: paymentData.payment_reference,
       },
       include: invoiceInclude,
     });
+
+    // If admin and paid, create Payment record immediately
+    if (isAdmin && hasPendingPayment && paymentData.paid_amount) {
+      await db.payment.create({
+        data: {
+          invoice_id: invoice.id,
+          amount_paid: paymentData.paid_amount,
+          payment_date: paymentData.paid_date ?? new Date(),
+          payment_method: 'bank_transfer', // Default method for inline payments
+          payment_reference: paymentData.payment_reference,
+          status: PAYMENT_STATUS.APPROVED,
+        },
+      });
+    }
 
     // Log activity (non-blocking)
     await createActivityLog({
@@ -651,8 +714,20 @@ export async function createInvoice(
         vendor_id: invoice.vendor_id,
         invoice_amount: invoice.invoice_amount,
         status: invoice.status,
+        is_paid: paymentData.is_paid,
+        paid_amount: paymentData.paid_amount,
       },
     });
+
+    // Send notification to admins if invoice needs approval
+    if (initialStatus === INVOICE_STATUS.PENDING_APPROVAL) {
+      const requesterName = user.fullName || user.email;
+      await notifyInvoicePendingApproval(
+        invoice.id,
+        invoice.invoice_number,
+        requesterName
+      );
+    }
 
     revalidatePath('/invoices');
 
@@ -985,6 +1060,16 @@ export async function putInvoiceOnHold(
       },
     });
 
+    // Notify the invoice creator that their invoice was placed on hold
+    if (existing.created_by) {
+      await notifyInvoiceOnHold(
+        existing.created_by,
+        invoice.id,
+        invoice.invoice_number,
+        validated.hold_reason
+      );
+    }
+
     revalidatePath('/invoices');
     revalidatePath(`/invoices/${id}`);
 
@@ -1047,14 +1132,34 @@ export async function approveInvoice(
       };
     }
 
-    // Update invoice to unpaid status
+    // Check if invoice has pending payment data from creation
+    const hasPendingPayment = existing.is_paid && existing.paid_amount && existing.paid_amount > 0;
+
+    // Determine the new status based on pending payment
+    const newStatus = hasPendingPayment ? INVOICE_STATUS.PAID : INVOICE_STATUS.UNPAID;
+
+    // Update invoice status
     const invoice = await db.invoice.update({
       where: { id },
       data: {
-        status: INVOICE_STATUS.UNPAID,
+        status: newStatus,
       },
       include: invoiceInclude,
     });
+
+    // If there's pending payment data, create the Payment record now
+    if (hasPendingPayment && existing.paid_amount) {
+      await db.payment.create({
+        data: {
+          invoice_id: id,
+          amount_paid: existing.paid_amount,
+          payment_date: existing.paid_date ?? new Date(),
+          payment_method: 'bank_transfer', // Default method for inline payments
+          payment_reference: existing.payment_reference,
+          status: PAYMENT_STATUS.APPROVED,
+        },
+      });
+    }
 
     // Log activity (non-blocking)
     await createActivityLog({
@@ -1065,9 +1170,19 @@ export async function approveInvoice(
         status: existing.status,
       },
       new_data: {
-        status: INVOICE_STATUS.UNPAID,
+        status: newStatus,
+        payment_created: hasPendingPayment,
       },
     });
+
+    // Notify the invoice creator that their invoice was approved
+    if (existing.created_by) {
+      await notifyInvoiceApproved(
+        existing.created_by,
+        invoice.id,
+        invoice.invoice_number
+      );
+    }
 
     revalidatePath('/invoices');
     revalidatePath('/invoices/pending');
@@ -1161,6 +1276,16 @@ export async function rejectInvoice(
         rejection_reason: validated.rejection_reason,
       },
     });
+
+    // Notify the invoice creator that their invoice was rejected
+    if (existing.created_by) {
+      await notifyInvoiceRejected(
+        existing.created_by,
+        invoice.id,
+        invoice.invoice_number,
+        validated.rejection_reason
+      );
+    }
 
     revalidatePath('/invoices');
     revalidatePath('/invoices/pending');
@@ -1612,6 +1737,20 @@ export async function createInvoiceArchiveRequest(
         }),
       },
     });
+
+    // Get user's full name for notification
+    const dbUser = await db.user.findUnique({
+      where: { id: user.id },
+      select: { full_name: true },
+    });
+    const requesterName = dbUser?.full_name || user.email;
+
+    // Notify admins about the archive request
+    await notifyArchiveRequestPending(
+      request.id,
+      invoice.invoice_number,
+      requesterName
+    );
 
     revalidatePath('/invoices');
 

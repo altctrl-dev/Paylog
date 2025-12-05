@@ -337,6 +337,11 @@ export async function createPayment(
       };
     }
 
+    // Extract optional TDS fields from validated data
+    const tdsAmountApplied = (validated as { tds_amount_applied?: number | null }).tds_amount_applied ?? null;
+    const tdsRounded = (validated as { tds_rounded?: boolean }).tds_rounded ?? false;
+    const paymentReference = (validated as { payment_reference?: string | null }).payment_reference ?? null;
+
     // Use transaction to create payment and update invoice status atomically
     const result = await db.$transaction(async (tx: Prisma.TransactionClient) => {
       // Create payment record
@@ -346,6 +351,9 @@ export async function createPayment(
           amount_paid: validated.amount_paid,
           payment_date: validated.payment_date,
           payment_method: validated.payment_method,
+          payment_reference: paymentReference,
+          tds_amount_applied: tdsAmountApplied,
+          tds_rounded: tdsRounded,
           status: PAYMENT_STATUS.APPROVED, // Auto-approve for now
         },
         include: paymentInclude,

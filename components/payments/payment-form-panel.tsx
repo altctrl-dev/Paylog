@@ -8,6 +8,8 @@
  * 1. Payment Date
  * 2. Amount Paid
  * 3. Payment Method
+ * 4. Transaction Reference (optional)
+ * 5. TDS Rounding Toggle (if TDS applicable)
  */
 
 'use client';
@@ -15,10 +17,12 @@
 import * as React from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { ArrowUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { Card } from '@/components/ui/card';
 import { PanelLevel } from '@/components/panels/panel-level';
 import { usePanel } from '@/hooks/use-panel';
@@ -27,6 +31,7 @@ import { type PaymentFormData } from '@/types/payment';
 import { paymentFormSchema } from '@/lib/validations/payment';
 import { PAYMENT_METHOD, PAYMENT_METHOD_CONFIG } from '@/types/payment';
 import { AmountInput } from '@/components/invoices-v2/amount-input';
+import { calculateTds } from '@/lib/utils/tds';
 import type { PanelConfig } from '@/types/panel';
 
 interface PaymentFormPanelProps {
@@ -36,6 +41,10 @@ interface PaymentFormPanelProps {
   invoiceNumber: string;
   invoiceAmount: number;
   remainingBalance: number;
+  /** Whether TDS is applicable for this invoice */
+  tdsApplicable?: boolean;
+  /** TDS percentage (e.g., 10 for 10%) */
+  tdsPercentage?: number;
 }
 
 /**
@@ -77,15 +86,21 @@ export function PaymentFormPanel({
   invoiceNumber,
   invoiceAmount,
   remainingBalance,
+  tdsApplicable = false,
+  tdsPercentage = 0,
 }: PaymentFormPanelProps) {
   const { closeAllPanels } = usePanel();
   const createPaymentMutation = useCreatePayment();
+
+  // TDS rounding state (only relevant if TDS is applicable)
+  const [roundTds, setRoundTds] = React.useState(false);
 
   // Form setup
   const {
     handleSubmit,
     control,
     watch,
+    setValue,
     formState: { errors, isSubmitting },
     setError,
   } = useForm<PaymentFormData>({
@@ -95,17 +110,46 @@ export function PaymentFormPanel({
       amount_paid: 0,
       payment_date: new Date(),
       payment_method: PAYMENT_METHOD.CASH,
+      payment_reference: null,
+      tds_amount_applied: null,
+      tds_rounded: false,
     },
   });
 
   // Watch amount to validate against remaining balance
   const watchedAmount = watch('amount_paid');
 
+  // Calculate TDS amounts (exact and rounded)
+  const tdsCalculation = React.useMemo(() => {
+    if (!tdsApplicable || !tdsPercentage) {
+      return { exactTds: 0, roundedTds: 0, activeTds: 0, payableExact: invoiceAmount, payableRounded: invoiceAmount };
+    }
+
+    const exactResult = calculateTds(invoiceAmount, tdsPercentage, false);
+    const roundedResult = calculateTds(invoiceAmount, tdsPercentage, true);
+
+    return {
+      exactTds: exactResult.tdsAmount,
+      roundedTds: roundedResult.tdsAmount,
+      activeTds: roundTds ? roundedResult.tdsAmount : exactResult.tdsAmount,
+      payableExact: exactResult.payableAmount,
+      payableRounded: roundedResult.payableAmount,
+    };
+  }, [invoiceAmount, tdsApplicable, tdsPercentage, roundTds]);
+
   // Calculate remaining balance after this payment
   const remainingAfterPayment = React.useMemo(() => {
     const amount = watchedAmount || 0;
     return Math.max(0, remainingBalance - amount);
   }, [watchedAmount, remainingBalance]);
+
+  // Update form TDS fields when toggle changes
+  React.useEffect(() => {
+    if (tdsApplicable && tdsPercentage) {
+      setValue('tds_amount_applied', tdsCalculation.activeTds);
+      setValue('tds_rounded', roundTds);
+    }
+  }, [tdsApplicable, tdsPercentage, roundTds, tdsCalculation.activeTds, setValue]);
 
   const onSubmit = async (data: PaymentFormData) => {
     try {
@@ -157,6 +201,25 @@ export function PaymentFormPanel({
               <span className="text-muted-foreground">Invoice Amount:</span>
               <span className="font-medium">{formatCurrency(invoiceAmount)}</span>
             </div>
+            {tdsApplicable && tdsPercentage > 0 && (
+              <>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">TDS ({tdsPercentage}%):</span>
+                  <span className="font-medium text-amber-600">
+                    -{formatCurrency(tdsCalculation.activeTds)}
+                    {roundTds && tdsCalculation.exactTds !== tdsCalculation.roundedTds && (
+                      <span className="ml-1 text-xs">(rounded)</span>
+                    )}
+                  </span>
+                </div>
+                <div className="flex justify-between border-t pt-1">
+                  <span className="text-muted-foreground">Net Payable:</span>
+                  <span className="font-semibold">
+                    {formatCurrency(roundTds ? tdsCalculation.payableRounded : tdsCalculation.payableExact)}
+                  </span>
+                </div>
+              </>
+            )}
             <div className="flex justify-between">
               <span className="text-muted-foreground">Remaining Balance:</span>
               <span className="font-semibold text-destructive">
@@ -260,6 +323,74 @@ export function PaymentFormPanel({
             </p>
           )}
         </div>
+
+        {/* Transaction Reference (Optional) */}
+        <div className="space-y-2">
+          <Label htmlFor="payment_reference">
+            Transaction Reference <span className="text-muted-foreground text-xs">(Optional)</span>
+          </Label>
+          <Controller
+            name="payment_reference"
+            control={control}
+            render={({ field }) => (
+              <Input
+                id="payment_reference"
+                type="text"
+                placeholder="e.g., TXN123456789"
+                value={field.value || ''}
+                onChange={(e) => field.onChange(e.target.value || null)}
+                className={errors.payment_reference ? 'border-destructive' : ''}
+              />
+            )}
+          />
+          {errors.payment_reference && (
+            <p className="text-xs text-destructive">
+              {errors.payment_reference.message}
+            </p>
+          )}
+          <p className="text-xs text-muted-foreground">
+            Bank transaction number or check number
+          </p>
+        </div>
+
+        {/* TDS Rounding Toggle (Only if TDS is applicable) */}
+        {tdsApplicable && tdsPercentage > 0 && tdsCalculation.exactTds !== tdsCalculation.roundedTds && (
+          <Card className="border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20 p-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <Label htmlFor="round_tds" className="text-base font-semibold flex items-center gap-2">
+                  <ArrowUp className="h-4 w-4 text-amber-600" />
+                  Round Off TDS
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Round up TDS to the next integer (ceiling)
+                </p>
+              </div>
+              <Switch
+                id="round_tds"
+                checked={roundTds}
+                onCheckedChange={setRoundTds}
+              />
+            </div>
+            <div className="mt-3 pt-3 border-t border-amber-200 dark:border-amber-800 text-sm">
+              <div className="flex justify-between text-muted-foreground">
+                <span>Exact TDS:</span>
+                <span>{formatCurrency(tdsCalculation.exactTds)}</span>
+              </div>
+              <div className="flex justify-between font-medium">
+                <span>Rounded TDS:</span>
+                <span>{formatCurrency(tdsCalculation.roundedTds)}</span>
+              </div>
+              <div className="flex justify-between mt-2 pt-2 border-t border-amber-200 dark:border-amber-800 font-semibold">
+                <span>Applied TDS:</span>
+                <span className={roundTds ? 'text-amber-600' : ''}>
+                  {formatCurrency(tdsCalculation.activeTds)}
+                  {roundTds && <span className="ml-1 text-xs">(rounded)</span>}
+                </span>
+              </div>
+            </div>
+          </Card>
+        )}
 
         {/* Help Text */}
         <div className="rounded-md border border-border bg-muted p-3 text-xs">

@@ -37,6 +37,7 @@ model User {
   profile_visibilities     UserProfileVisibility[] @relation("UserProfileAccess")
   created_vendors          Vendor[]                @relation("VendorCreatedBy")
   approved_vendors         Vendor[]                @relation("VendorApprovedBy")
+  notifications            Notification[]          @relation("UserNotifications")
 
   @@index([role, is_active], map: "idx_users_role_active")
   @@index([role], map: "idx_users_super_admin")
@@ -250,17 +251,20 @@ model Invoice {
 }
 
 model Payment {
-  id              Int          @id @default(autoincrement())
-  invoice_id      Int
-  payment_type_id Int?
-  amount_paid     Float
-  payment_date    DateTime
-  payment_method  String?
-  status          String       @default("pending")
-  created_at      DateTime     @default(now())
-  updated_at      DateTime     @updatedAt
-  invoice         Invoice      @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
-  payment_type    PaymentType? @relation(fields: [payment_type_id], references: [id])
+  id                 Int          @id @default(autoincrement())
+  invoice_id         Int
+  payment_type_id    Int?
+  amount_paid        Float
+  payment_date       DateTime
+  payment_method     String?
+  payment_reference  String?      // Transaction reference number
+  status             String       @default("pending")
+  tds_amount_applied Float?       // Actual TDS deducted at payment time
+  tds_rounded        Boolean      @default(false) // Whether ceiling rounding was applied
+  created_at         DateTime     @default(now())
+  updated_at         DateTime     @updatedAt
+  invoice            Invoice      @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
+  payment_type       PaymentType? @relation(fields: [payment_type_id], references: [id])
 
   @@index([invoice_id], map: "idx_payments_invoice")
   @@index([payment_type_id], map: "idx_payments_type")
@@ -428,4 +432,26 @@ model UserAuditLog {
   @@index([event_type], map: "idx_user_audit_event")
   @@index([created_at], map: "idx_user_audit_time")
   @@map("user_audit_logs")
+}
+
+/// Notification model for user notifications
+/// Notifications are created for various events like invoice approvals, master data requests, etc.
+model Notification {
+  id              Int       @id @default(autoincrement())
+  user_id         Int                               // Target user to receive notification
+  type            String                            // invoice_pending, invoice_approved, invoice_rejected, master_data_request, etc.
+  title           String                            // Short title
+  message         String                            // Detailed message
+  link            String?                           // Optional link to navigate to
+  reference_type  String?                           // invoice, master_data_request, vendor, etc.
+  reference_id    Int?                              // ID of the referenced entity
+  is_read         Boolean   @default(false)
+  read_at         DateTime?
+  created_at      DateTime  @default(now())
+  user            User      @relation("UserNotifications", fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, is_read, created_at], map: "idx_notifications_user_unread")
+  @@index([user_id, created_at], map: "idx_notifications_user_time")
+  @@index([type], map: "idx_notifications_type")
+  @@map("notifications")
 }

@@ -20,11 +20,13 @@ import { RecurringInvoiceCard, RecurringCardGrid } from './recurring-card';
 import { InvoiceTabsResponsive, type InvoiceTab } from './invoice-tabs';
 import { AllInvoicesTab } from './all-invoices-tab';
 import { TDSTab } from './tds-tab';
+import { LedgerTab } from './ledger-tab';
 import { useInvoiceProfiles } from '@/hooks/use-invoices-v2';
 import { useInvoices } from '@/hooks/use-invoices';
 import { usePanel } from '@/hooks/use-panel';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { calculateTds } from '@/lib/utils/tds';
 
 // ============================================================================
 // Types
@@ -311,9 +313,17 @@ export function InvoicesPage({
         );
 
         if (isUnpaidStatus) {
-          // Add to pending amount
+          // Add to pending amount (accounting for TDS deduction)
           const paid = invoice.totalPaid ?? 0;
-          pendingAmount += invoice.invoice_amount - paid;
+
+          // Calculate net payable amount after TDS
+          let payableAmount = invoice.invoice_amount;
+          if (invoice.tds_applicable && invoice.tds_percentage) {
+            const tdsResult = calculateTds(invoice.invoice_amount, invoice.tds_percentage);
+            payableAmount = tdsResult.payableAmount;
+          }
+
+          pendingAmount += payableAmount - paid;
           unpaidCount += 1;
 
           // Check overdue/due status
@@ -509,6 +519,8 @@ export function InvoicesPage({
         {activeTab === 'all' && <AllInvoicesTab />}
 
         {activeTab === 'tds' && <TDSTab />}
+
+        {activeTab === 'ledger' && <LedgerTab />}
       </div>
     </div>
   );

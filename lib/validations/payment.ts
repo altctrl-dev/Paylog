@@ -57,6 +57,16 @@ export const paymentFormSchema = z
         invalid_type_error: 'Invalid payment method',
       }
     ),
+    // Optional: Transaction reference number
+    payment_reference: z.string().max(100, 'Reference too long').optional().nullable(),
+    // Optional: TDS amount applied at payment time
+    tds_amount_applied: z
+      .number()
+      .min(0, 'TDS amount cannot be negative')
+      .optional()
+      .nullable(),
+    // Optional: Whether TDS was rounded (ceiling)
+    tds_rounded: z.boolean().optional().default(false),
   })
   .refine(
     (data) => {

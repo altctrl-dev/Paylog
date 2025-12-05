@@ -19,7 +19,7 @@ import { cn } from '@/lib/utils';
 // Types
 // ============================================================================
 
-export type InvoiceTab = 'recurring' | 'all' | 'tds';
+export type InvoiceTab = 'recurring' | 'all' | 'tds' | 'ledger';
 
 export interface InvoiceTabsProps
   extends Omit<React.HTMLAttributes<HTMLDivElement>, 'onChange'> {
@@ -42,6 +42,7 @@ const TAB_CONFIG: TabConfig[] = [
   { id: 'recurring', label: 'Recurring' },
   { id: 'all', label: 'All Invoices' },
   { id: 'tds', label: 'TDS' },
+  { id: 'ledger', label: 'Ledger' },
 ];
 
 // ============================================================================
