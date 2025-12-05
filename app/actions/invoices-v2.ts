@@ -14,6 +14,7 @@ import { revalidatePath } from 'next/cache';
 import { createActivityLog } from '@/app/actions/activity-log';
 import { ACTIVITY_ACTION } from '@/docs/SPRINT7_ACTIVITY_ACTIONS';
 import { INVOICE_STATUS } from '@/types/invoice';
+import { PAYMENT_STATUS } from '@/types/payment';
 import {
   recurringInvoiceSerializedSchema,
   nonRecurringInvoiceSerializedSchema,
@@ -131,16 +132,6 @@ async function getCurrentUser() {
   };
 }
 
-/**
- * Determine initial invoice status based on user role
- */
-function getInitialStatus(userRole: string): string {
-  if (userRole === 'admin' || userRole === 'super_admin') {
-    return INVOICE_STATUS.UNPAID; // Admins skip approval
-  }
-  return INVOICE_STATUS.PENDING_APPROVAL; // Standard users need approval
-}
-
 // ============================================================================
 // CREATE OPERATIONS
 // ============================================================================
@@ -230,11 +221,19 @@ export async function createRecurringInvoice(
       }
     }
 
-    // 8. Determine initial status (paid invoices skip approval, go straight to PAID)
-    const initialStatus = validated.is_paid
-      ? INVOICE_STATUS.PAID
-      : getInitialStatus(user.role);
-    console.log('[createRecurringInvoice] Initial status:', initialStatus, 'is_paid:', validated.is_paid);
+    // 8. Determine initial status based on user role and payment status
+    const isAdmin = user.role === 'admin' || user.role === 'super_admin';
+    const hasPendingPayment = validated.is_paid && validated.paid_amount && validated.paid_amount > 0;
+
+    let initialStatus: string;
+    if (isAdmin) {
+      // Admin: If paid, set to paid; otherwise unpaid (skip approval)
+      initialStatus = hasPendingPayment ? INVOICE_STATUS.PAID : INVOICE_STATUS.UNPAID;
+    } else {
+      // Standard user: Always pending approval first, regardless of payment status
+      initialStatus = INVOICE_STATUS.PENDING_APPROVAL;
+    }
+    console.log('[createRecurringInvoice] Initial status:', initialStatus, 'is_paid:', validated.is_paid, 'isAdmin:', isAdmin);
 
     // 9. Create invoice in transaction
     console.log('[createRecurringInvoice] Creating invoice record...');
@@ -302,6 +301,21 @@ export async function createRecurringInvoice(
     });
 
     console.log('[createRecurringInvoice] Transaction completed successfully');
+
+    // 9.5. Create Payment record if admin and paid
+    if (isAdmin && hasPendingPayment && validated.paid_amount) {
+      await db.payment.create({
+        data: {
+          invoice_id: invoice.id,
+          amount_paid: validated.paid_amount,
+          payment_date: paidDate ?? new Date(),
+          payment_method: 'bank_transfer', // Default method for inline payments
+          payment_reference: validated.payment_reference ?? null,
+          status: PAYMENT_STATUS.APPROVED,
+        },
+      });
+      console.log('[createRecurringInvoice] Payment record created for admin');
+    }
 
     // 10. Log activity (non-blocking)
     await createActivityLog({
@@ -459,11 +473,19 @@ export async function createNonRecurringInvoice(
       }
     }
 
-    // 10. Determine initial status (paid invoices skip approval, go straight to PAID)
-    const initialStatus = validated.is_paid
-      ? INVOICE_STATUS.PAID
-      : getInitialStatus(user.role);
-    console.log('[createNonRecurringInvoice] Initial status:', initialStatus, 'is_paid:', validated.is_paid);
+    // 10. Determine initial status based on user role and payment status
+    const isAdmin = user.role === 'admin' || user.role === 'super_admin';
+    const hasPendingPayment = validated.is_paid && validated.paid_amount && validated.paid_amount > 0;
+
+    let initialStatus: string;
+    if (isAdmin) {
+      // Admin: If paid, set to paid; otherwise unpaid (skip approval)
+      initialStatus = hasPendingPayment ? INVOICE_STATUS.PAID : INVOICE_STATUS.UNPAID;
+    } else {
+      // Standard user: Always pending approval first, regardless of payment status
+      initialStatus = INVOICE_STATUS.PENDING_APPROVAL;
+    }
+    console.log('[createNonRecurringInvoice] Initial status:', initialStatus, 'is_paid:', validated.is_paid, 'isAdmin:', isAdmin);
 
     // 11. Create invoice in transaction
     console.log('[createNonRecurringInvoice] Creating invoice record...');
@@ -530,6 +552,21 @@ export async function createNonRecurringInvoice(
     });
 
     console.log('[createNonRecurringInvoice] Transaction completed successfully');
+
+    // 11.5. Create Payment record if admin and paid
+    if (isAdmin && hasPendingPayment && validated.paid_amount) {
+      await db.payment.create({
+        data: {
+          invoice_id: invoice.id,
+          amount_paid: validated.paid_amount,
+          payment_date: paidDate ?? new Date(),
+          payment_method: 'bank_transfer', // Default method for inline payments
+          payment_reference: validated.payment_reference ?? null,
+          status: PAYMENT_STATUS.APPROVED,
+        },
+      });
+      console.log('[createNonRecurringInvoice] Payment record created for admin');
+    }
 
     // 12. Log activity (non-blocking)
     await createActivityLog({
@@ -1542,7 +1579,7 @@ export async function approveInvoiceV2(
       };
     }
 
-    // 3. Fetch invoice to validate status
+    // 3. Fetch invoice to validate status and get payment data
     const invoice = await db.invoice.findUnique({
       where: { id: invoiceId },
       select: {
@@ -1551,6 +1588,13 @@ export async function approveInvoiceV2(
         invoice_number: true,
         vendor_id: true,
         invoice_amount: true,
+        // Payment fields for inline payment
+        is_paid: true,
+        paid_date: true,
+        paid_amount: true,
+        paid_currency: true,
+        payment_type_id: true,
+        payment_reference: true,
       },
     });
 
@@ -1569,17 +1613,36 @@ export async function approveInvoiceV2(
       };
     }
 
-    // 5. Update invoice status
-    console.log('[approveInvoiceV2] Updating invoice status to unpaid...');
+    // 5. Check if invoice has pending payment data from creation
+    const hasPendingPayment = invoice.is_paid && invoice.paid_amount && invoice.paid_amount > 0;
+    const newStatus = hasPendingPayment ? INVOICE_STATUS.PAID : INVOICE_STATUS.UNPAID;
+
+    // 6. Update invoice status
+    console.log('[approveInvoiceV2] Updating invoice status to:', newStatus);
     await db.invoice.update({
       where: { id: invoiceId },
       data: {
-        status: INVOICE_STATUS.UNPAID,
+        status: newStatus,
         updated_at: new Date(),
       },
     });
 
-    // 6. Log activity (non-blocking)
+    // 6.5. If there's pending payment data, create the Payment record
+    if (hasPendingPayment && invoice.paid_amount) {
+      await db.payment.create({
+        data: {
+          invoice_id: invoiceId,
+          amount_paid: invoice.paid_amount,
+          payment_date: invoice.paid_date ?? new Date(),
+          payment_method: 'bank_transfer', // Default method for inline payments
+          payment_reference: invoice.payment_reference ?? null,
+          status: PAYMENT_STATUS.APPROVED,
+        },
+      });
+      console.log('[approveInvoiceV2] Payment record created for approved invoice');
+    }
+
+    // 7. Log activity (non-blocking)
     await createActivityLog({
       invoice_id: invoiceId,
       user_id: user.id,
@@ -1588,7 +1651,8 @@ export async function approveInvoiceV2(
         status: invoice.status,
       },
       new_data: {
-        status: INVOICE_STATUS.UNPAID,
+        status: newStatus,
+        payment_created: hasPendingPayment,
       },
     }).catch((err) => {
       console.error('[approveInvoiceV2] Failed to create activity log:', err);
