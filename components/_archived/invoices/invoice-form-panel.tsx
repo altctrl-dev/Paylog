@@ -134,6 +134,13 @@ export function InvoiceFormPanel({
       tds_applicable: false,
       tds_percentage: null,
       notes: null,
+      // Payment fields (for inline payment)
+      is_paid: false,
+      paid_date: null,
+      paid_amount: null,
+      paid_currency: null,
+      payment_type_id: null,
+      payment_reference: null,
     },
   });
 
