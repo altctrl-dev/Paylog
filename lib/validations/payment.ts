@@ -43,20 +43,10 @@ export const paymentFormSchema = z
       required_error: 'Payment date is required',
       invalid_type_error: 'Invalid date format',
     }),
-    payment_method: z.enum(
-      [
-        PAYMENT_METHOD.CASH,
-        PAYMENT_METHOD.CHECK,
-        PAYMENT_METHOD.WIRE_TRANSFER,
-        PAYMENT_METHOD.CARD,
-        PAYMENT_METHOD.UPI,
-        PAYMENT_METHOD.OTHER,
-      ],
-      {
-        required_error: 'Payment method is required',
-        invalid_type_error: 'Invalid payment method',
-      }
-    ),
+    // Payment method now references master data payment types (by name)
+    payment_method: z.string({
+      required_error: 'Payment method is required',
+    }).min(1, 'Payment method is required'),
     // Optional: Transaction reference number
     payment_reference: z.string().max(100, 'Reference too long').optional().nullable(),
     // Optional: TDS amount applied at payment time

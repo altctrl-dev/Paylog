@@ -27,6 +27,11 @@ import {
 } from '@/lib/validations/invoice-v2';
 import { uploadInvoiceFile } from '@/lib/file-upload-v2';
 import type { ServerActionResult } from '@/types/attachment';
+import {
+  notifyInvoicePendingApproval,
+  notifyInvoiceApproved,
+  notifyInvoiceRejected,
+} from '@/app/actions/notifications';
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -129,6 +134,7 @@ async function getCurrentUser() {
     id: parseInt(session.user.id),
     email: session.user.email!,
     role: session.user.role as string,
+    name: session.user.name || session.user.email || 'Unknown User',
   };
 }
 
@@ -333,6 +339,17 @@ export async function createRecurringInvoice(
     }).catch((err) => {
       console.error('[createRecurringInvoice] Failed to create activity log:', err);
     });
+
+    // 10.5. Send notification to admins if standard user created invoice (pending approval)
+    if (!isAdmin && initialStatus === INVOICE_STATUS.PENDING_APPROVAL) {
+      notifyInvoicePendingApproval(
+        invoice.id,
+        invoice.invoice_number,
+        user.name
+      ).catch((err) => {
+        console.error('[createRecurringInvoice] Failed to send notification:', err);
+      });
+    }
 
     // 11. Revalidate cache
     revalidatePath('/invoices');
@@ -583,6 +600,17 @@ export async function createNonRecurringInvoice(
     }).catch((err) => {
       console.error('[createNonRecurringInvoice] Failed to create activity log:', err);
     });
+
+    // 12.5. Send notification to admins if standard user created invoice (pending approval)
+    if (!isAdmin && initialStatus === INVOICE_STATUS.PENDING_APPROVAL) {
+      notifyInvoicePendingApproval(
+        invoice.id,
+        invoice.invoice_number,
+        user.name
+      ).catch((err) => {
+        console.error('[createNonRecurringInvoice] Failed to send notification:', err);
+      });
+    }
 
     // 13. Revalidate cache
     revalidatePath('/invoices');
@@ -1588,6 +1616,7 @@ export async function approveInvoiceV2(
         invoice_number: true,
         vendor_id: true,
         invoice_amount: true,
+        created_by: true, // For notification to creator
         // Payment fields for inline payment
         is_paid: true,
         paid_date: true,
@@ -1658,7 +1687,18 @@ export async function approveInvoiceV2(
       console.error('[approveInvoiceV2] Failed to create activity log:', err);
     });
 
-    // 7. Revalidate cache
+    // 7.5. Notify the invoice creator about approval
+    if (invoice.created_by) {
+      notifyInvoiceApproved(
+        invoice.created_by,
+        invoiceId,
+        invoice.invoice_number
+      ).catch((err) => {
+        console.error('[approveInvoiceV2] Failed to send notification:', err);
+      });
+    }
+
+    // 8. Revalidate cache
     revalidatePath('/invoices');
     revalidatePath(`/invoices/${invoiceId}`);
 
@@ -1719,6 +1759,7 @@ export async function rejectInvoiceV2(
         invoice_number: true,
         vendor_id: true,
         invoice_amount: true,
+        created_by: true, // For notification to creator
       },
     });
 
@@ -1762,6 +1803,18 @@ export async function rejectInvoiceV2(
     }).catch((err) => {
       console.error('[rejectInvoiceV2] Failed to create activity log:', err);
     });
+
+    // 7.5. Notify the invoice creator about rejection
+    if (invoice.created_by) {
+      notifyInvoiceRejected(
+        invoice.created_by,
+        invoiceId,
+        invoice.invoice_number,
+        reason.trim()
+      ).catch((err) => {
+        console.error('[rejectInvoiceV2] Failed to send notification:', err);
+      });
+    }
 
     // 8. Revalidate cache
     revalidatePath('/invoices');

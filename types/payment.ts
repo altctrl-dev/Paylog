@@ -157,7 +157,7 @@ export interface PaymentType {
 export interface PaymentFormData {
   amount_paid: number;
   payment_date: Date; // Required (non-null) for form submission
-  payment_method: PaymentMethod;
+  payment_method: string; // References master data payment types by name
   payment_reference?: string | null;
   tds_amount_applied?: number | null;
   tds_rounded?: boolean;

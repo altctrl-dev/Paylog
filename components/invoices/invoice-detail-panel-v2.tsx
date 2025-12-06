@@ -9,7 +9,7 @@
 
 import * as React from 'react';
 import { format } from 'date-fns';
-import { FileText, Calendar, DollarSign, Building, Tag, Clock, Download, CheckCircle, XCircle, Pencil, Pause, Eye, Archive, Trash2 } from 'lucide-react';
+import { FileText, Calendar, DollarSign, Building, Tag, Clock, Download, CheckCircle, XCircle, Pencil, Pause, Eye, Archive, Trash2, CreditCard } from 'lucide-react';
 import { PanelLevel } from '@/components/panels/panel-level';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -27,6 +27,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useInvoiceV2, useApproveInvoiceV2, useRejectInvoiceV2 } from '@/hooks/use-invoices-v2';
+import { usePaymentSummary } from '@/hooks/use-payments';
 import { usePanel } from '@/hooks/use-panel';
 import { ArchiveInvoiceDialog } from '@/components/invoices/archive-invoice-dialog';
 import { DeleteInvoiceDialog } from '@/components/invoices/delete-invoice-dialog';
@@ -46,6 +47,7 @@ interface InvoiceDetailPanelV2Props {
 
 export function InvoiceDetailPanelV2({ config, onClose, invoiceId, userRole, userId }: InvoiceDetailPanelV2Props) {
   const { data: invoice, isLoading, error } = useInvoiceV2(invoiceId);
+  const { data: paymentSummary } = usePaymentSummary(invoiceId);
   const { openPanel } = usePanel();
 
   // Approval/Rejection state
@@ -86,6 +88,33 @@ export function InvoiceDetailPanelV2({ config, onClose, invoiceId, userRole, use
     openPanel('invoice-hold', { invoiceId }, { width: PANEL_WIDTH.MEDIUM });
   };
 
+  const handleRecordPayment = () => {
+    if (!invoice) return;
+
+    // Calculate remaining balance (full payable amount if no payments yet)
+    // For TDS invoices, we use the payable amount (after TDS deduction)
+    const invoicePayableAmount = invoice.tds_applicable && invoice.tds_percentage
+      ? invoice.invoice_amount - (invoice.invoice_amount * invoice.tds_percentage / 100)
+      : invoice.invoice_amount;
+
+    const remainingBalance = paymentSummary
+      ? paymentSummary.remaining_balance
+      : invoicePayableAmount;
+
+    openPanel(
+      'payment-record',
+      {
+        invoiceId,
+        invoiceNumber: invoice.invoice_number,
+        invoiceAmount: invoice.invoice_amount,
+        remainingBalance,
+        tdsApplicable: invoice.tds_applicable,
+        tdsPercentage: invoice.tds_percentage,
+      },
+      { width: PANEL_WIDTH.MEDIUM }
+    );
+  };
+
   const handleRejectConfirm = () => {
     if (rejectionReason.trim().length < 10) {
       // Client-side validation feedback (server will also validate)
@@ -124,6 +153,29 @@ export function InvoiceDetailPanelV2({ config, onClose, invoiceId, userRole, use
 
   // Delete permission: super_admin only
   const canDelete = isSuperAdmin;
+
+  // Record Payment permission: admin only, invoice must be unpaid/partial and not pending approval
+  const canRecordPayment =
+    isAdmin &&
+    invoice?.status !== INVOICE_STATUS.PENDING_APPROVAL &&
+    invoice?.status !== INVOICE_STATUS.PAID &&
+    invoice?.status !== INVOICE_STATUS.REJECTED;
+
+  // Check if invoice has remaining balance to pay
+  const hasRemainingBalance = paymentSummary
+    ? paymentSummary.remaining_balance > 0
+    : (invoice?.status === INVOICE_STATUS.UNPAID || invoice?.status === INVOICE_STATUS.PARTIAL || invoice?.status === INVOICE_STATUS.OVERDUE);
+
+  // Debug logging for Record Payment button visibility
+  console.log('[InvoiceDetailPanelV2] Record Payment Debug:', {
+    isAdmin,
+    userRole,
+    invoiceStatus: invoice?.status,
+    canRecordPayment,
+    hasRemainingBalance,
+    paymentSummary,
+    shouldShowButton: canRecordPayment && hasRemainingBalance,
+  });
 
   const isMutationPending = approveInvoice.isPending || rejectInvoice.isPending;
 
@@ -200,6 +252,17 @@ export function InvoiceDetailPanelV2({ config, onClose, invoiceId, userRole, use
                 >
                   <Pause className="h-4 w-4 mr-2" />
                   Put On Hold
+                </Button>
+              )}
+              {canRecordPayment && hasRemainingBalance && (
+                <Button
+                  variant="outline"
+                  onClick={handleRecordPayment}
+                  size="sm"
+                  className="text-green-600 hover:text-green-700"
+                >
+                  <CreditCard className="h-4 w-4 mr-2" />
+                  Record Payment
                 </Button>
               )}
               {canArchive && (

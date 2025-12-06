@@ -27,9 +27,9 @@ import { Card } from '@/components/ui/card';
 import { PanelLevel } from '@/components/panels/panel-level';
 import { usePanel } from '@/hooks/use-panel';
 import { useCreatePayment } from '@/hooks/use-payments';
+import { usePaymentTypes } from '@/hooks/use-invoices-v2';
 import { type PaymentFormData } from '@/types/payment';
 import { paymentFormSchema } from '@/lib/validations/payment';
-import { PAYMENT_METHOD, PAYMENT_METHOD_CONFIG } from '@/types/payment';
 import { AmountInput } from '@/components/invoices-v2/amount-input';
 import { calculateTds } from '@/lib/utils/tds';
 import type { PanelConfig } from '@/types/panel';
@@ -71,9 +71,9 @@ function parseDateFromInput(value: string): Date {
  * Format currency for display
  */
 function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
+  return new Intl.NumberFormat('en-IN', {
     style: 'currency',
-    currency: 'USD',
+    currency: 'INR',
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(amount);
@@ -92,6 +92,9 @@ export function PaymentFormPanel({
   const { closeAllPanels } = usePanel();
   const createPaymentMutation = useCreatePayment();
 
+  // Fetch payment types from master data
+  const { data: paymentTypes = [], isLoading: isLoadingPaymentTypes } = usePaymentTypes();
+
   // TDS rounding state (only relevant if TDS is applicable)
   const [roundTds, setRoundTds] = React.useState(false);
 
@@ -109,12 +112,19 @@ export function PaymentFormPanel({
     defaultValues: {
       amount_paid: 0,
       payment_date: new Date(),
-      payment_method: PAYMENT_METHOD.CASH,
+      payment_method: '', // Will be set when payment types load
       payment_reference: null,
       tds_amount_applied: null,
       tds_rounded: false,
     },
   });
+
+  // Set default payment method when payment types load
+  React.useEffect(() => {
+    if (paymentTypes.length > 0 && !watch('payment_method')) {
+      setValue('payment_method', paymentTypes[0].name);
+    }
+  }, [paymentTypes, setValue, watch]);
 
   // Watch amount to validate against remaining balance
   const watchedAmount = watch('amount_paid');
@@ -308,12 +318,22 @@ export function PaymentFormPanel({
                 value={field.value}
                 onChange={(e) => field.onChange(e.target.value)}
                 className={errors.payment_method ? 'border-destructive' : ''}
+                disabled={isLoadingPaymentTypes}
               >
-                {Object.entries(PAYMENT_METHOD_CONFIG).map(([key, config]) => (
-                  <option key={key} value={key}>
-                    {config.label}
-                  </option>
-                ))}
+                {isLoadingPaymentTypes ? (
+                  <option value="">Loading...</option>
+                ) : paymentTypes.length === 0 ? (
+                  <option value="">No payment types available</option>
+                ) : (
+                  <>
+                    <option value="">-- Select Payment Method --</option>
+                    {paymentTypes.map((type) => (
+                      <option key={type.id} value={type.name}>
+                        {type.name}
+                      </option>
+                    ))}
+                  </>
+                )}
               </Select>
             )}
           />
@@ -324,10 +344,15 @@ export function PaymentFormPanel({
           )}
         </div>
 
-        {/* Transaction Reference (Optional) */}
+        {/* Transaction Reference (Conditional based on payment type) */}
         <div className="space-y-2">
           <Label htmlFor="payment_reference">
-            Transaction Reference <span className="text-muted-foreground text-xs">(Optional)</span>
+            Transaction Reference{' '}
+            {paymentTypes.find(pt => pt.name === watch('payment_method'))?.requires_reference ? (
+              <span className="text-destructive">*</span>
+            ) : (
+              <span className="text-muted-foreground text-xs">(Optional)</span>
+            )}
           </Label>
           <Controller
             name="payment_reference"
@@ -353,7 +378,7 @@ export function PaymentFormPanel({
           </p>
         </div>
 
-        {/* TDS Rounding Toggle (Only if TDS is applicable) */}
+        {/* TDS Rounding Toggle - Only show when TDS amount is a decimal */}
         {tdsApplicable && tdsPercentage > 0 && tdsCalculation.exactTds !== tdsCalculation.roundedTds && (
           <Card className="border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20 p-4">
             <div className="flex items-center justify-between">

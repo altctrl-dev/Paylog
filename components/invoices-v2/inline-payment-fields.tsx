@@ -9,12 +9,14 @@
 
 import * as React from 'react';
 import { Controller, Control } from 'react-hook-form';
+import { ArrowUp } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { AmountInput } from './amount-input';
+import { calculateTds } from '@/lib/utils/tds';
 
 /**
  * Props interface for InlinePaymentFields
@@ -46,6 +48,16 @@ interface InlinePaymentFieldsProps {
   errors?: Record<string, { message?: string }>;
   /** React Hook Form control for Controller components */
   control?: Control<Record<string, unknown>>;
+  /** Whether TDS is applicable for this invoice */
+  tdsApplicable?: boolean;
+  /** TDS percentage (e.g., 10 for 10%) */
+  tdsPercentage?: number;
+  /** Invoice amount for TDS calculation */
+  invoiceAmount?: number;
+  /** Whether TDS rounding is enabled */
+  tdsRounded?: boolean;
+  /** Callback when TDS rounding changes */
+  onTdsRoundedChange?: (rounded: boolean) => void;
 }
 
 /**
@@ -69,6 +81,18 @@ function parseDateFromInput(value: string): Date | null {
 }
 
 /**
+ * Format currency for display (INR)
+ */
+function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
+
+/**
  * Inline Payment Fields Component
  *
  * Shows/hides payment tracking fields based on "Paid?" toggle.
@@ -89,10 +113,39 @@ export function InlinePaymentFields({
   paymentTypes = [],
   errors = {},
   control,
+  tdsApplicable = false,
+  tdsPercentage = 0,
+  invoiceAmount = 0,
+  tdsRounded = false,
+  onTdsRoundedChange,
 }: InlinePaymentFieldsProps) {
   // Find selected payment type to check if reference is required
   const selectedPaymentType = paymentTypes.find((pt) => pt.id === paymentTypeId);
   const requiresReference = selectedPaymentType?.requires_reference ?? false;
+
+  // Calculate TDS amounts (exact and rounded) - only when TDS is applicable
+  const tdsCalculation = React.useMemo(() => {
+    if (!tdsApplicable || !tdsPercentage || !invoiceAmount) {
+      return { exactTds: 0, roundedTds: 0, activeTds: 0 };
+    }
+
+    const exactResult = calculateTds(invoiceAmount, tdsPercentage, false);
+    const roundedResult = calculateTds(invoiceAmount, tdsPercentage, true);
+
+    return {
+      exactTds: exactResult.tdsAmount,
+      roundedTds: roundedResult.tdsAmount,
+      activeTds: tdsRounded ? roundedResult.tdsAmount : exactResult.tdsAmount,
+    };
+  }, [tdsApplicable, tdsPercentage, invoiceAmount, tdsRounded]);
+
+  // Only show TDS rounding toggle when TDS amount is a decimal (rounding would make a difference)
+  // When TDS is already a whole number (e.g., 10000 × 2% = 200), no need to show the toggle
+  const showTdsRounding =
+    tdsApplicable &&
+    tdsPercentage > 0 &&
+    invoiceAmount > 0 &&
+    tdsCalculation.exactTds !== tdsCalculation.roundedTds;
 
   // Auto-fill currency when toggling paid to true
   React.useEffect(() => {
@@ -291,6 +344,45 @@ export function InlinePaymentFields({
               {errors.payment_reference && (
                 <p className="text-xs text-destructive">{errors.payment_reference.message}</p>
               )}
+            </div>
+          )}
+
+          {/* TDS Rounding Toggle - Only show when TDS amount is a decimal */}
+          {showTdsRounding && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20 p-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <Label htmlFor="tds_rounded" className="text-base font-semibold flex items-center gap-2">
+                    <ArrowUp className="h-4 w-4 text-amber-600" />
+                    Round Off TDS
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Round up TDS to the next integer (ceiling)
+                  </p>
+                </div>
+                <Switch
+                  id="tds_rounded"
+                  checked={tdsRounded}
+                  onCheckedChange={(checked) => onTdsRoundedChange?.(checked)}
+                />
+              </div>
+              <div className="mt-3 pt-3 border-t border-amber-200 dark:border-amber-800 text-sm">
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Exact TDS:</span>
+                  <span>{formatCurrency(tdsCalculation.exactTds)}</span>
+                </div>
+                <div className="flex justify-between font-medium">
+                  <span>Rounded TDS:</span>
+                  <span>{formatCurrency(tdsCalculation.roundedTds)}</span>
+                </div>
+                <div className="flex justify-between mt-2 pt-2 border-t border-amber-200 dark:border-amber-800 font-semibold">
+                  <span>Applied TDS:</span>
+                  <span className={tdsRounded ? 'text-amber-600' : ''}>
+                    {formatCurrency(tdsCalculation.activeTds)}
+                    {tdsRounded && <span className="ml-1 text-xs">(rounded)</span>}
+                  </span>
+                </div>
+              </div>
             </div>
           )}
         </div>

@@ -135,6 +135,7 @@ export function NonRecurringInvoiceForm({ onSuccess, onCancel }: NonRecurringInv
       paid_currency: null,
       payment_type_id: null,
       payment_reference: null,
+      tds_rounded: false,
     },
   });
 
@@ -672,6 +673,11 @@ export function NonRecurringInvoiceForm({ onSuccess, onCancel }: NonRecurringInv
           paymentTypes={paymentTypes}
           errors={errors as Record<string, { message?: string }>}
           control={control as any} // eslint-disable-line @typescript-eslint/no-explicit-any
+          tdsApplicable={watchedTdsApplicable}
+          tdsPercentage={watch('tds_percentage') ?? 0}
+          invoiceAmount={watch('invoice_amount')}
+          tdsRounded={watch('tds_rounded') ?? false}
+          onTdsRoundedChange={(rounded) => setValue('tds_rounded', rounded)}
         />
 
         {/* Action Buttons */}

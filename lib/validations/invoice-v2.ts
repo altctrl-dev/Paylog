@@ -103,6 +103,9 @@ export const recurringInvoiceSchema = z
     paid_currency: z.string().max(3, 'Currency code too long').nullable().optional(),
     payment_type_id: z.number().int().positive('Payment type is required').nullable().optional(),
     payment_reference: z.string().max(100, 'Reference too long').nullable().optional(),
+
+    // TDS rounding for inline payments
+    tds_rounded: z.boolean().optional().default(false),
   })
   .refine(
     (data) => {
@@ -238,6 +241,9 @@ export const recurringInvoiceSerializedSchema = z
     paid_currency: z.string().max(3, 'Currency code too long').nullable().optional(),
     payment_type_id: z.number().int().positive('Payment type is required').nullable().optional(),
     payment_reference: z.string().max(100, 'Reference too long').nullable().optional(),
+
+    // TDS rounding for inline payments
+    tds_rounded: z.boolean().optional().default(false),
   })
   .refine(
     (data) => {
@@ -396,6 +402,9 @@ export const nonRecurringInvoiceSchema = z
     paid_currency: z.string().max(3, 'Currency code too long').nullable().optional(),
     payment_type_id: z.number().int().positive('Payment type is required').nullable().optional(),
     payment_reference: z.string().max(100, 'Reference too long').nullable().optional(),
+
+    // TDS rounding for inline payments
+    tds_rounded: z.boolean().optional().default(false),
   })
   .refine(
     (data) => {
@@ -514,6 +523,9 @@ export const nonRecurringInvoiceSerializedSchema = z
     paid_currency: z.string().max(3, 'Currency code too long').nullable().optional(),
     payment_type_id: z.number().int().positive('Payment type is required').nullable().optional(),
     payment_reference: z.string().max(100, 'Reference too long').nullable().optional(),
+
+    // TDS rounding for inline payments
+    tds_rounded: z.boolean().optional().default(false),
   })
   .refine(
     (data) => {
@@ -632,6 +644,9 @@ const updateRecurringInvoiceSerializedBaseSchema = z.object({
   paid_currency: z.string().max(3, 'Currency code too long').nullable().optional(),
   payment_type_id: z.number().int().positive('Payment type is required').nullable().optional(),
   payment_reference: z.string().max(100, 'Reference too long').nullable().optional(),
+
+  // TDS rounding for inline payments
+  tds_rounded: z.boolean().optional().default(false),
 });
 
 export const updateRecurringInvoiceSerializedSchema = updateRecurringInvoiceSerializedBaseSchema

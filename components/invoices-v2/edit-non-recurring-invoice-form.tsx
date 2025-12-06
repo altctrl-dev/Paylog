@@ -119,6 +119,7 @@ export function EditNonRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: 
       paid_currency: null,
       payment_type_id: null,
       payment_reference: null,
+      tds_rounded: false,
     },
   });
 
@@ -150,6 +151,8 @@ export function EditNonRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: 
       setValue('paid_currency', invoice.paid_currency || null);
       setValue('payment_type_id', invoice.payment_type_id || null);
       setValue('payment_reference', invoice.payment_reference || null);
+      // tds_rounded is a payment field, not stored on invoice - default to false
+      setValue('tds_rounded', false);
     }
   }, [invoice, setValue]);
 
@@ -506,6 +509,11 @@ export function EditNonRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: 
         paymentTypes={paymentTypes}
         control={control as unknown as Control<Record<string, unknown>>}
         errors={errors}
+        tdsApplicable={watchedTdsApplicable}
+        tdsPercentage={watch('tds_percentage') ?? 0}
+        invoiceAmount={watch('invoice_amount')}
+        tdsRounded={watch('tds_rounded') ?? false}
+        onTdsRoundedChange={(rounded) => setValue('tds_rounded', rounded)}
       />
 
       {/* File Upload (Optional) */}
