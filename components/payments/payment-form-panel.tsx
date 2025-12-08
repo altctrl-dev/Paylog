@@ -147,11 +147,26 @@ export function PaymentFormPanel({
     };
   }, [invoiceAmount, tdsApplicable, tdsPercentage, roundTds]);
 
+  // Calculate the actual remaining balance (accounting for TDS)
+  // The passed remainingBalance may be based on invoice amount, but we need it based on net payable
+  const actualRemainingBalance = React.useMemo(() => {
+    // If TDS is applicable, the remaining balance should be based on net payable
+    // remainingBalance from caller = invoiceAmount - totalPaid (without TDS consideration)
+    // We need: netPayable - totalPaid
+    if (tdsApplicable && tdsPercentage) {
+      const netPayable = roundTds ? tdsCalculation.payableRounded : tdsCalculation.payableExact;
+      // Calculate what's already been paid: invoiceAmount - remainingBalance
+      const alreadyPaid = invoiceAmount - remainingBalance;
+      return Math.max(0, netPayable - alreadyPaid);
+    }
+    return remainingBalance;
+  }, [remainingBalance, invoiceAmount, tdsApplicable, tdsPercentage, roundTds, tdsCalculation]);
+
   // Calculate remaining balance after this payment
   const remainingAfterPayment = React.useMemo(() => {
     const amount = watchedAmount || 0;
-    return Math.max(0, remainingBalance - amount);
-  }, [watchedAmount, remainingBalance]);
+    return Math.max(0, actualRemainingBalance - amount);
+  }, [watchedAmount, actualRemainingBalance]);
 
   // Update form TDS fields when toggle changes
   React.useEffect(() => {
@@ -163,10 +178,10 @@ export function PaymentFormPanel({
 
   const onSubmit = async (data: PaymentFormData) => {
     try {
-      // Validate amount doesn't exceed remaining balance
-      if (data.amount_paid > remainingBalance) {
+      // Validate amount doesn't exceed remaining balance (after TDS)
+      if (data.amount_paid > actualRemainingBalance) {
         setError('amount_paid', {
-          message: `Amount cannot exceed remaining balance of ${formatCurrency(remainingBalance)}`,
+          message: `Amount cannot exceed remaining balance of ${formatCurrency(actualRemainingBalance)}`,
         });
         return;
       }
@@ -233,7 +248,7 @@ export function PaymentFormPanel({
             <div className="flex justify-between">
               <span className="text-muted-foreground">Remaining Balance:</span>
               <span className="font-semibold text-destructive">
-                {formatCurrency(remainingBalance)}
+                {formatCurrency(actualRemainingBalance)}
               </span>
             </div>
             {watchedAmount > 0 && (
@@ -300,7 +315,7 @@ export function PaymentFormPanel({
             </p>
           )}
           <p className="text-xs text-muted-foreground">
-            Maximum: {formatCurrency(remainingBalance)}
+            Maximum: {formatCurrency(actualRemainingBalance)}
           </p>
         </div>
 
