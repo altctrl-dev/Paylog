@@ -433,17 +433,19 @@ export function InvoicesPage({
 
   // Action handlers
   const handleViewDetails = (profileId: number) => {
-    openPanel('profile-detail', { profileId });
+    // Opens panel showing profile description and pending invoices
+    openPanel('profile-invoices', { profileId });
   };
 
   const handleAddInvoice = (profileId: number) => {
+    // Opens recurring invoice form with profile pre-selected
     openPanel('invoice-create-recurring', { profileId });
   };
 
   const handleRecordPayment = (profileId: number) => {
-    // For now, navigate to filtered invoice list
-    // In the future, this could open a payment panel
-    openPanel('profile-invoices', { profileId });
+    // Opens payment panel showing all outstanding invoices for this profile
+    // User can select specific invoices to pay
+    openPanel('profile-payment', { profileId });
   };
 
   // Loading state

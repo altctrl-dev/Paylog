@@ -38,6 +38,8 @@ interface RecurringInvoiceFormProps {
   onSuccess?: (invoiceId: number) => void;
   /** Callback when user cancels */
   onCancel?: () => void;
+  /** Optional profile ID to pre-select when form opens (from recurring card "Add New Invoice") */
+  defaultProfileId?: number;
 }
 
 /**
@@ -65,7 +67,7 @@ function parseDateFromInput(value: string): Date | null {
  *
  * Phase 4: Integrated with Server Actions and React Query
  */
-export function RecurringInvoiceForm({ onSuccess, onCancel }: RecurringInvoiceFormProps) {
+export function RecurringInvoiceForm({ onSuccess, onCancel, defaultProfileId }: RecurringInvoiceFormProps) {
   const { toast } = useToast();
   const [showPreview, setShowPreview] = React.useState(false);
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
@@ -125,6 +127,16 @@ export function RecurringInvoiceForm({ onSuccess, onCancel }: RecurringInvoiceFo
   const watchedTdsApplicable = watch('tds_applicable');
   const watchedIsPaid = watch('is_paid');
   const watchedCurrencyId = watch('currency_id');
+
+  // Set default profile when provided (from recurring card "Add New Invoice")
+  React.useEffect(() => {
+    if (defaultProfileId && defaultProfileId > 0 && invoiceProfiles.length > 0) {
+      const profileExists = invoiceProfiles.some((p) => p.id === defaultProfileId);
+      if (profileExists && watchedProfileId !== defaultProfileId) {
+        setValue('invoice_profile_id', defaultProfileId);
+      }
+    }
+  }, [defaultProfileId, invoiceProfiles, setValue, watchedProfileId]);
 
   // Load profile defaults when profile changes
   React.useEffect(() => {

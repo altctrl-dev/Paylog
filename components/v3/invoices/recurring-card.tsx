@@ -38,8 +38,6 @@ import {
   FileText,
   CreditCard,
   Eye,
-  Edit,
-  Trash2,
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -47,7 +45,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
@@ -245,10 +242,6 @@ export interface RecurringInvoiceCardProps
   onViewDetails?: () => void;
   /** Callback when card is clicked */
   onCardClick?: () => void;
-  /** Callback when "Edit" is clicked */
-  onEdit?: () => void;
-  /** Callback when "Delete" is clicked */
-  onDelete?: () => void;
 }
 
 // ============================================================================
@@ -274,8 +267,6 @@ export function RecurringInvoiceCard({
   onRecordPayment,
   onViewDetails,
   onCardClick,
-  onEdit,
-  onDelete,
   className,
   ...props
 }: RecurringInvoiceCardProps) {
@@ -363,18 +354,6 @@ export function RecurringInvoiceCard({
               <DropdownMenuItem onClick={onViewDetails}>
                 <Eye className="mr-2 h-4 w-4" />
                 View Details
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={onEdit}>
-                <Edit className="mr-2 h-4 w-4" />
-                Edit
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={onDelete}
-                className="text-red-500 focus:text-red-500"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

@@ -11,6 +11,8 @@ import * as React from 'react';
 import { usePanelStack } from '@/hooks/use-panel-stack';
 import { ProfileDetailPanel } from './profile-detail-panel';
 import { ProfileFormPanel } from './profile-form-panel';
+import { ProfileInvoicesPanel } from './profile-invoices-panel';
+import { ProfilePaymentPanel } from './profile-payment-panel';
 
 interface ProfilePanelRendererProps {
   id: string;
@@ -26,6 +28,8 @@ interface ProfilePanelRendererProps {
  * - profile-detail: View profile details (Level 1, 350px)
  * - profile-form: Create new profile (Level 2, 500px)
  * - profile-edit: Edit existing profile (Level 2, 500px)
+ * - profile-invoices: View profile with pending invoices (Level 1, 400px)
+ * - profile-payment: Record payment for profile invoices (Level 1, 400px)
  */
 export function ProfilePanelRenderer({
   id,
@@ -58,6 +62,24 @@ export function ProfilePanelRenderer({
           onClose={onClose}
           profileId={type === 'profile-edit' ? (props.profileId as number) : undefined}
           onSuccess={props.onSuccess as () => void}
+        />
+      );
+
+    case 'profile-invoices':
+      return (
+        <ProfileInvoicesPanel
+          config={config}
+          onClose={onClose}
+          profileId={props.profileId as number}
+        />
+      );
+
+    case 'profile-payment':
+      return (
+        <ProfilePaymentPanel
+          config={config}
+          onClose={onClose}
+          profileId={props.profileId as number}
         />
       );
 

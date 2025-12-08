@@ -112,6 +112,7 @@ export function InvoicePanelRenderer({
         <RecurringInvoiceFormPanel
           config={config}
           onClose={onClose}
+          defaultProfileId={props.profileId as number | undefined}
         />
       );
 

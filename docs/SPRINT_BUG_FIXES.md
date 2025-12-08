@@ -23,6 +23,7 @@ This document tracks all known bugs and missing features discovered during the L
 | BUG-003 | In-app notifications not working for V2 invoices | High | 🟢 Resolved | Claude | 2025-12-06 |
 | BUG-004 | No "Record Payment" button in invoice-detail-panel-v2 | High | 🟢 Resolved | Claude | 2025-12-06 |
 | BUG-005 | Payment form showing hardcoded payment methods | High | 🟢 Resolved | Claude | 2025-12-06 |
+| BUG-008 | '+' button on recurring cards not functional | High | 🟢 Resolved | Claude | 2025-12-07 |
 
 ### Status Legend
 - 🔴 **Open**: Not started
@@ -379,6 +380,92 @@ Simplified the TDS toggle visibility logic in both components:
 
 ---
 
+### BUG-008: '+' Button on Recurring Cards Not Functional
+
+**Severity**: High
+**Status**: 🟢 Resolved (2025-12-07)
+**Component**: `components/v3/invoices/invoices-page.tsx`, `components/v3/invoices/recurring-card.tsx`
+
+#### Description
+The '+' button on recurring invoice cards in the Recurring tab has two actions ("Record Payment" and "Add New Invoice") that were not working properly:
+1. "Record Payment" opened an unhelpful panel that didn't match the payment recording UX
+2. "Add New Invoice" didn't pre-select the invoice profile
+3. The 3-dot menu had "Edit" and "Delete" options that shouldn't be there
+4. "View Details" didn't show profile description and pending invoice details
+
+#### User Request
+"'+' button on the cards on the recurring tab has two actions, record a payment and add an invoice. Clicking on them currently doesn't do anything. Both actions should understand which card and which invoice profile it is and let the users add a payment or invoice with as much prefilled data. Clicking on the 3 dots on the cards has currently 3 options - keep the 'View Details' and drop the other 2 - 'Edit' and 'Delete'. The 'View Details' can show the brief description of the selected invoice profile and details of pending amount if there's any and the invoice details associated with those."
+
+#### Root Cause
+1. The "Record Payment" action was opening a basic profile info panel that didn't show outstanding invoices or provide payment functionality
+2. The invoice form wasn't receiving the profile ID to pre-select
+3. The recurring card component had Edit and Delete menu items that shouldn't exist for this view
+
+#### Files Affected
+- `components/v3/invoices/recurring-card.tsx` - Removed Edit/Delete from 3-dot menu
+- `components/invoices-v2/recurring-invoice-form-panel.tsx` - Added `defaultProfileId` prop
+- `components/invoices-v2/recurring-invoice-form.tsx` - Pre-select profile when `defaultProfileId` provided
+- `components/invoices/invoice-panel-renderer.tsx` - Pass `profileId` to recurring invoice form
+- `components/master-data/profile-invoices-panel.tsx` - NEW: View Details panel showing profile + pending invoices
+- `components/master-data/profile-payment-panel.tsx` - NEW: Record Payment panel matching payment-record UX
+- `components/master-data/profile-panel-renderer.tsx` - Added routing for new panel types
+- `components/v3/invoices/invoices-page.tsx` - Updated handlers to open correct panels
+
+#### Action Items
+- [x] Remove "Edit" and "Delete" from recurring card 3-dot menu
+- [x] Add `defaultProfileId` prop to `RecurringInvoiceFormPanel`
+- [x] Update `RecurringInvoiceForm` to pre-select profile when ID provided
+- [x] Update `invoice-panel-renderer` to pass `profileId` to form
+- [x] Create `ProfileInvoicesPanel` for View Details (profile info + pending invoices list)
+- [x] Create `ProfilePaymentPanel` for Record Payment (matching payment-record UX):
+  - Payment Summary card showing profile name, vendor, total pending amount
+  - Outstanding Invoices list with:
+    - Invoice number + status badge
+    - Due date + overdue indicator
+    - Invoice amount breakdown (total, paid, remaining)
+    - "Pay" button to open payment-record panel
+  - Matches design of payment-form-panel.tsx
+- [x] Update `invoices-page.tsx` to open `profile-payment` for Record Payment action
+- [x] TypeScript compilation passes
+- [x] Build passes
+
+#### Resolution
+
+**Phase 1: Card Actions** (previously completed)
+- Removed Edit and Delete from recurring-card.tsx 3-dot menu
+- Added profile pre-selection for "Add New Invoice" action
+
+**Phase 2: Record Payment Panel** (2025-12-07)
+- Created `ProfilePaymentPanel` component (`components/master-data/profile-payment-panel.tsx`)
+- Design matches the payment-record panel UX with:
+  - **Payment Summary** card showing:
+    - Profile name
+    - Vendor name
+    - Total Pending Amount (highlighted in red)
+  - **Outstanding Invoices** section:
+    - Count of invoices + overdue badge
+    - Each invoice card shows:
+      - Invoice number with status badge (Unpaid/Partially Paid)
+      - Due date or "X days overdue" indicator
+      - Amount breakdown (Invoice Amount → Paid → Remaining)
+      - "Pay" button to open payment-record panel
+      - "View" link to open invoice detail
+  - Help text explaining partial payments are supported
+- Added `profile-payment` panel type to `ProfilePanelRenderer`
+- Updated `handleRecordPayment` in `invoices-page.tsx` to open `profile-payment` panel
+
+**UX Flow**:
+1. User clicks '+' → "Record Payment" on recurring card
+2. Opens `profile-payment` panel showing total pending and all outstanding invoices
+3. User clicks "Pay" on specific invoice
+4. Opens `payment-record` panel (existing) with invoice pre-filled
+5. After payment, returns to `profile-payment` panel (data refreshes via React Query)
+
+#### Dependencies
+- None (uses existing payment-record panel)
+
+---
+
 ## Implementation Plan
 
 ### Phase 1: Critical Fixes (High Severity)
@@ -497,6 +584,25 @@ Simplified the TDS toggle visibility logic in both components:
   - Covers all 5 scenarios: create/edit recurring, create/edit non-recurring, record payment
   - TypeScript compilation and build both pass
 
+### 2025-12-07
+
+- **BUG-008 Reported**: '+' button on recurring cards not functional
+  - "Record Payment" opened wrong panel
+  - "Add New Invoice" didn't pre-fill profile
+  - 3-dot menu had Edit/Delete that shouldn't be there
+- **BUG-008 Fixed (Phase 1)**: Card action handlers (completed earlier in session)
+  - Removed Edit/Delete from 3-dot menu
+  - Added defaultProfileId to recurring invoice form
+  - Profile now pre-selected when clicking "Add New Invoice"
+- **BUG-008 Fixed (Phase 2)**: Created ProfilePaymentPanel for "Record Payment"
+  - Created `profile-payment-panel.tsx` matching payment-record UX
+  - Shows Payment Summary with total pending amount
+  - Lists all outstanding invoices with breakdown (amount, paid, remaining)
+  - Each invoice has "Pay" button to open payment-record panel
+  - Integrated with ProfilePanelRenderer
+  - Updated invoices-page.tsx to use `profile-payment` panel
+  - TypeScript compilation and build both pass
+
 ---
 
 ## Notes
@@ -545,4 +651,5 @@ Available in `app/actions/notifications.ts`:
 | 2025-12-06 | 1.2 | BUG-002 resolved - TDS Round off in inline payment fields |
 | 2025-12-06 | 1.3 | BUG-002 final fix - TDS section now always shows when TDS is applicable |
 | 2025-12-06 | 1.4 | BUG-007 - TDS toggle only shows when TDS amount is decimal (per user request) |
+| 2025-12-07 | 1.5 | BUG-008 - '+' button on recurring cards now fully functional (Profile Payment Panel) |
 
