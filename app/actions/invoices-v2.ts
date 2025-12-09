@@ -238,8 +238,9 @@ export async function createRecurringInvoice(
           period_end: periodEnd,
           invoice_received_date: invoiceReceivedDate, // Bug fix: Save invoice_received_date to database
 
-          // Description
+          // Description and Invoice Name (recurring: auto-populate from profile)
           description: validated.brief_description || null,
+          invoice_name: profile.name, // Auto-populate from invoice profile name
 
           // TDS
           tds_applicable: validated.tds_applicable,
@@ -376,7 +377,7 @@ export async function createNonRecurringInvoice(
       where: {
         invoice_number: validated.invoice_number,
         vendor_id: validated.vendor_id,
-        description: validated.invoice_name, // invoice_name stored as description
+        invoice_name: validated.invoice_name, // Use dedicated invoice_name field
       },
     });
 
@@ -452,8 +453,9 @@ export async function createNonRecurringInvoice(
           due_date: dueDate,
           invoice_received_date: invoiceReceivedDate, // Bug fix: Save invoice_received_date to database
 
-          // Description (use invoice_name as description for non-recurring)
-          description: validated.brief_description || validated.invoice_name,
+          // Description and Invoice Name (non-recurring: separate fields)
+          description: validated.brief_description || null,
+          invoice_name: validated.invoice_name, // User-entered invoice name
 
           // TDS
           tds_applicable: validated.tds_applicable,
@@ -868,7 +870,7 @@ export async function updateNonRecurringInvoice(
       where: {
         invoice_number: validated.invoice_number,
         vendor_id: validated.vendor_id,
-        description: validated.invoice_name,
+        invoice_name: validated.invoice_name, // Use dedicated invoice_name field
         id: { not: invoiceId }, // Exclude current invoice
       },
     });
@@ -939,8 +941,9 @@ export async function updateNonRecurringInvoice(
           due_date: dueDate,
           invoice_received_date: invoiceReceivedDate,
 
-          // Description (use invoice_name as description)
-          description: validated.brief_description || validated.invoice_name,
+          // Description and Invoice Name (non-recurring: separate fields)
+          description: validated.brief_description || null,
+          invoice_name: validated.invoice_name, // User-entered invoice name
 
           // TDS
           tds_applicable: validated.tds_applicable,

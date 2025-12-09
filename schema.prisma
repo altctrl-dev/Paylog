@@ -184,6 +184,7 @@ model Invoice {
   currency_id           Int?
   entity_id             Int?
   description           String?
+  invoice_name          String?             // For non-recurring: user-entered name; For recurring: auto-populated from invoice_profile.name
   // Invoice Type
   is_recurring          Boolean             @default(false)
   invoice_profile_id    Int?

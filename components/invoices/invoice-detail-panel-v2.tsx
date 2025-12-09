@@ -330,8 +330,13 @@ export function InvoiceDetailPanelV2({ config, onClose, invoiceId, userRole, use
                 <FileText className="h-5 w-5 text-muted-foreground" />
                 <h3 className="text-lg font-semibold">{invoice.invoice_number}</h3>
               </div>
-              {invoice.description && (
-                <p className="text-sm text-muted-foreground">{invoice.description}</p>
+              {/* Show invoice name: profile name for recurring, invoice_name for non-recurring */}
+              {(invoice.is_recurring ? invoice.invoice_profile?.name : (invoice.invoice_name || invoice.description)) && (
+                <p className="text-sm text-muted-foreground">
+                  {invoice.is_recurring
+                    ? invoice.invoice_profile?.name
+                    : (invoice.invoice_name || invoice.description)}
+                </p>
               )}
             </div>
             <div className="flex flex-col items-end gap-2">

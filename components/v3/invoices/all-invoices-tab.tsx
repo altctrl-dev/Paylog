@@ -258,11 +258,12 @@ export function AllInvoicesTab() {
       // Get invoice details (profile name or invoice name)
       const inv = invoice as typeof invoice & {
         invoice_profile?: { name: string } | null;
+        invoice_name?: string | null;
         description?: string | null;
       };
       const invoiceDetails = inv.is_recurring
         ? (inv.invoice_profile?.name || 'Unknown Profile')
-        : (inv.description || inv.notes || 'Unnamed Invoice');
+        : (inv.invoice_name || inv.description || inv.notes || 'Unnamed Invoice');
 
       return {
         'Invoice Details': invoiceDetails,
@@ -401,14 +402,15 @@ export function AllInvoicesTab() {
     // Cast to access additional fields that may exist from API
     const inv = invoice as typeof invoice & {
       invoice_profile?: { name: string } | null;
+      invoice_name?: string | null;
       description?: string | null;
     };
 
     if (inv.is_recurring) {
       return inv.invoice_profile?.name || 'Unknown Profile';
     }
-    // Non-recurring: use description as invoice name, fall back to notes
-    return inv.description || inv.notes || 'Unnamed Invoice';
+    // Non-recurring: use invoice_name field (fallback to description for backwards compatibility)
+    return inv.invoice_name || inv.description || inv.notes || 'Unnamed Invoice';
   }
 
   // Format month name for title

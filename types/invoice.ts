@@ -86,6 +86,7 @@ export interface Invoice {
   tds_percentage: number | null;
   notes: string | null;
   description: string | null;
+  invoice_name: string | null;
   status: InvoiceStatus;
   hold_reason: string | null;
   hold_by: number | null;
@@ -287,6 +288,7 @@ export interface InvoiceV2WithRelations {
   tds_applicable: boolean;
   tds_percentage: number | null;
   description: string | null;
+  invoice_name: string | null;
   notes: string | null;
   status: InvoiceStatus;
 
