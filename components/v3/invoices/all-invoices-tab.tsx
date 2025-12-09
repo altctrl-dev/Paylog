@@ -26,6 +26,9 @@ import {
   Archive,
   RefreshCw,
   FileText,
+  CreditCard,
+  Check,
+  X,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Button } from '@/components/ui/button';
@@ -48,8 +51,9 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { useInvoices } from '@/hooks/use-invoices';
-import { createInvoiceArchiveRequest, permanentDeleteInvoice } from '@/app/actions/invoices';
+import { createInvoiceArchiveRequest, permanentDeleteInvoice, approveInvoice, rejectInvoice } from '@/app/actions/invoices';
 import { toast } from 'sonner';
+import { Badge } from '@/components/ui/badge';
 import { usePanel } from '@/hooks/use-panel';
 import { PANEL_WIDTH } from '@/types/panel';
 import { useUIVersion } from '@/lib/stores/ui-version-store';
@@ -121,6 +125,20 @@ function formatDate(dateString: string | Date | null): string {
   });
 }
 
+function formatCurrencyWithDecimals(amount: number): string {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
+
+function calculateTdsAmount(invoiceAmount: number, tdsPercentage: number | null): number {
+  if (tdsPercentage === null || tdsPercentage === undefined) return 0;
+  return (invoiceAmount * tdsPercentage) / 100;
+}
+
 // ============================================================================
 // Main Component
 // ============================================================================
@@ -128,7 +146,9 @@ function formatDate(dateString: string | Date | null): string {
 export function AllInvoicesTab() {
   const router = useRouter();
   const { data: session } = useSession();
-  const isSuperAdmin = session?.user?.role === 'super_admin';
+  const userRole = session?.user?.role;
+  const isAdmin = userRole === 'admin' || userRole === 'super_admin';
+  const isSuperAdmin = userRole === 'super_admin';
   const { openPanel } = usePanel();
   const { invoiceCreationMode } = useUIVersion();
   const [searchQuery, setSearchQuery] = useState('');
@@ -225,15 +245,40 @@ export function AllInvoicesTab() {
       return;
     }
 
-    // Prepare data for export
-    const exportData = filteredInvoices.map((invoice) => ({
-      'Invoice ID': invoice.invoice_number || '',
-      'Vendor': invoice.vendor?.name || '',
-      'Amount': invoice.invoice_amount,
-      'Status': invoice.status,
-      'Date': formatDate(invoice.invoice_date),
-      'Type': invoice.is_recurring ? 'Recurring' : 'One-time',
-    }));
+    // Prepare data for export with new column structure
+    const exportData = filteredInvoices.map((invoice) => {
+      // Calculate TDS and pending amounts
+      const tdsAmount = invoice.tds_applicable && invoice.tds_percentage
+        ? calculateTdsAmount(invoice.invoice_amount, invoice.tds_percentage)
+        : 0;
+      const netPayable = invoice.invoice_amount - tdsAmount;
+      const totalPaid = invoice.totalPaid ?? 0;
+      const pendingAmount = Math.max(0, netPayable - totalPaid);
+
+      // Get invoice details (profile name or invoice name)
+      const inv = invoice as typeof invoice & {
+        invoice_profile?: { name: string } | null;
+        description?: string | null;
+      };
+      const invoiceDetails = inv.is_recurring
+        ? (inv.invoice_profile?.name || 'Unknown Profile')
+        : (inv.description || inv.notes || 'Unnamed Invoice');
+
+      return {
+        'Invoice Details': invoiceDetails,
+        'Invoice Number': invoice.invoice_number || '',
+        'Type': invoice.is_recurring ? 'Recurring' : 'One-time',
+        'Invoice Date': formatDate(invoice.invoice_date),
+        'Invoice Amount': invoice.invoice_amount,
+        'TDS %': invoice.tds_percentage || 0,
+        'TDS Amount': tdsAmount,
+        'Net Payable': netPayable,
+        'Total Paid': totalPaid,
+        'Pending Amount': pendingAmount,
+        'Status': invoice.status,
+        'Vendor': invoice.vendor?.name || '',
+      };
+    });
 
     // Create workbook and worksheet
     const ws = XLSX.utils.json_to_sheet(exportData);
@@ -298,6 +343,73 @@ export function AllInvoicesTab() {
       toast.error(result.error || 'Failed to create archive request');
     }
   };
+
+  // Record payment handler - opens payment panel for the invoice
+  const handleRecordPayment = (invoice: (typeof invoices)[0]) => {
+    // Calculate remaining balance accounting for TDS
+    const tdsAmount = invoice.tds_applicable && invoice.tds_percentage
+      ? calculateTdsAmount(invoice.invoice_amount, invoice.tds_percentage)
+      : 0;
+    const netPayable = invoice.invoice_amount - tdsAmount;
+    const totalPaid = invoice.totalPaid ?? 0;
+    const remainingBalance = Math.max(0, netPayable - totalPaid);
+
+    openPanel('payment-record', {
+      invoiceId: invoice.id,
+      invoiceNumber: invoice.invoice_number,
+      invoiceAmount: invoice.invoice_amount,
+      remainingBalance,
+      tdsApplicable: invoice.tds_applicable,
+      tdsPercentage: invoice.tds_percentage,
+    });
+  };
+
+  // Approve invoice handler
+  const handleApproveInvoice = async (id: number, invoiceNumber: string) => {
+    if (!confirm(`Approve invoice ${invoiceNumber}?`)) return;
+
+    const result = await approveInvoice(id);
+    if (result.success) {
+      toast.success(`Invoice ${invoiceNumber} has been approved`);
+    } else {
+      toast.error(result.error || 'Failed to approve invoice');
+    }
+  };
+
+  // Reject invoice handler
+  const handleRejectInvoice = async (id: number, invoiceNumber: string) => {
+    const reason = prompt('Enter rejection reason (required):');
+    if (!reason) {
+      toast.error('Rejection reason is required');
+      return;
+    }
+
+    const result = await rejectInvoice(id, reason);
+    if (result.success) {
+      toast.success(`Invoice ${invoiceNumber} has been rejected`);
+    } else {
+      toast.error(result.error || 'Failed to reject invoice');
+    }
+  };
+
+  /**
+   * Get invoice details text:
+   * - For recurring: invoice profile name
+   * - For non-recurring: invoice name (stored in description or notes)
+   */
+  function getInvoiceDetails(invoice: (typeof invoices)[0]): string {
+    // Cast to access additional fields that may exist from API
+    const inv = invoice as typeof invoice & {
+      invoice_profile?: { name: string } | null;
+      description?: string | null;
+    };
+
+    if (inv.is_recurring) {
+      return inv.invoice_profile?.name || 'Unknown Profile';
+    }
+    // Non-recurring: use description as invoice name, fall back to notes
+    return inv.description || inv.notes || 'Unnamed Invoice';
+  }
 
   // Format month name for title
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -426,22 +538,22 @@ export function AllInvoicesTab() {
                   aria-label="Select all"
                 />
               </TableHead>
-              <TableHead className="w-[18%] text-xs font-medium text-muted-foreground uppercase tracking-wider Text-left">
-                Invoice ID
-              </TableHead>
-              <TableHead className="w-[22%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Vendor
-              </TableHead>
-              <TableHead className="w-[14%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Amount
+              <TableHead className="w-[22%] text-xs font-medium text-muted-foreground uppercase tracking-wider text-left">
+                Invoice Details
               </TableHead>
               <TableHead className="w-[12%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Status
+                Inv Date
               </TableHead>
               <TableHead className="w-[14%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Date
+                Inv Amount
               </TableHead>
-              <TableHead className="w-[12%] text-xs font-medium text-muted-foreground uppercase tracking-wider text-left pr-6">
+              <TableHead className="w-[14%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Pending
+              </TableHead>
+              <TableHead className="w-[10%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Status
+              </TableHead>
+              <TableHead className="w-[20%] text-xs font-medium text-muted-foreground uppercase tracking-wider text-left pr-6">
                 Actions
               </TableHead>
             </TableRow>
@@ -452,12 +564,15 @@ export function AllInvoicesTab() {
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
                   <TableCell className="pl-4"><Skeleton className="h-5 w-5 rounded" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-28" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-32 mb-1" />
+                    <Skeleton className="h-3 w-24" />
+                  </TableCell>
+                  <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                   <TableCell><Skeleton className="h-5 w-16 rounded-full" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                  <TableCell className="pr-6"><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
+                  <TableCell className="pr-6"><Skeleton className="h-4 w-24" /></TableCell>
                 </TableRow>
               ))
             ) : filteredInvoices.length === 0 ? (
@@ -467,77 +582,186 @@ export function AllInvoicesTab() {
                 </TableCell>
               </TableRow>
             ) : (
-              filteredInvoices.map((invoice) => (
-                <TableRow
-                  key={invoice.id}
-                  data-state={selectedInvoices.has(invoice.id) ? 'selected' : undefined}
-                  className="border-b border-border/50"
-                >
-                  <TableCell className="pl-4">
-                    <Checkbox
-                      checked={selectedInvoices.has(invoice.id)}
-                      onCheckedChange={() => toggleSelect(invoice.id)}
-                      aria-label={`Select ${invoice.invoice_number}`}
-                    />
-                  </TableCell>
-                  <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {invoice.vendor?.name || '-'}
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    {formatCurrency(invoice.invoice_amount)}
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge status={invoice.status as InvoiceStatus} />
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {formatDate(invoice.invoice_date)}
-                  </TableCell>
-                  <TableCell className="pl-4">
-                    <div className="flex items-center gap-3">
-                      <button
-                        className="text-muted-foreground hover:text-foreground transition-colors"
-                        onClick={() => handleViewInvoice(invoice.id)}
-                        title="View"
-                      >
-                        <Eye className="h-4 w-4" />
-                        <span className="sr-only">View</span>
-                      </button>
-                      {!showArchived && (
+              filteredInvoices.map((invoice) => {
+                // Calculate TDS and pending amounts
+                const tdsAmount = invoice.tds_applicable && invoice.tds_percentage
+                  ? calculateTdsAmount(invoice.invoice_amount, invoice.tds_percentage)
+                  : 0;
+                const netPayable = invoice.invoice_amount - tdsAmount;
+                const totalPaid = invoice.totalPaid ?? 0;
+                const pendingAmount = Math.max(0, netPayable - totalPaid);
+
+                // Permission checks for actions
+                const isPendingApproval = invoice.status === INVOICE_STATUS.PENDING_APPROVAL;
+                // Record Payment: Any logged-in user can record payments for unpaid/partial invoices
+                const canRecordPayment = !isPendingApproval &&
+                  invoice.status !== INVOICE_STATUS.PAID &&
+                  invoice.status !== INVOICE_STATUS.REJECTED &&
+                  invoice.status !== INVOICE_STATUS.ON_HOLD;
+                // Approve/Reject: Admin only for pending_approval invoices
+                const canApproveReject = isAdmin && isPendingApproval;
+
+                return (
+                  <TableRow
+                    key={invoice.id}
+                    data-state={selectedInvoices.has(invoice.id) ? 'selected' : undefined}
+                    className="border-b border-border/50"
+                  >
+                    {/* Checkbox */}
+                    <TableCell className="pl-4">
+                      <Checkbox
+                        checked={selectedInvoices.has(invoice.id)}
+                        onCheckedChange={() => toggleSelect(invoice.id)}
+                        aria-label={`Select ${invoice.invoice_number}`}
+                      />
+                    </TableCell>
+
+                    {/* Invoice Details: Profile/Invoice Name + Invoice Number + Recurring Badge */}
+                    <TableCell>
+                      <div className="space-y-0.5">
+                        <div className="font-medium text-sm">
+                          {getInvoiceDetails(invoice)}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">
+                            {invoice.invoice_number}
+                          </span>
+                          {invoice.is_recurring && (
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] px-1.5 py-0 h-4 border-orange-500/50 text-orange-500"
+                            >
+                              Recurring
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </TableCell>
+
+                    {/* Invoice Date */}
+                    <TableCell className="text-muted-foreground text-sm">
+                      {formatDate(invoice.invoice_date)}
+                    </TableCell>
+
+                    {/* Invoice Amount + TDS info */}
+                    <TableCell>
+                      <div className="space-y-0.5">
+                        <div className="font-medium text-sm">
+                          {formatCurrency(invoice.invoice_amount)}
+                        </div>
+                        {invoice.tds_applicable && invoice.tds_percentage && tdsAmount > 0 && (
+                          <div className="text-[10px] text-muted-foreground">
+                            TDS {formatCurrencyWithDecimals(tdsAmount)} ({invoice.tds_percentage}%)
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+
+                    {/* Pending Amount */}
+                    <TableCell>
+                      <span className={cn(
+                        'font-medium text-sm',
+                        pendingAmount > 0 ? 'text-amber-500' : 'text-green-500'
+                      )}>
+                        {formatCurrency(pendingAmount)}
+                      </span>
+                    </TableCell>
+
+                    {/* Status */}
+                    <TableCell>
+                      <StatusBadge status={invoice.status as InvoiceStatus} />
+                    </TableCell>
+
+                    {/* Actions */}
+                    <TableCell className="pl-4">
+                      <div className="flex items-center gap-2">
+                        {/* View */}
                         <button
                           className="text-muted-foreground hover:text-foreground transition-colors"
-                          onClick={() => handleEditInvoice(invoice.id, invoice.is_recurring)}
-                          title="Edit"
+                          onClick={() => handleViewInvoice(invoice.id)}
+                          title="View"
                         >
-                          <Pencil className="h-4 w-4" />
-                          <span className="sr-only">Edit</span>
+                          <Eye className="h-4 w-4" />
+                          <span className="sr-only">View</span>
                         </button>
-                      )}
-                      {!showArchived && (
-                        <button
-                          className="text-muted-foreground hover:text-amber-500 transition-colors"
-                          onClick={() => handleArchiveInvoice(invoice.id, invoice.invoice_number)}
-                          title="Archive"
-                        >
-                          <Archive className="h-4 w-4" />
-                          <span className="sr-only">Archive</span>
-                        </button>
-                      )}
-                      {isSuperAdmin && (
-                        <button
-                          className="text-muted-foreground hover:text-destructive transition-colors"
-                          onClick={() => handleDeleteInvoice(invoice.id, invoice.invoice_number)}
-                          disabled={isDeleting}
-                          title="Permanently Delete"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          <span className="sr-only">Delete</span>
-                        </button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
+
+                        {/* Edit - hide when archived */}
+                        {!showArchived && (
+                          <button
+                            className="text-muted-foreground hover:text-foreground transition-colors"
+                            onClick={() => handleEditInvoice(invoice.id, invoice.is_recurring)}
+                            title="Edit"
+                          >
+                            <Pencil className="h-4 w-4" />
+                            <span className="sr-only">Edit</span>
+                          </button>
+                        )}
+
+                        {/* Record Payment - show for unpaid/partial/overdue invoices (any user) */}
+                        {canRecordPayment && (
+                          <button
+                            className="text-muted-foreground hover:text-primary transition-colors"
+                            onClick={() => handleRecordPayment(invoice)}
+                            title="Record Payment"
+                          >
+                            <CreditCard className="h-4 w-4" />
+                            <span className="sr-only">Record Payment</span>
+                          </button>
+                        )}
+
+                        {/* Approve - show for pending_approval invoices (admin only) */}
+                        {canApproveReject && (
+                          <button
+                            className="text-muted-foreground hover:text-green-500 transition-colors"
+                            onClick={() => handleApproveInvoice(invoice.id, invoice.invoice_number)}
+                            title="Approve"
+                          >
+                            <Check className="h-4 w-4" />
+                            <span className="sr-only">Approve</span>
+                          </button>
+                        )}
+
+                        {/* Reject - show for pending_approval invoices (admin only) */}
+                        {canApproveReject && (
+                          <button
+                            className="text-muted-foreground hover:text-destructive transition-colors"
+                            onClick={() => handleRejectInvoice(invoice.id, invoice.invoice_number)}
+                            title="Reject"
+                          >
+                            <X className="h-4 w-4" />
+                            <span className="sr-only">Reject</span>
+                          </button>
+                        )}
+
+                        {/* Archive - hide when archived */}
+                        {!showArchived && (
+                          <button
+                            className="text-muted-foreground hover:text-amber-500 transition-colors"
+                            onClick={() => handleArchiveInvoice(invoice.id, invoice.invoice_number)}
+                            title="Archive"
+                          >
+                            <Archive className="h-4 w-4" />
+                            <span className="sr-only">Archive</span>
+                          </button>
+                        )}
+
+                        {/* Delete - super admin only */}
+                        {isSuperAdmin && (
+                          <button
+                            className="text-muted-foreground hover:text-destructive transition-colors"
+                            onClick={() => handleDeleteInvoice(invoice.id, invoice.invoice_number)}
+                            disabled={isDeleting}
+                            title="Permanently Delete"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            <span className="sr-only">Delete</span>
+                          </button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>

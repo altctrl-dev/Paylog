@@ -292,7 +292,7 @@ export function InvoicesPage({
     const stats = profiles.map((profile) => {
       // Filter invoices for this profile
       const profileInvoices = invoices.filter(
-        (inv) => inv.profile?.id === profile.id
+        (inv) => inv.invoice_profile?.id === profile.id
       );
 
       // Calculate aggregated statistics

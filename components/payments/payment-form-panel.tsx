@@ -112,17 +112,17 @@ export function PaymentFormPanel({
     defaultValues: {
       amount_paid: 0,
       payment_date: new Date(),
-      payment_method: '', // Will be set when payment types load
+      payment_type_id: 0, // Will be set when payment types load
       payment_reference: null,
       tds_amount_applied: null,
       tds_rounded: false,
     },
   });
 
-  // Set default payment method when payment types load
+  // Set default payment type when payment types load
   React.useEffect(() => {
-    if (paymentTypes.length > 0 && !watch('payment_method')) {
-      setValue('payment_method', paymentTypes[0].name);
+    if (paymentTypes.length > 0 && !watch('payment_type_id')) {
+      setValue('payment_type_id', paymentTypes[0].id);
     }
   }, [paymentTypes, setValue, watch]);
 
@@ -319,20 +319,20 @@ export function PaymentFormPanel({
           </p>
         </div>
 
-        {/* Payment Method */}
+        {/* Payment Type */}
         <div className="space-y-2">
-          <Label htmlFor="payment_method">
-            Payment Method <span className="text-destructive">*</span>
+          <Label htmlFor="payment_type_id">
+            Payment Type <span className="text-destructive">*</span>
           </Label>
           <Controller
-            name="payment_method"
+            name="payment_type_id"
             control={control}
             render={({ field }) => (
               <Select
-                id="payment_method"
-                value={field.value}
-                onChange={(e) => field.onChange(e.target.value)}
-                className={errors.payment_method ? 'border-destructive' : ''}
+                id="payment_type_id"
+                value={field.value?.toString() || ''}
+                onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value, 10) : 0)}
+                className={errors.payment_type_id ? 'border-destructive' : ''}
                 disabled={isLoadingPaymentTypes}
               >
                 {isLoadingPaymentTypes ? (
@@ -341,9 +341,9 @@ export function PaymentFormPanel({
                   <option value="">No payment types available</option>
                 ) : (
                   <>
-                    <option value="">-- Select Payment Method --</option>
+                    <option value="">-- Select Payment Type --</option>
                     {paymentTypes.map((type) => (
-                      <option key={type.id} value={type.name}>
+                      <option key={type.id} value={type.id}>
                         {type.name}
                       </option>
                     ))}
@@ -352,9 +352,9 @@ export function PaymentFormPanel({
               </Select>
             )}
           />
-          {errors.payment_method && (
+          {errors.payment_type_id && (
             <p className="text-xs text-destructive">
-              {errors.payment_method.message}
+              {errors.payment_type_id.message}
             </p>
           )}
         </div>
@@ -363,7 +363,7 @@ export function PaymentFormPanel({
         <div className="space-y-2">
           <Label htmlFor="payment_reference">
             Transaction Reference{' '}
-            {paymentTypes.find(pt => pt.name === watch('payment_method'))?.requires_reference ? (
+            {paymentTypes.find(pt => pt.id === watch('payment_type_id'))?.requires_reference ? (
               <span className="text-destructive">*</span>
             ) : (
               <span className="text-muted-foreground text-xs">(Optional)</span>

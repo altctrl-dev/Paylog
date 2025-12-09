@@ -108,12 +108,12 @@ export function useUrlFilters(
       }
     }
 
-    // Parse profile_id param (single number only)
-    const profileParam = searchParams.get('profile_id');
+    // Parse invoice_profile_id param (single number only)
+    const profileParam = searchParams.get('invoice_profile_id');
     if (profileParam) {
       const profileId = parseInt(profileParam, 10);
       if (!isNaN(profileId)) {
-        filters.profile_id = profileId;
+        filters.invoice_profile_id = profileId;
       }
     }
 
@@ -201,9 +201,9 @@ export function useUrlFilters(
         params.set('category_id', String(newFilters.category_id));
       }
 
-      // Add profile_id param (single number only)
-      if (newFilters.profile_id !== undefined) {
-        params.set('profile_id', String(newFilters.profile_id));
+      // Add invoice_profile_id param (single number only)
+      if (newFilters.invoice_profile_id !== undefined) {
+        params.set('invoice_profile_id', String(newFilters.invoice_profile_id));
       }
 
       // Add page param

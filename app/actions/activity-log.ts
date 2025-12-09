@@ -132,7 +132,7 @@ export async function getActivityLog(
     // 2. Check if invoice exists
     const invoice = await db.invoice.findUnique({
       where: { id: invoiceId },
-      select: { id: true, invoice_number: true, is_hidden: true },
+      select: { id: true, invoice_number: true, is_archived: true },
     });
 
     if (!invoice) {
@@ -142,10 +142,10 @@ export async function getActivityLog(
       };
     }
 
-    if (invoice.is_hidden) {
+    if (invoice.is_archived) {
       return {
         success: false,
-        error: 'Cannot access activity log for hidden invoice',
+        error: 'Cannot access activity log for archived invoice',
       };
     }
 
@@ -241,7 +241,7 @@ export async function exportActivityLog(
     // 2. Check if invoice exists
     const invoice = await db.invoice.findUnique({
       where: { id: invoiceId },
-      select: { id: true, invoice_number: true, is_hidden: true },
+      select: { id: true, invoice_number: true, is_archived: true },
     });
 
     if (!invoice) {
@@ -251,10 +251,10 @@ export async function exportActivityLog(
       };
     }
 
-    if (invoice.is_hidden) {
+    if (invoice.is_archived) {
       return {
         success: false,
-        error: 'Cannot export activity log for hidden invoice',
+        error: 'Cannot export activity log for archived invoice',
       };
     }
 
@@ -363,7 +363,7 @@ export async function getUserActivities(
         {
           invoice: {
             created_by: user.id,
-            is_hidden: false,
+            is_archived: false,
           },
         },
       ],
@@ -449,7 +449,7 @@ export async function getActivityLogStats(
     // 2. Check if invoice exists
     const invoice = await db.invoice.findUnique({
       where: { id: invoiceId },
-      select: { id: true, is_hidden: true },
+      select: { id: true, is_archived: true },
     });
 
     if (!invoice) {
@@ -459,10 +459,10 @@ export async function getActivityLogStats(
       };
     }
 
-    if (invoice.is_hidden) {
+    if (invoice.is_archived) {
       return {
         success: false,
-        error: 'Cannot access activity log for hidden invoice',
+        error: 'Cannot access activity log for archived invoice',
       };
     }
 

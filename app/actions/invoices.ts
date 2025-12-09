@@ -86,13 +86,7 @@ const invoiceInclude = {
       name: true,
     },
   },
-  profile: {
-    select: {
-      id: true,
-      name: true,
-    },
-  },
-  sub_entity: {
+  invoice_profile: {
     select: {
       id: true,
       name: true,
@@ -241,9 +235,7 @@ export async function getInvoices(
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const where: Prisma.InvoiceWhereInput = {
-      is_hidden: false, // Always exclude hidden invoices by default
-    };
+    const where: Prisma.InvoiceWhereInput = {};
 
     // Handle archived filter
     // Use NOT for backwards compatibility (handles null values correctly)
@@ -297,10 +289,6 @@ export async function getInvoices(
 
     if (validated.category_id) {
       where.category_id = validated.category_id;
-    }
-
-    if (validated.profile_id) {
-      where.profile_id = validated.profile_id;
     }
 
     // Tab-specific filters (Sprint 14 - Invoice Tabs)
@@ -498,13 +486,6 @@ export async function getInvoiceById(
       };
     }
 
-    if (invoice.is_hidden) {
-      return {
-        success: false,
-        error: 'Invoice is hidden and cannot be accessed',
-      };
-    }
-
     if (invoice.is_archived) {
       return {
         success: false,
@@ -619,90 +600,35 @@ export async function createInvoice(
       }
     }
 
-    // Validate profile exists
-    if (validated.profile_id) {
-      const profile = await db.invoiceProfile.findUnique({
-        where: { id: validated.profile_id },
+    // Validate invoice profile exists (if provided)
+    if (validated.invoice_profile_id) {
+      const invoiceProfile = await db.invoiceProfile.findUnique({
+        where: { id: validated.invoice_profile_id },
       });
-      if (!profile) {
+      if (!invoiceProfile) {
         return {
           success: false,
-          error: 'Selected profile does not exist',
-        };
-      }
-    }
-
-    // Validate sub entity exists
-    if (validated.sub_entity_id) {
-      const subEntity = await db.subEntity.findUnique({
-        where: { id: validated.sub_entity_id },
-      });
-      if (!subEntity || !subEntity.is_active) {
-        return {
-          success: false,
-          error: 'Selected sub entity does not exist or is inactive',
+          error: 'Selected invoice profile does not exist',
         };
       }
     }
 
     // Determine if user is admin
     const isAdmin = user.role === 'admin' || user.role === 'super_admin';
-    const hasPendingPayment = validated.is_paid && validated.paid_amount && validated.paid_amount > 0;
 
-    // Determine initial status based on user role and payment status
-    let initialStatus: string;
-    if (isAdmin) {
-      // Admin: If paid, set to paid; otherwise unpaid
-      initialStatus = hasPendingPayment ? INVOICE_STATUS.PAID : INVOICE_STATUS.UNPAID;
-    } else {
-      // Standard user: Always pending approval first
-      initialStatus = INVOICE_STATUS.PENDING_APPROVAL;
-    }
+    // Determine initial status based on user role
+    // Payments are now handled through the Payment table, not inline
+    const initialStatus = isAdmin ? INVOICE_STATUS.UNPAID : INVOICE_STATUS.PENDING_APPROVAL;
 
-    // Extract payment data from validated (these may be stripped by Zod if not provided)
-    const paymentData = {
-      is_paid: validated.is_paid ?? false,
-      paid_date: validated.paid_date ?? null,
-      paid_amount: validated.paid_amount ?? null,
-      paid_currency: validated.paid_currency ?? null,
-      payment_type_id: validated.payment_type_id ?? null,
-      payment_reference: validated.payment_reference ?? null,
-    };
-
-    // Prepare invoice data (exclude payment fields from direct spread)
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { is_paid, paid_date, paid_amount, paid_currency, payment_type_id, payment_reference, ...invoiceData } = validated;
-
-    // Create invoice with inline payment fields
+    // Create invoice
     const invoice = await db.invoice.create({
       data: {
-        ...invoiceData,
+        ...validated,
         status: initialStatus,
         created_by: user.id,
-        // Store payment data in invoice (for standard users, this will be used on approval)
-        is_paid: paymentData.is_paid,
-        paid_date: paymentData.paid_date,
-        paid_amount: paymentData.paid_amount,
-        paid_currency: paymentData.paid_currency,
-        payment_type_id: paymentData.payment_type_id,
-        payment_reference: paymentData.payment_reference,
       },
       include: invoiceInclude,
     });
-
-    // If admin and paid, create Payment record immediately
-    if (isAdmin && hasPendingPayment && paymentData.paid_amount) {
-      await db.payment.create({
-        data: {
-          invoice_id: invoice.id,
-          amount_paid: paymentData.paid_amount,
-          payment_date: paymentData.paid_date ?? new Date(),
-          payment_method: 'bank_transfer', // Default method for inline payments
-          payment_reference: paymentData.payment_reference,
-          status: PAYMENT_STATUS.APPROVED,
-        },
-      });
-    }
 
     // Log activity (non-blocking)
     await createActivityLog({
@@ -714,8 +640,6 @@ export async function createInvoice(
         vendor_id: invoice.vendor_id,
         invoice_amount: invoice.invoice_amount,
         status: invoice.status,
-        is_paid: paymentData.is_paid,
-        paid_amount: paymentData.paid_amount,
       },
     });
 
@@ -777,10 +701,10 @@ export async function updateInvoice(
       };
     }
 
-    if (existing.is_hidden) {
+    if (existing.is_archived) {
       return {
         success: false,
-        error: 'Cannot update hidden invoice',
+        error: 'Cannot update archived invoice',
       };
     }
 
@@ -825,28 +749,15 @@ export async function updateInvoice(
       }
     }
 
-    // Validate profile exists (if provided)
-    if (validated.profile_id) {
-      const profile = await db.invoiceProfile.findUnique({
-        where: { id: validated.profile_id },
+    // Validate invoice profile exists (if provided)
+    if (validated.invoice_profile_id) {
+      const invoiceProfile = await db.invoiceProfile.findUnique({
+        where: { id: validated.invoice_profile_id },
       });
-      if (!profile) {
+      if (!invoiceProfile) {
         return {
           success: false,
-          error: 'Selected profile does not exist',
-        };
-      }
-    }
-
-    // Validate sub entity exists (if provided)
-    if (validated.sub_entity_id) {
-      const subEntity = await db.subEntity.findUnique({
-        where: { id: validated.sub_entity_id },
-      });
-      if (!subEntity || !subEntity.is_active) {
-        return {
-          success: false,
-          error: 'Selected sub entity does not exist or is inactive',
+          error: 'Selected invoice profile does not exist',
         };
       }
     }
@@ -910,11 +821,11 @@ export async function updateInvoice(
 }
 
 // ============================================================================
-// DELETE OPERATION (SOFT DELETE)
+// DELETE OPERATION (SOFT DELETE via Archive)
 // ============================================================================
 
 /**
- * Soft delete invoice (set is_hidden = true)
+ * Soft delete invoice (set is_archived = true)
  *
  * @param id - Invoice ID
  * @returns Success result
@@ -944,21 +855,21 @@ export async function deleteInvoice(
       };
     }
 
-    if (existing.is_hidden) {
+    if (existing.is_archived) {
       return {
         success: false,
-        error: 'Invoice is already hidden',
+        error: 'Invoice is already archived',
       };
     }
 
-    // Soft delete (set hidden fields)
+    // Soft delete (set archived fields)
     await db.invoice.update({
       where: { id },
       data: {
-        is_hidden: true,
-        hidden_by: user.id,
-        hidden_at: new Date(),
-        hidden_reason: 'Deleted by user',
+        is_archived: true,
+        archived_by: user.id,
+        archived_at: new Date(),
+        archived_reason: 'Deleted by user',
       },
     });
 
@@ -966,7 +877,7 @@ export async function deleteInvoice(
     await createActivityLog({
       invoice_id: id,
       user_id: user.id,
-      action: ACTIVITY_ACTION.INVOICE_HIDDEN,
+      action: ACTIVITY_ACTION.INVOICE_ARCHIVED,
       old_data: {
         invoice_number: existing.invoice_number,
         status: existing.status,
@@ -1020,10 +931,10 @@ export async function putInvoiceOnHold(
       };
     }
 
-    if (existing.is_hidden) {
+    if (existing.is_archived) {
       return {
         success: false,
-        error: 'Cannot put hidden invoice on hold',
+        error: 'Cannot put archived invoice on hold',
       };
     }
 
@@ -1118,10 +1029,10 @@ export async function approveInvoice(
       };
     }
 
-    if (existing.is_hidden) {
+    if (existing.is_archived) {
       return {
         success: false,
-        error: 'Cannot approve hidden invoice',
+        error: 'Cannot approve archived invoice',
       };
     }
 
@@ -1132,34 +1043,14 @@ export async function approveInvoice(
       };
     }
 
-    // Check if invoice has pending payment data from creation
-    const hasPendingPayment = existing.is_paid && existing.paid_amount && existing.paid_amount > 0;
-
-    // Determine the new status based on pending payment
-    const newStatus = hasPendingPayment ? INVOICE_STATUS.PAID : INVOICE_STATUS.UNPAID;
-
-    // Update invoice status
+    // Update invoice status to unpaid (payments are handled through Payment table)
     const invoice = await db.invoice.update({
       where: { id },
       data: {
-        status: newStatus,
+        status: INVOICE_STATUS.UNPAID,
       },
       include: invoiceInclude,
     });
-
-    // If there's pending payment data, create the Payment record now
-    if (hasPendingPayment && existing.paid_amount) {
-      await db.payment.create({
-        data: {
-          invoice_id: id,
-          amount_paid: existing.paid_amount,
-          payment_date: existing.paid_date ?? new Date(),
-          payment_method: 'bank_transfer', // Default method for inline payments
-          payment_reference: existing.payment_reference,
-          status: PAYMENT_STATUS.APPROVED,
-        },
-      });
-    }
 
     // Log activity (non-blocking)
     await createActivityLog({
@@ -1170,8 +1061,7 @@ export async function approveInvoice(
         status: existing.status,
       },
       new_data: {
-        status: newStatus,
-        payment_created: hasPendingPayment,
+        status: INVOICE_STATUS.UNPAID,
       },
     });
 
@@ -1237,10 +1127,10 @@ export async function rejectInvoice(
       };
     }
 
-    if (existing.is_hidden) {
+    if (existing.is_archived) {
       return {
         success: false,
-        error: 'Cannot reject hidden invoice',
+        error: 'Cannot reject archived invoice',
       };
     }
 
@@ -1373,7 +1263,7 @@ export async function getInvoiceProfileById(
 }
 
 /**
- * Get dropdown data for forms (vendors, categories, profiles, sub entities, entities, currencies)
+ * Get dropdown data for forms (vendors, categories, profiles, entities, currencies)
  *
  * @returns Form dropdown options
  */
@@ -1382,7 +1272,6 @@ export async function getInvoiceFormOptions(): Promise<
     vendors: Array<{ id: number; name: string }>;
     categories: Array<{ id: number; name: string }>;
     profiles: Array<{ id: number; name: string }>;
-    subEntities: Array<{ id: number; name: string }>;
     entities: Array<{ id: number; name: string }>;
     currencies: Array<{ id: number; code: string; name: string; symbol: string }>;
   }>
@@ -1409,7 +1298,7 @@ export async function getInvoiceFormOptions(): Promise<
       ];
     }
 
-    const [vendors, categories, profiles, subEntities, entities, currencies] =
+    const [vendors, categories, profiles, entities, currencies] =
       await Promise.all([
         db.vendor.findMany({
           where: { is_active: true },
@@ -1423,11 +1312,6 @@ export async function getInvoiceFormOptions(): Promise<
         }),
         db.invoiceProfile.findMany({
           where: profileWhere,
-          select: { id: true, name: true },
-          orderBy: { name: 'asc' },
-        }),
-        db.subEntity.findMany({
-          where: { is_active: true },
           select: { id: true, name: true },
           orderBy: { name: 'asc' },
         }),
@@ -1449,7 +1333,6 @@ export async function getInvoiceFormOptions(): Promise<
         vendors,
         categories,
         profiles,
-        subEntities,
         entities,
         currencies,
       },
@@ -1867,7 +1750,7 @@ export async function archiveInvoice(
           where: { deleted_at: null },
           select: { id: true, storage_path: true, file_name: true },
         },
-        profile: {
+        invoice_profile: {
           select: { name: true },
         },
         vendor: {
@@ -1962,7 +1845,7 @@ export async function archiveInvoice(
             invoice_number: existing.invoice_number,
             vendor: existing.vendor?.name || 'N/A',
             category: existing.category?.name || 'N/A',
-            profile: existing.profile?.name || 'N/A',
+            invoice_profile: existing.invoice_profile?.name || 'N/A',
             amount: existing.invoice_amount,
             status: existing.status,
             invoice_date: existing.invoice_date?.toISOString().split('T')[0] || 'N/A',
@@ -2074,7 +1957,7 @@ export async function permanentDeleteInvoice(
         attachments: {
           select: { id: true, storage_path: true, file_name: true },
         },
-        profile: {
+        invoice_profile: {
           select: { name: true },
         },
         vendor: {
@@ -2156,7 +2039,7 @@ export async function permanentDeleteInvoice(
             invoice_number: existing.invoice_number,
             vendor: existing.vendor?.name || 'N/A',
             category: existing.category?.name || 'N/A',
-            profile: existing.profile?.name || 'N/A',
+            invoice_profile: existing.invoice_profile?.name || 'N/A',
             amount: existing.invoice_amount,
             status: existing.status,
             invoice_date: existing.invoice_date?.toISOString().split('T')[0] || 'N/A',

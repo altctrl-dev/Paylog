@@ -145,14 +145,8 @@ export function EditNonRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: 
       setValue('invoice_amount', invoice.invoice_amount);
       setValue('tds_applicable', invoice.tds_applicable);
       setValue('tds_percentage', invoice.tds_percentage || null);
-      setValue('is_paid', invoice.is_paid);
-      setValue('paid_date', invoice.paid_date ? new Date(invoice.paid_date) : null);
-      setValue('paid_amount', invoice.paid_amount || null);
-      setValue('paid_currency', invoice.paid_currency || null);
-      setValue('payment_type_id', invoice.payment_type_id || null);
-      setValue('payment_reference', invoice.payment_reference || null);
-      // tds_rounded is a payment field, not stored on invoice - default to false
-      setValue('tds_rounded', false);
+      // Note: Payment fields (is_paid, paid_date, paid_amount, etc.) are now
+      // stored in the Payment table, not on Invoice. Payments are recorded separately.
     }
   }, [invoice, setValue]);
 

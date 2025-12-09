@@ -29,11 +29,8 @@ export const invoiceFormSchema = z
       .max(100, 'Invoice number too long'),
     vendor_id: z.number().int().positive('Vendor is required'),
     category_id: z.number().int().positive('Category is required'),
-    profile_id: z.number().int().positive('Invoice profile is required'),
-    sub_entity_id: z.number().int().positive('Sub entity is required'),
-    // NEW: Sprint 9A fields (optional for now, will be required in Sprint 9C)
-    entity_id: z.number().int().positive('Entity is required').optional(),
-    currency_id: z.number().int().positive('Currency is required').optional(),
+    entity_id: z.number().int().positive('Entity is required'),
+    currency_id: z.number().int().positive('Currency is required'),
     invoice_amount: z
       .number()
       .min(0.01, 'Amount must be greater than 0')
@@ -43,7 +40,10 @@ export const invoiceFormSchema = z
       required_error: 'Invoice date is required',
       invalid_type_error: 'Invalid date format',
     }),
-    // Period dates are OPTIONAL (Phase 3.5 Change 1)
+    invoice_received_date: z.date({
+      invalid_type_error: 'Invalid date format',
+    }).nullable().optional(),
+    // Period dates are OPTIONAL
     period_start: z.date({
       invalid_type_error: 'Invalid date format',
     }).nullable(),
@@ -60,21 +60,11 @@ export const invoiceFormSchema = z
       .min(0, 'TDS percentage cannot be negative')
       .max(100, 'TDS percentage cannot exceed 100')
       .nullable(),
+    description: z.string().max(1000, 'Description too long').optional().nullable(),
     notes: z.string().max(1000, 'Notes too long').optional().nullable(),
-    // Inline payment fields (optional - for recording payment at invoice creation)
-    is_paid: z.boolean().optional().default(false),
-    paid_date: z.date({
-      invalid_type_error: 'Invalid payment date format',
-    }).nullable().optional(),
-    paid_amount: z
-      .number()
-      .min(0.01, 'Payment amount must be greater than 0')
-      .max(999999999, 'Payment amount too large')
-      .nullable()
-      .optional(),
-    paid_currency: z.string().max(10).nullable().optional(),
-    payment_type_id: z.number().int().positive().nullable().optional(),
-    payment_reference: z.string().max(100).nullable().optional(),
+    // Invoice type fields
+    is_recurring: z.boolean().optional().default(false),
+    invoice_profile_id: z.number().int().positive().nullable().optional(),
   })
   .refine(
     (data) => {
@@ -122,21 +112,6 @@ export const invoiceFormSchema = z
     {
       message: 'Due date cannot be before invoice date',
       path: ['due_date'],
-    }
-  )
-  .refine(
-    (data) => {
-      // Validation: if is_paid is true, payment fields are required
-      if (data.is_paid) {
-        if (!data.paid_date) return false;
-        if (!data.paid_amount || data.paid_amount <= 0) return false;
-        if (!data.payment_type_id) return false;
-      }
-      return true;
-    },
-    {
-      message: 'Payment date, amount, and payment type are required when marking as paid',
-      path: ['paid_amount'],
     }
   );
 
@@ -197,8 +172,7 @@ export const invoiceFiltersSchema = z
       .optional(),
     vendor_id: z.number().int().positive().optional(),
     category_id: z.number().int().positive().optional(),
-    profile_id: z.number().int().positive().optional(),
-    // Tab-specific filters (Sprint 14 - Invoice Tabs)
+    entity_id: z.number().int().positive().optional(),
     is_recurring: z.boolean().optional(),
     tds_applicable: z.boolean().optional(),
     invoice_profile_id: z.number().int().positive().optional(),

@@ -140,29 +140,7 @@ async function main() {
     console.log('⏭️  Payment types already exist (', paymentTypeCount, 'types)');
   }
 
-  // Create sub entities (skip if exist)
-  const subEntityCount = await prisma.subEntity.count();
-  if (subEntityCount === 0) {
-    const subEntities = await prisma.subEntity.createMany({
-      data: [
-        {
-          name: 'Head Office',
-          description: 'Main office operations',
-        },
-        {
-          name: 'Branch A',
-          description: 'Branch A division',
-        },
-        {
-          name: 'Branch B',
-          description: 'Branch B division',
-        },
-      ],
-    });
-    console.log('✅ Created', subEntities.count, 'sub entities');
-  } else {
-    console.log('⏭️  Sub entities already exist (', subEntityCount, 'entities)');
-  }
+  // SubEntity model removed - entities are now managed via Entity model in master data
 
   console.log('\n✨ Database seeded successfully!');
   console.log('\nLogin credentials:');

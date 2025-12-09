@@ -69,7 +69,7 @@ async function checkUploadPermission(
       id: true,
       created_by: true,
       status: true,
-      is_hidden: true,
+      is_archived: true,
     },
   });
 
@@ -77,8 +77,8 @@ async function checkUploadPermission(
     return { allowed: false, reason: 'Invoice not found' };
   }
 
-  if (invoice.is_hidden) {
-    return { allowed: false, reason: 'Cannot upload to hidden invoice' };
+  if (invoice.is_archived) {
+    return { allowed: false, reason: 'Cannot upload to archived invoice' };
   }
 
   // Check if invoice status allows edits
@@ -141,7 +141,7 @@ async function checkDeletePermission(
       invoice: {
         select: {
           created_by: true,
-          is_hidden: true,
+          is_archived: true,
         },
       },
     },
@@ -155,8 +155,8 @@ async function checkDeletePermission(
     return { allowed: false, reason: 'Attachment already deleted' };
   }
 
-  if (attachment.invoice.is_hidden) {
-    return { allowed: false, reason: 'Cannot delete attachment from hidden invoice' };
+  if (attachment.invoice.is_archived) {
+    return { allowed: false, reason: 'Cannot delete attachment from archived invoice' };
   }
 
   // Get user to check role
@@ -416,7 +416,7 @@ export async function getAttachments(
     // 2. Check invoice exists and user has access
     const invoice = await db.invoice.findUnique({
       where: { id: invoiceId },
-      select: { id: true, is_hidden: true },
+      select: { id: true, is_archived: true },
     });
 
     if (!invoice) {
@@ -426,10 +426,10 @@ export async function getAttachments(
       };
     }
 
-    if (invoice.is_hidden) {
+    if (invoice.is_archived) {
       return {
         success: false,
-        error: 'Cannot access attachments for hidden invoice',
+        error: 'Cannot access attachments for archived invoice',
       };
     }
 
@@ -562,7 +562,7 @@ export async function getAttachment(
           select: {
             id: true,
             invoice_number: true,
-            is_hidden: true,
+            is_archived: true,
           },
         },
         uploader: {
@@ -589,11 +589,11 @@ export async function getAttachment(
       };
     }
 
-    // 3. Check access permissions (cannot access hidden invoice attachments)
-    if (attachment.invoice.is_hidden) {
+    // 3. Check access permissions (cannot access archived invoice attachments)
+    if (attachment.invoice.is_archived) {
       return {
         success: false,
-        error: 'Cannot access attachment from hidden invoice',
+        error: 'Cannot access attachment from archived invoice',
       };
     }
 

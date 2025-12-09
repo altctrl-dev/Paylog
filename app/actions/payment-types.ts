@@ -125,7 +125,7 @@ export async function getPaymentTypes(
         where,
         include: {
           _count: {
-            select: { invoices: true },
+            select: { payments: true },
           },
         },
         orderBy: { name: 'asc' },
@@ -144,7 +144,7 @@ export async function getPaymentTypes(
         is_active: pt.is_active,
         created_at: pt.created_at,
         updated_at: pt.updated_at,
-        invoiceCount: pt._count.invoices,
+        invoiceCount: pt._count.payments,
       })
     );
 
@@ -244,7 +244,7 @@ export async function createPaymentType(
       },
       include: {
         _count: {
-          select: { invoices: true },
+          select: { payments: true },
         },
       },
     });
@@ -262,7 +262,7 @@ export async function createPaymentType(
         is_active: paymentType.is_active,
         created_at: paymentType.created_at,
         updated_at: paymentType.updated_at,
-        invoiceCount: paymentType._count.invoices,
+        invoiceCount: paymentType._count.payments,
       },
     };
   } catch (error) {
@@ -324,7 +324,7 @@ export async function updatePaymentType(
       },
       include: {
         _count: {
-          select: { invoices: true },
+          select: { payments: true },
         },
       },
     });
@@ -342,7 +342,7 @@ export async function updatePaymentType(
         is_active: paymentType.is_active,
         created_at: paymentType.created_at,
         updated_at: paymentType.updated_at,
-        invoiceCount: paymentType._count.invoices,
+        invoiceCount: paymentType._count.payments,
       },
     };
   } catch (error) {
@@ -369,7 +369,7 @@ export async function archivePaymentType(
       where: { id },
       include: {
         _count: {
-          select: { invoices: true },
+          select: { payments: true },
         },
       },
     });
@@ -381,10 +381,10 @@ export async function archivePaymentType(
       };
     }
 
-    if (paymentType._count.invoices > 0) {
+    if (paymentType._count.payments > 0) {
       return {
         success: false,
-        error: `Cannot archive payment type with ${paymentType._count.invoices} invoice(s)`,
+        error: `Cannot archive payment type with ${paymentType._count.payments} invoice(s)`,
       };
     }
 
@@ -446,7 +446,7 @@ export async function restorePaymentType(
       },
       include: {
         _count: {
-          select: { invoices: true },
+          select: { payments: true },
         },
       },
     });
@@ -464,7 +464,7 @@ export async function restorePaymentType(
         is_active: updated.is_active,
         created_at: updated.created_at,
         updated_at: updated.updated_at,
-        invoiceCount: updated._count.invoices,
+        invoiceCount: updated._count.payments,
       },
     };
   } catch (error) {

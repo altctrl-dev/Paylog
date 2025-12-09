@@ -96,7 +96,7 @@ export function ProfileInvoicesPanel({
     data: invoicesData,
     isLoading: isLoadingInvoices,
   } = useInvoices({
-    profile_id: profileId,
+    invoice_profile_id: profileId,
     page: 1,
     per_page: 100,
   });

@@ -9,7 +9,7 @@
 
 import * as React from 'react';
 import { format } from 'date-fns';
-import { FileText, Calendar, DollarSign, Building, Tag, Clock, Download, CheckCircle, XCircle, Pencil, Pause, Eye, Archive, Trash2, CreditCard } from 'lucide-react';
+import { FileText, Calendar, Building, Tag, Clock, Download, CheckCircle, XCircle, Pencil, Pause, Eye, Archive, Trash2, CreditCard } from 'lucide-react';
 import { PanelLevel } from '@/components/panels/panel-level';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -421,45 +421,8 @@ export function InvoiceDetailPanelV2({ config, onClose, invoiceId, userRole, use
           </Card>
         )}
 
-        {/* Inline Payment Section (If Paid) */}
-        {invoice.is_paid && (
-          <Card className="p-4 border-green-200 bg-green-50 dark:bg-green-950 dark:border-green-800">
-            <h4 className="font-semibold mb-3 flex items-center gap-2 text-green-700 dark:text-green-300">
-              <DollarSign className="h-4 w-4" />
-              Payment Information
-            </h4>
-            <div className="grid grid-cols-2 gap-4">
-              {invoice.paid_date && (
-                <div>
-                  <Label className="text-xs text-muted-foreground">Payment Date</Label>
-                  <p className="text-sm font-medium">
-                    {format(new Date(invoice.paid_date), 'MMM dd, yyyy')}
-                  </p>
-                </div>
-              )}
-              {invoice.paid_amount && (
-                <div>
-                  <Label className="text-xs text-muted-foreground">Amount Paid</Label>
-                  <p className="text-sm font-semibold">
-                    {formatCurrency(invoice.paid_amount, invoice.paid_currency || currencyCode)}
-                  </p>
-                </div>
-              )}
-              {invoice.payment_type && (
-                <div>
-                  <Label className="text-xs text-muted-foreground">Payment Method</Label>
-                  <p className="text-sm font-medium">{invoice.payment_type.name}</p>
-                </div>
-              )}
-              {invoice.payment_reference && (
-                <div>
-                  <Label className="text-xs text-muted-foreground">Reference</Label>
-                  <p className="text-sm font-medium font-mono">{invoice.payment_reference}</p>
-                </div>
-              )}
-            </div>
-          </Card>
-        )}
+        {/* Note: Payments are now stored in separate Payment records.
+            Use PaymentHistoryList component to view payment details. */}
 
         {/* Classification Section */}
         <Card className="p-4">

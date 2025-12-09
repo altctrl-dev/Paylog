@@ -14,7 +14,6 @@ import { revalidatePath } from 'next/cache';
 import { createActivityLog } from '@/app/actions/activity-log';
 import { ACTIVITY_ACTION } from '@/docs/SPRINT7_ACTIVITY_ACTIONS';
 import { INVOICE_STATUS } from '@/types/invoice';
-import { PAYMENT_STATUS } from '@/types/payment';
 import {
   recurringInvoiceSerializedSchema,
   nonRecurringInvoiceSerializedSchema,
@@ -173,7 +172,6 @@ export async function createRecurringInvoice(
     const periodStart = new Date(validated.period_start);
     const periodEnd = new Date(validated.period_end);
     const invoiceReceivedDate = validated.invoice_received_date ? new Date(validated.invoice_received_date) : null; // Bug fix: Parse invoice_received_date
-    const paidDate = validated.is_paid && validated.paid_date ? new Date(validated.paid_date) : null;
 
     // 5. Get invoice profile with relations (need vendor_id for duplicate check)
     console.log('[createRecurringInvoice] Fetching invoice profile...');
@@ -201,7 +199,7 @@ export async function createRecurringInvoice(
       where: {
         invoice_number: validated.invoice_number,
         vendor_id: profile.vendor_id,
-        profile_id: validated.invoice_profile_id,
+        invoice_profile_id: validated.invoice_profile_id,
       },
     });
 
@@ -212,34 +210,12 @@ export async function createRecurringInvoice(
       };
     }
 
-    // 7. Validate payment type if paid
-    if (validated.is_paid && validated.payment_type_id) {
-      console.log('[createRecurringInvoice] Validating payment type...');
-      const paymentType = await db.paymentType.findUnique({
-        where: { id: validated.payment_type_id },
-      });
-
-      if (!paymentType || !paymentType.is_active) {
-        return {
-          success: false,
-          error: 'Selected payment type is invalid',
-        };
-      }
-    }
-
-    // 8. Determine initial status based on user role and payment status
+    // 7. Determine initial status based on user role
     const isAdmin = user.role === 'admin' || user.role === 'super_admin';
-    const hasPendingPayment = validated.is_paid && validated.paid_amount && validated.paid_amount > 0;
 
-    let initialStatus: string;
-    if (isAdmin) {
-      // Admin: If paid, set to paid; otherwise unpaid (skip approval)
-      initialStatus = hasPendingPayment ? INVOICE_STATUS.PAID : INVOICE_STATUS.UNPAID;
-    } else {
-      // Standard user: Always pending approval first, regardless of payment status
-      initialStatus = INVOICE_STATUS.PENDING_APPROVAL;
-    }
-    console.log('[createRecurringInvoice] Initial status:', initialStatus, 'is_paid:', validated.is_paid, 'isAdmin:', isAdmin);
+    // Initial status: admin goes straight to unpaid, standard users need approval
+    const initialStatus = isAdmin ? INVOICE_STATUS.UNPAID : INVOICE_STATUS.PENDING_APPROVAL;
+    console.log('[createRecurringInvoice] Initial status:', initialStatus, 'isAdmin:', isAdmin);
 
     // 9. Create invoice in transaction
     console.log('[createRecurringInvoice] Creating invoice record...');
@@ -271,16 +247,7 @@ export async function createRecurringInvoice(
 
           // Recurring invoice fields
           is_recurring: true,
-          profile_id: validated.invoice_profile_id,
           invoice_profile_id: validated.invoice_profile_id,
-
-          // Inline payment fields
-          is_paid: validated.is_paid,
-          paid_date: paidDate,
-          paid_amount: validated.paid_amount || null,
-          paid_currency: validated.paid_currency || null,
-          payment_type_id: validated.payment_type_id || null,
-          payment_reference: validated.payment_reference || null,
 
           // Status and metadata
           status: initialStatus,
@@ -308,21 +275,6 @@ export async function createRecurringInvoice(
 
     console.log('[createRecurringInvoice] Transaction completed successfully');
 
-    // 9.5. Create Payment record if admin and paid
-    if (isAdmin && hasPendingPayment && validated.paid_amount) {
-      await db.payment.create({
-        data: {
-          invoice_id: invoice.id,
-          amount_paid: validated.paid_amount,
-          payment_date: paidDate ?? new Date(),
-          payment_method: 'bank_transfer', // Default method for inline payments
-          payment_reference: validated.payment_reference ?? null,
-          status: PAYMENT_STATUS.APPROVED,
-        },
-      });
-      console.log('[createRecurringInvoice] Payment record created for admin');
-    }
-
     // 10. Log activity (non-blocking)
     await createActivityLog({
       invoice_id: invoice.id,
@@ -334,7 +286,7 @@ export async function createRecurringInvoice(
         invoice_amount: invoice.invoice_amount,
         status: invoice.status,
         is_recurring: true,
-        profile_id: invoice.profile_id,
+        invoice_profile_id: invoice.invoice_profile_id,
       },
     }).catch((err) => {
       console.error('[createRecurringInvoice] Failed to create activity log:', err);
@@ -416,7 +368,6 @@ export async function createNonRecurringInvoice(
     const invoiceDate = new Date(validated.invoice_date);
     const dueDate = validated.due_date ? new Date(validated.due_date) : null;
     const invoiceReceivedDate = validated.invoice_received_date ? new Date(validated.invoice_received_date) : null; // Bug fix: Parse invoice_received_date
-    const paidDate = validated.is_paid && validated.paid_date ? new Date(validated.paid_date) : null;
 
     // 5. Check for duplicate invoice number (vendor-specific)
     // For non-recurring invoices: same invoice_number + vendor_id + invoice_name = duplicate
@@ -475,34 +426,12 @@ export async function createNonRecurringInvoice(
       };
     }
 
-    // 9. Validate payment type if paid
-    if (validated.is_paid && validated.payment_type_id) {
-      console.log('[createNonRecurringInvoice] Validating payment type...');
-      const paymentType = await db.paymentType.findUnique({
-        where: { id: validated.payment_type_id },
-      });
-
-      if (!paymentType || !paymentType.is_active) {
-        return {
-          success: false,
-          error: 'Selected payment type is invalid',
-        };
-      }
-    }
-
-    // 10. Determine initial status based on user role and payment status
+    // 9. Determine initial status based on user role
     const isAdmin = user.role === 'admin' || user.role === 'super_admin';
-    const hasPendingPayment = validated.is_paid && validated.paid_amount && validated.paid_amount > 0;
 
-    let initialStatus: string;
-    if (isAdmin) {
-      // Admin: If paid, set to paid; otherwise unpaid (skip approval)
-      initialStatus = hasPendingPayment ? INVOICE_STATUS.PAID : INVOICE_STATUS.UNPAID;
-    } else {
-      // Standard user: Always pending approval first, regardless of payment status
-      initialStatus = INVOICE_STATUS.PENDING_APPROVAL;
-    }
-    console.log('[createNonRecurringInvoice] Initial status:', initialStatus, 'is_paid:', validated.is_paid, 'isAdmin:', isAdmin);
+    // Initial status: admin goes straight to unpaid, standard users need approval
+    const initialStatus = isAdmin ? INVOICE_STATUS.UNPAID : INVOICE_STATUS.PENDING_APPROVAL;
+    console.log('[createNonRecurringInvoice] Initial status:', initialStatus, 'isAdmin:', isAdmin);
 
     // 11. Create invoice in transaction
     console.log('[createNonRecurringInvoice] Creating invoice record...');
@@ -532,15 +461,6 @@ export async function createNonRecurringInvoice(
 
           // Non-recurring invoice fields
           is_recurring: false,
-          profile_id: null,
-
-          // Inline payment fields
-          is_paid: validated.is_paid,
-          paid_date: paidDate,
-          paid_amount: validated.paid_amount || null,
-          paid_currency: validated.paid_currency || null,
-          payment_type_id: validated.payment_type_id || null,
-          payment_reference: validated.payment_reference || null,
 
           // Status and metadata
           status: initialStatus,
@@ -569,21 +489,6 @@ export async function createNonRecurringInvoice(
     });
 
     console.log('[createNonRecurringInvoice] Transaction completed successfully');
-
-    // 11.5. Create Payment record if admin and paid
-    if (isAdmin && hasPendingPayment && validated.paid_amount) {
-      await db.payment.create({
-        data: {
-          invoice_id: invoice.id,
-          amount_paid: validated.paid_amount,
-          payment_date: paidDate ?? new Date(),
-          payment_method: 'bank_transfer', // Default method for inline payments
-          payment_reference: validated.payment_reference ?? null,
-          status: PAYMENT_STATUS.APPROVED,
-        },
-      });
-      console.log('[createNonRecurringInvoice] Payment record created for admin');
-    }
 
     // 12. Log activity (non-blocking)
     await createActivityLog({
@@ -680,7 +585,6 @@ export async function updateRecurringInvoice(
         updated_at: true,
         is_recurring: true,
         invoice_profile_id: true,
-        profile_id: true, // Legacy field fallback
         vendor_id: true,
         invoice_number: true,
       },
@@ -693,13 +597,11 @@ export async function updateRecurringInvoice(
       };
     }
 
-    // 4. Verify this is a recurring invoice (check both new and legacy profile fields)
-    const hasProfileId = existing.invoice_profile_id || existing.profile_id;
-    if (!existing.is_recurring || !hasProfileId) {
+    // 4. Verify this is a recurring invoice
+    if (!existing.is_recurring || !existing.invoice_profile_id) {
       console.log('[updateRecurringInvoice] Validation failed:', {
         is_recurring: existing.is_recurring,
         invoice_profile_id: existing.invoice_profile_id,
-        profile_id: existing.profile_id,
       });
       return {
         success: false,
@@ -755,7 +657,6 @@ export async function updateRecurringInvoice(
     const invoiceReceivedDate = validated.invoice_received_date
       ? new Date(validated.invoice_received_date)
       : null;
-    const paidDate = validated.is_paid && validated.paid_date ? new Date(validated.paid_date) : null;
 
     // 9. Check for duplicate invoice number (exclude current invoice)
     console.log('[updateRecurringInvoice] Checking for duplicate invoice...');
@@ -763,7 +664,7 @@ export async function updateRecurringInvoice(
       where: {
         invoice_number: validated.invoice_number,
         vendor_id: existing.vendor_id,
-        profile_id: validated.invoice_profile_id,
+        invoice_profile_id: validated.invoice_profile_id,
         id: { not: invoiceId }, // Exclude current invoice
       },
     });
@@ -775,22 +676,7 @@ export async function updateRecurringInvoice(
       };
     }
 
-    // 10. Validate payment type if paid
-    if (validated.is_paid && validated.payment_type_id) {
-      console.log('[updateRecurringInvoice] Validating payment type...');
-      const paymentType = await db.paymentType.findUnique({
-        where: { id: validated.payment_type_id },
-      });
-
-      if (!paymentType || !paymentType.is_active) {
-        return {
-          success: false,
-          error: 'Selected payment type is invalid',
-        };
-      }
-    }
-
-    // 11. Update invoice in transaction
+    // 10. Update invoice in transaction
     console.log('[updateRecurringInvoice] Updating invoice record...');
     await db.$transaction(async (tx) => {
       // Update invoice record
@@ -812,14 +698,6 @@ export async function updateRecurringInvoice(
           // TDS
           tds_applicable: validated.tds_applicable,
           tds_percentage: validated.tds_percentage || null,
-
-          // Inline payment fields
-          is_paid: validated.is_paid,
-          paid_date: paidDate,
-          paid_amount: validated.paid_amount || null,
-          paid_currency: validated.paid_currency || null,
-          payment_type_id: validated.payment_type_id || null,
-          payment_reference: validated.payment_reference || null,
 
           // Status (may change for standard users)
           status: newStatus,
@@ -983,7 +861,6 @@ export async function updateNonRecurringInvoice(
     const invoiceReceivedDate = validated.invoice_received_date
       ? new Date(validated.invoice_received_date)
       : null;
-    const paidDate = validated.is_paid && validated.paid_date ? new Date(validated.paid_date) : null;
 
     // 9. Check for duplicate invoice number (exclude current invoice)
     console.log('[updateNonRecurringInvoice] Checking for duplicate invoice...');
@@ -1042,22 +919,7 @@ export async function updateNonRecurringInvoice(
       };
     }
 
-    // 13. Validate payment type if paid
-    if (validated.is_paid && validated.payment_type_id) {
-      console.log('[updateNonRecurringInvoice] Validating payment type...');
-      const paymentType = await db.paymentType.findUnique({
-        where: { id: validated.payment_type_id },
-      });
-
-      if (!paymentType || !paymentType.is_active) {
-        return {
-          success: false,
-          error: 'Selected payment type is invalid',
-        };
-      }
-    }
-
-    // 14. Update invoice in transaction
+    // 13. Update invoice in transaction
     console.log('[updateNonRecurringInvoice] Updating invoice record...');
     await db.$transaction(async (tx) => {
       // Update invoice record
@@ -1083,14 +945,6 @@ export async function updateNonRecurringInvoice(
           // TDS
           tds_applicable: validated.tds_applicable,
           tds_percentage: validated.tds_percentage || null,
-
-          // Inline payment fields
-          is_paid: validated.is_paid,
-          paid_date: paidDate,
-          paid_amount: validated.paid_amount || null,
-          paid_currency: validated.paid_currency || null,
-          payment_type_id: validated.payment_type_id || null,
-          payment_reference: validated.payment_reference || null,
 
           // Status (may change for standard users)
           status: newStatus,
@@ -1176,8 +1030,6 @@ export async function getInvoiceV2(
     entity: { select: { id: true; name: true } };
     currency: { select: { id: true; code: true; symbol: true } };
     invoice_profile: { select: { id: true; name: true; description: true } };
-    profile: { select: { id: true; name: true; description: true } };
-    payment_type: { select: { id: true; name: true } };
     creator: { select: { id: true; full_name: true; email: true } };
     attachments: {
       select: {
@@ -1233,19 +1085,6 @@ export async function getInvoiceV2(
             description: true,
           },
         },
-        profile: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-          },
-        },
-        payment_type: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
         creator: {
           select: {
             id: true,
@@ -1287,9 +1126,9 @@ export async function getInvoiceV2(
     // (Edit permission is checked separately in the update actions)
     if (!isAdminUser) {
       // For recurring invoices: check profile visibility
-      if (invoice.is_recurring && invoice.profile_id) {
+      if (invoice.is_recurring && invoice.invoice_profile_id) {
         const profile = await db.invoiceProfile.findUnique({
-          where: { id: invoice.profile_id },
+          where: { id: invoice.invoice_profile_id },
           include: {
             visibilities: {
               where: {
@@ -1607,7 +1446,7 @@ export async function approveInvoiceV2(
       };
     }
 
-    // 3. Fetch invoice to validate status and get payment data
+    // 3. Fetch invoice to validate status
     const invoice = await db.invoice.findUnique({
       where: { id: invoiceId },
       select: {
@@ -1617,13 +1456,6 @@ export async function approveInvoiceV2(
         vendor_id: true,
         invoice_amount: true,
         created_by: true, // For notification to creator
-        // Payment fields for inline payment
-        is_paid: true,
-        paid_date: true,
-        paid_amount: true,
-        paid_currency: true,
-        payment_type_id: true,
-        payment_reference: true,
       },
     });
 
@@ -1642,11 +1474,8 @@ export async function approveInvoiceV2(
       };
     }
 
-    // 5. Check if invoice has pending payment data from creation
-    const hasPendingPayment = invoice.is_paid && invoice.paid_amount && invoice.paid_amount > 0;
-    const newStatus = hasPendingPayment ? INVOICE_STATUS.PAID : INVOICE_STATUS.UNPAID;
-
-    // 6. Update invoice status
+    // 5. Update invoice status to unpaid (payments are now handled separately)
+    const newStatus = INVOICE_STATUS.UNPAID;
     console.log('[approveInvoiceV2] Updating invoice status to:', newStatus);
     await db.invoice.update({
       where: { id: invoiceId },
@@ -1656,22 +1485,7 @@ export async function approveInvoiceV2(
       },
     });
 
-    // 6.5. If there's pending payment data, create the Payment record
-    if (hasPendingPayment && invoice.paid_amount) {
-      await db.payment.create({
-        data: {
-          invoice_id: invoiceId,
-          amount_paid: invoice.paid_amount,
-          payment_date: invoice.paid_date ?? new Date(),
-          payment_method: 'bank_transfer', // Default method for inline payments
-          payment_reference: invoice.payment_reference ?? null,
-          status: PAYMENT_STATUS.APPROVED,
-        },
-      });
-      console.log('[approveInvoiceV2] Payment record created for approved invoice');
-    }
-
-    // 7. Log activity (non-blocking)
+    // 6. Log activity (non-blocking)
     await createActivityLog({
       invoice_id: invoiceId,
       user_id: user.id,
@@ -1681,7 +1495,6 @@ export async function approveInvoiceV2(
       },
       new_data: {
         status: newStatus,
-        payment_created: hasPendingPayment,
       },
     }).catch((err) => {
       console.error('[approveInvoiceV2] Failed to create activity log:', err);

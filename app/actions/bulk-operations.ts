@@ -142,7 +142,7 @@ export async function bulkApproveInvoices(
         id: true,
         invoice_number: true,
         status: true,
-        is_hidden: true,
+        is_archived: true,
       },
     });
 
@@ -153,8 +153,8 @@ export async function bulkApproveInvoices(
 
       if (!invoice) {
         errors[id] = 'Invoice not found';
-      } else if (invoice.is_hidden) {
-        errors[id] = 'Invoice is hidden';
+      } else if (invoice.is_archived) {
+        errors[id] = 'Invoice is archived';
       } else if (invoice.status !== INVOICE_STATUS.PENDING_APPROVAL) {
         errors[id] = `Cannot approve invoice with status: ${invoice.status}`;
       }
@@ -173,7 +173,7 @@ export async function bulkApproveInvoices(
       where: {
         id: { in: invoiceIds },
         status: INVOICE_STATUS.PENDING_APPROVAL,
-        is_hidden: false,
+        is_archived: false,
       },
       data: {
         status: INVOICE_STATUS.UNPAID,
@@ -257,7 +257,7 @@ export async function bulkRejectInvoices(
         id: true,
         invoice_number: true,
         status: true,
-        is_hidden: true,
+        is_archived: true,
       },
     });
 
@@ -268,8 +268,8 @@ export async function bulkRejectInvoices(
 
       if (!invoice) {
         errors[id] = 'Invoice not found';
-      } else if (invoice.is_hidden) {
-        errors[id] = 'Invoice is hidden';
+      } else if (invoice.is_archived) {
+        errors[id] = 'Invoice is archived';
       } else if (invoice.status !== INVOICE_STATUS.PENDING_APPROVAL) {
         errors[id] = `Cannot reject invoice with status: ${invoice.status}`;
       }
@@ -288,7 +288,7 @@ export async function bulkRejectInvoices(
       where: {
         id: { in: invoiceIds },
         status: INVOICE_STATUS.PENDING_APPROVAL,
-        is_hidden: false,
+        is_archived: false,
       },
       data: {
         status: INVOICE_STATUS.REJECTED,
@@ -377,7 +377,7 @@ export async function bulkExportInvoices(
     const invoices = await db.invoice.findMany({
       where: {
         id: { in: invoiceIds },
-        is_hidden: false, // Only export non-hidden invoices
+        is_archived: false, // Only export non-hidden invoices
       },
       include: {
         vendor: {
@@ -386,10 +386,7 @@ export async function bulkExportInvoices(
         category: {
           select: { id: true, name: true },
         },
-        profile: {
-          select: { id: true, name: true },
-        },
-        sub_entity: {
+        invoice_profile: {
           select: { id: true, name: true },
         },
         creator: {
@@ -473,10 +470,7 @@ export async function bulkExportInvoices(
             value = invoice.creator?.full_name || invoice.creator?.email || '';
             break;
           case 'profile_name':
-            value = invoice.profile?.name || '';
-            break;
-          case 'sub_entity_name':
-            value = invoice.sub_entity?.name || '';
+            value = invoice.invoice_profile?.name || '';
             break;
           case 'notes':
             value = invoice.notes || '';

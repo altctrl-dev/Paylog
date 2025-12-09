@@ -94,7 +94,7 @@ export async function getInvoiceSummaryReport(
     // Get all invoices in date range
     const invoices = await db.invoice.findMany({
       where: {
-        is_hidden: false,
+        is_archived: false,
         invoice_date: {
           gte: start_date,
           lte: end_date,
@@ -204,7 +204,7 @@ export async function getVendorSpendingReport(
     // Get all invoices in date range with payments
     const invoices = await db.invoice.findMany({
       where: {
-        is_hidden: false,
+        is_archived: false,
         invoice_date: {
           gte: start_date,
           lte: end_date,

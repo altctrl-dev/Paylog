@@ -24,54 +24,6 @@ export type PaymentStatus =
   (typeof PAYMENT_STATUS)[keyof typeof PAYMENT_STATUS];
 
 /**
- * Payment method values
- */
-export const PAYMENT_METHOD = {
-  CASH: 'cash',
-  CHECK: 'check',
-  WIRE_TRANSFER: 'wire_transfer',
-  CARD: 'card',
-  UPI: 'upi',
-  OTHER: 'other',
-} as const;
-
-export type PaymentMethod =
-  (typeof PAYMENT_METHOD)[keyof typeof PAYMENT_METHOD];
-
-/**
- * Payment method display configuration
- */
-export const PAYMENT_METHOD_CONFIG: Record<
-  PaymentMethod,
-  { label: string; requiresReference: boolean }
-> = {
-  [PAYMENT_METHOD.CASH]: {
-    label: 'Cash',
-    requiresReference: false,
-  },
-  [PAYMENT_METHOD.CHECK]: {
-    label: 'Check',
-    requiresReference: true,
-  },
-  [PAYMENT_METHOD.WIRE_TRANSFER]: {
-    label: 'Wire Transfer',
-    requiresReference: true,
-  },
-  [PAYMENT_METHOD.CARD]: {
-    label: 'Card',
-    requiresReference: false,
-  },
-  [PAYMENT_METHOD.UPI]: {
-    label: 'UPI',
-    requiresReference: false,
-  },
-  [PAYMENT_METHOD.OTHER]: {
-    label: 'Other',
-    requiresReference: false,
-  },
-};
-
-/**
  * Status display configuration for badges
  */
 export const PAYMENT_STATUS_CONFIG: Record<
@@ -105,7 +57,6 @@ export interface Payment {
   payment_type_id: number | null;
   amount_paid: number;
   payment_date: Date;
-  payment_method: string | null;
   payment_reference: string | null;
   status: PaymentStatus;
   tds_amount_applied: number | null;
@@ -157,7 +108,7 @@ export interface PaymentType {
 export interface PaymentFormData {
   amount_paid: number;
   payment_date: Date; // Required (non-null) for form submission
-  payment_method: string; // References master data payment types by name
+  payment_type_id: number; // FK to PaymentType master data
   payment_reference?: string | null;
   tds_amount_applied?: number | null;
   tds_rounded?: boolean;
@@ -169,7 +120,7 @@ export interface PaymentFormData {
 export interface PaymentFilters {
   invoice_id?: number;
   status?: PaymentStatus;
-  payment_method?: PaymentMethod;
+  payment_type_id?: number;
   date_from?: Date;
   date_to?: Date;
   page: number;

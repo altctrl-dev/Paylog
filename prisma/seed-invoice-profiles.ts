@@ -219,8 +219,7 @@ async function main() {
               invoice_number: 'TEST-REC-001',
               vendor_id: vendor1!.id,
               category_id: category1!.id,
-              profile_id: profile1.id, // Legacy profile link
-              invoice_profile_id: profile1.id, // New profile link
+              invoice_profile_id: profile1.id,
               is_recurring: true,
               invoice_amount: 5000.00,
               invoice_date: new Date(),
@@ -233,7 +232,6 @@ async function main() {
               entity_id: entity.id,
               created_by: testUser.id,
               status: 'pending_approval',
-              is_paid: false,
               notes: 'Test recurring invoice from seed script',
             },
           });
@@ -252,7 +250,6 @@ async function main() {
             where: { id: existingNonRecurring.id },
             data: {
               is_recurring: false,
-              is_paid: true,
             },
           })
         : await prisma.invoice.create({
@@ -268,11 +265,7 @@ async function main() {
               currency_id: currency.id,
               entity_id: entity.id,
               created_by: testUser.id,
-              status: 'approved',
-              is_paid: true,
-              paid_date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // Paid 3 days ago
-              paid_amount: 1500.00,
-              paid_currency: 'USD',
+              status: 'unpaid',
               notes: 'Test non-recurring invoice from seed script',
             },
           });

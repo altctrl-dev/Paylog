@@ -73,9 +73,8 @@ export async function getLedgerProfiles(): Promise<
         entity: {
           select: { name: true },
         },
-        invoices: {
+        recurring_invoices: {
           where: {
-            is_hidden: false,
             is_archived: false,
             status: {
               in: ['unpaid', 'partial', 'overdue'],
@@ -100,7 +99,7 @@ export async function getLedgerProfiles(): Promise<
       let totalOutstanding = 0;
       let unpaidCount = 0;
 
-      profile.invoices.forEach((inv) => {
+      profile.recurring_invoices.forEach((inv) => {
         const totalPaid = inv.payments.reduce((sum, p) => sum + p.amount_paid, 0);
         const tds = inv.tds_applicable && inv.tds_percentage
           ? calculateTds(inv.invoice_amount, inv.tds_percentage, false)
@@ -165,8 +164,8 @@ export async function getLedgerByProfile(
     // Build invoice where clause
     // Exclude pending_approval and rejected invoices - they shouldn't appear in ledger until approved
     const invoiceWhere: Record<string, unknown> = {
-      profile_id: profileId,
-      is_hidden: false,
+      invoice_profile_id: profileId,
+      is_archived: false,
       status: {
         notIn: ['pending_approval', 'rejected'],
       },
@@ -199,7 +198,9 @@ export async function getLedgerByProfile(
             id: true,
             amount_paid: true,
             payment_date: true,
-            payment_method: true,
+            payment_type: {
+              select: { name: true },
+            },
             payment_reference: true,
             tds_amount_applied: true,
             tds_rounded: true,
@@ -322,12 +323,13 @@ export async function getLedgerByProfile(
         totalPaid += payment.amount_paid;
         paymentCount++;
 
+        const paymentMethodName = payment.payment_type?.name;
         entries.push({
           id: `pay-${payment.id}`,
           type: 'payment' as const,
           date: event.date,
-          description: payment.payment_method
-            ? `Payment (${payment.payment_method})`
+          description: paymentMethodName
+            ? `Payment (${paymentMethodName})`
             : 'Payment',
           invoiceNumber: inv.invoice_number,
           invoiceId: inv.id,
@@ -339,7 +341,7 @@ export async function getLedgerByProfile(
           tdsAmountApplied: payment.tds_amount_applied,
           tdsRounded: payment.tds_rounded,
           transactionRef: payment.payment_reference,
-          paymentMethod: payment.payment_method,
+          paymentMethod: paymentMethodName ?? null,
           runningBalance,
         });
       }
@@ -413,8 +415,8 @@ export async function getLedgerSummary(
     // Exclude pending_approval and rejected invoices - they shouldn't appear in ledger until approved
     const invoices = await db.invoice.findMany({
       where: {
-        profile_id: profileId,
-        is_hidden: false,
+        invoice_profile_id: profileId,
+        is_archived: false,
         status: {
           notIn: ['pending_approval', 'rejected'],
         },

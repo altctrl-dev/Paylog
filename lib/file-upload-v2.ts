@@ -242,8 +242,7 @@ export async function uploadInvoiceFile(
     select: {
       invoice_date: true,
       is_recurring: true,
-      // Use 'profile' relation (profile_id field) - this is what createRecurringInvoice sets
-      profile: {
+      invoice_profile: {
         select: { name: true },
       },
     },
@@ -262,7 +261,7 @@ export async function uploadInvoiceFile(
     mimeType: file.type,
     invoiceDate: invoice?.invoice_date ?? undefined,
     isRecurring: invoice?.is_recurring ?? false,
-    profileName: invoice?.profile?.name ?? undefined,
+    profileName: invoice?.invoice_profile?.name ?? undefined,
   });
 
   if (!uploadResult.success) {

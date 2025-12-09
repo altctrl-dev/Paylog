@@ -250,18 +250,13 @@ export function EditRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: Edi
   React.useEffect(() => {
     if (invoice) {
       // Get profile ID from scalar fields or relation objects
-      // Try invoice_profile_id (new), then profile_id (legacy), then from relations
       const profileId =
         invoice.invoice_profile_id ||
-        (invoice as unknown as { profile_id?: number }).profile_id ||
-        invoice.invoice_profile?.id ||
-        invoice.profile?.id;
+        invoice.invoice_profile?.id;
 
       console.log('[EditRecurringInvoiceForm] Pre-filling form with invoice data:', {
         invoice_profile_id: invoice.invoice_profile_id,
-        profile_id: (invoice as unknown as { profile_id?: number }).profile_id,
         invoice_profile: invoice.invoice_profile,
-        profile: invoice.profile,
         resolvedProfileId: profileId,
       });
 
@@ -281,14 +276,8 @@ export function EditRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: Edi
       setValue('invoice_amount', invoice.invoice_amount);
       setValue('tds_applicable', invoice.tds_applicable);
       setValue('tds_percentage', invoice.tds_percentage ?? null);
-      setValue('is_paid', invoice.is_paid);
-      setValue('paid_date', invoice.paid_date ? new Date(invoice.paid_date) : null);
-      setValue('paid_amount', invoice.paid_amount || null);
-      setValue('paid_currency', invoice.paid_currency || null);
-      setValue('payment_type_id', invoice.payment_type_id || null);
-      setValue('payment_reference', invoice.payment_reference || null);
-      // tds_rounded is a payment field, not stored on invoice - default to false
-      setValue('tds_rounded', false);
+      // Note: Payment fields (is_paid, paid_date, paid_amount, etc.) are now
+      // stored in the Payment table, not on Invoice. Payments are recorded separately.
     }
   }, [invoice, setValue]);
 
@@ -451,7 +440,7 @@ export function EditRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: Edi
         <Label htmlFor="invoice_profile_id">Invoice Profile *</Label>
         <Input
           type="text"
-          value={invoice?.invoice_profile?.name || invoice?.profile?.name || 'N/A'}
+          value={invoice?.invoice_profile?.name || 'N/A'}
           disabled
           className="bg-muted"
         />

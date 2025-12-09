@@ -86,7 +86,7 @@ async function buildBaseWhereClause(
   const isAdminUser = await isAdmin();
 
   const where: Prisma.InvoiceWhereInput = {
-    is_hidden: false, // Always exclude hidden invoices
+    is_archived: false, // Always exclude archived invoices
   };
 
   // RBAC filtering: Standard users only see their own invoices
@@ -306,11 +306,11 @@ export async function getPaymentTrends(
     if (!isAdminUser) {
       paymentWhere.invoice = {
         created_by: user.id,
-        is_hidden: false,
+        is_archived: false,
       };
     } else {
       paymentWhere.invoice = {
-        is_hidden: false,
+        is_archived: false,
       };
     }
 
@@ -506,8 +506,8 @@ export async function getRecentActivity(): Promise<
     const activityWhere: Prisma.ActivityLogWhereInput = {
       // Filter by invoice visibility (RBAC)
       invoice: isAdminUser
-        ? { is_hidden: false }
-        : { created_by: user.id, is_hidden: false },
+        ? { is_archived: false }
+        : { created_by: user.id, is_archived: false },
     };
 
     // Fetch recent activity logs

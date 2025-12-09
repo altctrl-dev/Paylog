@@ -76,16 +76,16 @@ export interface Invoice {
   invoice_number: string;
   vendor_id: number;
   category_id: number | null;
-  profile_id: number | null;
-  sub_entity_id: number | null;
   invoice_amount: number;
   invoice_date: Date | null;
+  invoice_received_date: Date | null;
   period_start: Date | null;
   period_end: Date | null;
   due_date: Date | null;
   tds_applicable: boolean;
   tds_percentage: number | null;
   notes: string | null;
+  description: string | null;
   status: InvoiceStatus;
   hold_reason: string | null;
   hold_by: number | null;
@@ -95,11 +95,16 @@ export interface Invoice {
   rejection_reason: string | null;
   rejected_by: number | null;
   rejected_at: Date | null;
-  is_hidden: boolean;
-  hidden_by: number | null;
-  hidden_at: Date | null;
-  hidden_reason: string | null;
+  // Archive fields
+  is_archived: boolean;
+  archived_by: number | null;
+  archived_at: Date | null;
+  archived_reason: string | null;
+  // Type fields
   is_recurring: boolean;
+  invoice_profile_id: number | null;
+  entity_id: number | null;
+  currency_id: number | null;
   created_by: number;
   created_at: Date;
   updated_at: Date;
@@ -118,18 +123,19 @@ export interface InvoiceWithRelations extends Invoice {
     id: number;
     name: string;
   } | null;
-  profile: {
+  entity: {
     id: number;
     name: string;
   } | null;
-  sub_entity: {
-    id: number;
-    name: string;
-  } | null;
-  currency?: {
+  currency: {
     id: number;
     code: string;
     symbol: string;
+  } | null;
+  invoice_profile: {
+    id: number;
+    name: string;
+    description: string | null;
   } | null;
   creator: {
     id: number;
@@ -141,6 +147,10 @@ export interface InvoiceWithRelations extends Invoice {
     full_name: string;
   } | null;
   rejector?: {
+    id: number;
+    full_name: string;
+  } | null;
+  archiver?: {
     id: number;
     full_name: string;
   } | null;
@@ -173,21 +183,20 @@ export interface InvoiceFormData {
   invoice_number: string;
   vendor_id: number;
   category_id: number;
-  profile_id: number;
-  sub_entity_id: number;
-  // NEW: Sprint 9A fields (optional for now, will be required in Sprint 9C)
-  entity_id?: number;
-  currency_id?: number;
+  entity_id: number;
+  currency_id: number;
   invoice_amount: number;
-  // Date fields: Required (non-null) for form submission
-  // PHASE 3.5: period_start and period_end are now optional
   invoice_date: Date;
-  period_start: Date | null;
-  period_end: Date | null;
+  invoice_received_date?: Date | null;
+  period_start?: Date | null;
+  period_end?: Date | null;
   due_date: Date;
   tds_applicable: boolean;
   tds_percentage: number | null;
+  description?: string | null;
   notes?: string | null;
+  is_recurring?: boolean;
+  invoice_profile_id?: number | null;
 }
 
 /**
@@ -218,8 +227,7 @@ export interface InvoiceFilters {
   status?: InvoiceStatus;
   vendor_id?: number;
   category_id?: number;
-  profile_id?: number;
-  // Tab-specific filters (Sprint 14 - Invoice Tabs)
+  entity_id?: number;
   is_recurring?: boolean;
   tds_applicable?: boolean;
   invoice_profile_id?: number;
@@ -279,21 +287,20 @@ export interface InvoiceV2WithRelations {
   tds_applicable: boolean;
   tds_percentage: number | null;
   description: string | null;
+  notes: string | null;
   status: InvoiceStatus;
 
-  // V2-specific fields
+  // Entity/Currency fields
   entity_id: number | null;
   currency_id: number | null;
   is_recurring: boolean;
   invoice_profile_id: number | null;
 
-  // Inline payment fields
-  is_paid: boolean;
-  paid_date: Date | null;
-  paid_amount: number | null;
-  paid_currency: string | null;
-  payment_type_id: number | null;
-  payment_reference: string | null;
+  // Archive fields
+  is_archived: boolean;
+  archived_by: number | null;
+  archived_at: Date | null;
+  archived_reason: string | null;
 
   // Metadata
   created_by: number;
@@ -324,15 +331,15 @@ export interface InvoiceV2WithRelations {
     name: string;
     description: string | null;
   } | null;
-  payment_type: {
-    id: number;
-    name: string;
-  } | null;
   creator: {
     id: number;
     full_name: string;
     email: string;
   };
+  archiver?: {
+    id: number;
+    full_name: string;
+  } | null;
   attachments: Array<{
     id: string;
     file_name: string;
@@ -340,5 +347,15 @@ export interface InvoiceV2WithRelations {
     file_size: number;
     mime_type: string;
     uploaded_at: Date;
+  }>;
+  payments: Array<{
+    id: number;
+    amount_paid: number;
+    payment_date: Date;
+    status: string;
+    payment_type: {
+      id: number;
+      name: string;
+    } | null;
   }>;
 }

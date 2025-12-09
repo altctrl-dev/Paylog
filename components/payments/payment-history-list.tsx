@@ -3,16 +3,22 @@
  *
  * Displays all payments for an invoice in a table format.
  * Shows chronological payment records with running balance.
+ * Admins can approve/reject pending payments.
  */
 
 'use client';
 
 import * as React from 'react';
+import { useSession } from 'next-auth/react';
 import { usePayments, usePaymentSummary } from '@/hooks/use-payments';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { PAYMENT_STATUS_CONFIG } from '@/types/payment';
+import { Button } from '@/components/ui/button';
+import { Check, X } from 'lucide-react';
+import { approvePayment, rejectPayment } from '@/app/actions/payments';
+import { PAYMENT_STATUS_CONFIG, PAYMENT_STATUS } from '@/types/payment';
 import type { PaymentStatus } from '@/types/payment';
+import { toast } from 'sonner';
 
 interface PaymentHistoryListProps {
   invoiceId: number;
@@ -43,26 +49,62 @@ function formatCurrency(amount: number): string {
 }
 
 /**
- * Get payment method label
+ * Get payment type label from payment_type relation
  */
-function getPaymentMethodLabel(method: string | null): string {
-  if (!method) return 'N/A';
-
-  const labels: Record<string, string> = {
-    cash: 'Cash',
-    check: 'Check',
-    wire_transfer: 'Wire Transfer',
-    card: 'Card',
-    upi: 'UPI',
-    other: 'Other',
-  };
-
-  return labels[method] || method;
+function getPaymentTypeLabel(paymentType: { name: string } | null | undefined): string {
+  if (!paymentType?.name) return 'N/A';
+  return paymentType.name;
 }
 
 export function PaymentHistoryList({ invoiceId }: PaymentHistoryListProps) {
-  const { data: payments, isLoading, error } = usePayments(invoiceId);
-  const { data: summary } = usePaymentSummary(invoiceId);
+  const { data: session } = useSession();
+  const { data: payments, isLoading, error, refetch } = usePayments(invoiceId);
+  const { data: summary, refetch: refetchSummary } = usePaymentSummary(invoiceId);
+  const [processingId, setProcessingId] = React.useState<number | null>(null);
+
+  // Check if user is admin
+  const userRole = session?.user?.role as string;
+  const isAdmin = userRole === 'admin' || userRole === 'super_admin';
+
+  // Handle approve payment
+  const handleApprove = async (paymentId: number) => {
+    setProcessingId(paymentId);
+    try {
+      const result = await approvePayment(paymentId);
+      if (result.success) {
+        toast.success('Payment approved successfully');
+        refetch();
+        refetchSummary();
+      } else {
+        toast.error(result.error || 'Failed to approve payment');
+      }
+    } catch (err) {
+      toast.error('An error occurred while approving payment');
+      console.error('Approve payment error:', err);
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  // Handle reject payment
+  const handleReject = async (paymentId: number) => {
+    setProcessingId(paymentId);
+    try {
+      const result = await rejectPayment(paymentId);
+      if (result.success) {
+        toast.success('Payment rejected');
+        refetch();
+        refetchSummary();
+      } else {
+        toast.error(result.error || 'Failed to reject payment');
+      }
+    } catch (err) {
+      toast.error('An error occurred while rejecting payment');
+      console.error('Reject payment error:', err);
+    } finally {
+      setProcessingId(null);
+    }
+  };
 
   // Calculate running balance for each payment (must be before early returns)
   const paymentsWithBalance = React.useMemo(() => {
@@ -164,6 +206,11 @@ export function PaymentHistoryList({ invoiceId }: PaymentHistoryListProps) {
                 <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">
                   Balance After
                 </th>
+                {isAdmin && (
+                  <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground">
+                    Actions
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -183,7 +230,7 @@ export function PaymentHistoryList({ invoiceId }: PaymentHistoryListProps) {
                       {formatCurrency(payment.amount_paid)}
                     </td>
                     <td className="px-4 py-3 text-sm text-muted-foreground">
-                      {getPaymentMethodLabel(payment.payment_method)}
+                      {getPaymentTypeLabel(payment.payment_type)}
                     </td>
                     <td className="px-4 py-3 text-center">
                       <Badge variant={statusConfig?.variant || 'default'}>
@@ -193,6 +240,36 @@ export function PaymentHistoryList({ invoiceId }: PaymentHistoryListProps) {
                     <td className="px-4 py-3 text-right text-sm font-medium text-muted-foreground">
                       {formatCurrency(payment.balanceAfter)}
                     </td>
+                    {isAdmin && (
+                      <td className="px-4 py-3 text-center">
+                        {payment.status === PAYMENT_STATUS.PENDING ? (
+                          <div className="flex items-center justify-center gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 w-7 p-0 text-green-600 hover:bg-green-100 hover:text-green-700"
+                              onClick={() => handleApprove(payment.id)}
+                              disabled={processingId === payment.id}
+                              title="Approve Payment"
+                            >
+                              <Check className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 w-7 p-0 text-red-600 hover:bg-red-100 hover:text-red-700"
+                              onClick={() => handleReject(payment.id)}
+                              disabled={processingId === payment.id}
+                              title="Reject Payment"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 );
               })}

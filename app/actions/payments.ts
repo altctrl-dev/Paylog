@@ -20,6 +20,8 @@ import {
 import { INVOICE_STATUS } from '@/types/invoice';
 import { paymentFormSchema } from '@/lib/validations/payment';
 import { revalidatePath } from 'next/cache';
+import { createActivityLog } from '@/app/actions/activity-log';
+import { ACTIVITY_ACTION } from '@/docs/SPRINT7_ACTIVITY_ACTIONS';
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -36,10 +38,13 @@ async function getCurrentUser() {
     throw new Error('Unauthorized: You must be logged in');
   }
 
+  const role = session.user.role as string;
+
   return {
     id: parseInt(session.user.id),
     email: session.user.email!,
-    role: session.user.role as string,
+    role,
+    isAdmin: role === 'admin' || role === 'super_admin',
   };
 }
 
@@ -264,7 +269,7 @@ export async function createPayment(
   data: unknown
 ): Promise<ServerActionResult<PaymentWithRelations>> {
   try {
-    await getCurrentUser();
+    const currentUser = await getCurrentUser();
 
     // Validate input
     const validated = paymentFormSchema.parse(data);
@@ -276,7 +281,7 @@ export async function createPayment(
         id: true,
         invoice_amount: true,
         status: true,
-        is_hidden: true,
+        is_archived: true,
       },
     });
 
@@ -287,10 +292,10 @@ export async function createPayment(
       };
     }
 
-    if (invoice.is_hidden) {
+    if (invoice.is_archived) {
       return {
         success: false,
-        error: 'Cannot add payment to hidden invoice',
+        error: 'Cannot add payment to archived invoice',
       };
     }
 
@@ -342,6 +347,13 @@ export async function createPayment(
     const tdsRounded = (validated as { tds_rounded?: boolean }).tds_rounded ?? false;
     const paymentReference = (validated as { payment_reference?: string | null }).payment_reference ?? null;
 
+    // Determine payment status based on user role
+    // Admin/Super Admin: Payment is auto-approved
+    // Standard User: Payment goes to pending approval
+    const paymentStatus = currentUser.isAdmin
+      ? PAYMENT_STATUS.APPROVED
+      : PAYMENT_STATUS.PENDING;
+
     // Use transaction to create payment and update invoice status atomically
     const result = await db.$transaction(async (tx: Prisma.TransactionClient) => {
       // Create payment record
@@ -350,46 +362,64 @@ export async function createPayment(
           invoice_id: invoiceId,
           amount_paid: validated.amount_paid,
           payment_date: validated.payment_date,
-          payment_method: validated.payment_method,
+          payment_type_id: validated.payment_type_id,
           payment_reference: paymentReference,
           tds_amount_applied: tdsAmountApplied,
           tds_rounded: tdsRounded,
-          status: PAYMENT_STATUS.APPROVED, // Auto-approve for now
+          status: paymentStatus,
         },
         include: paymentInclude,
       });
 
-      // Calculate new invoice status within transaction context
-      // This ensures we read the committed payment data
-      const paymentsSum = await tx.payment.aggregate({
-        where: {
-          invoice_id: invoiceId,
-          status: PAYMENT_STATUS.APPROVED,
-        },
-        _sum: {
-          amount_paid: true,
-        },
-      });
+      // Only update invoice status if payment is approved (admin created)
+      // Pending payments don't affect invoice status until approved
+      if (paymentStatus === PAYMENT_STATUS.APPROVED) {
+        // Calculate new invoice status within transaction context
+        const paymentsSum = await tx.payment.aggregate({
+          where: {
+            invoice_id: invoiceId,
+            status: PAYMENT_STATUS.APPROVED,
+          },
+          _sum: {
+            amount_paid: true,
+          },
+        });
 
-      const totalPaid = paymentsSum._sum.amount_paid || 0;
-      const remainingBalance = invoice.invoice_amount - totalPaid;
+        const totalPaid = paymentsSum._sum.amount_paid || 0;
+        const remainingBalance = invoice.invoice_amount - totalPaid;
 
-      let newStatus: string = INVOICE_STATUS.UNPAID;
-      if (remainingBalance <= 0) {
-        newStatus = INVOICE_STATUS.PAID;
-      } else if (totalPaid > 0) {
-        newStatus = INVOICE_STATUS.PARTIAL;
+        let newStatus: string = INVOICE_STATUS.UNPAID;
+        if (remainingBalance <= 0) {
+          newStatus = INVOICE_STATUS.PAID;
+        } else if (totalPaid > 0) {
+          newStatus = INVOICE_STATUS.PARTIAL;
+        }
+
+        // Update invoice status
+        await tx.invoice.update({
+          where: { id: invoiceId },
+          data: {
+            status: newStatus,
+          },
+        });
       }
 
-      // Update invoice status
-      await tx.invoice.update({
-        where: { id: invoiceId },
-        data: {
-          status: newStatus,
-        },
-      });
-
       return payment;
+    });
+
+    // Log activity (non-blocking)
+    await createActivityLog({
+      invoice_id: invoiceId,
+      user_id: currentUser.id,
+      action: ACTIVITY_ACTION.PAYMENT_ADDED,
+      new_data: {
+        payment_id: result.id,
+        amount_paid: validated.amount_paid,
+        payment_date: validated.payment_date,
+        payment_type_id: validated.payment_type_id,
+        payment_status: paymentStatus,
+        tds_amount_applied: tdsAmountApplied,
+      },
     });
 
     // Revalidate paths
@@ -405,6 +435,265 @@ export async function createPayment(
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to create payment',
+    };
+  }
+}
+
+// ============================================================================
+// PAYMENT APPROVAL OPERATIONS (Admin Only)
+// ============================================================================
+
+/**
+ * Approve a pending payment
+ *
+ * This operation uses a Prisma transaction to:
+ * 1. Update the payment status to approved
+ * 2. Update the invoice status based on payment totals
+ *
+ * @param paymentId - Payment ID
+ * @returns Updated payment with relations
+ */
+export async function approvePayment(
+  paymentId: number
+): Promise<ServerActionResult<PaymentWithRelations>> {
+  try {
+    const currentUser = await getCurrentUser();
+
+    // Only admins can approve payments
+    if (!currentUser.isAdmin) {
+      return {
+        success: false,
+        error: 'Unauthorized: Only administrators can approve payments',
+      };
+    }
+
+    // Get the payment
+    const payment = await db.payment.findUnique({
+      where: { id: paymentId },
+      include: {
+        invoice: {
+          select: {
+            id: true,
+            invoice_amount: true,
+          },
+        },
+      },
+    });
+
+    if (!payment) {
+      return {
+        success: false,
+        error: 'Payment not found',
+      };
+    }
+
+    if (payment.status !== PAYMENT_STATUS.PENDING) {
+      return {
+        success: false,
+        error: `Payment cannot be approved. Current status: ${payment.status}`,
+      };
+    }
+
+    // Use transaction to approve payment and update invoice status atomically
+    const result = await db.$transaction(async (tx: Prisma.TransactionClient) => {
+      // Update payment status to approved
+      const updatedPayment = await tx.payment.update({
+        where: { id: paymentId },
+        data: {
+          status: PAYMENT_STATUS.APPROVED,
+        },
+        include: paymentInclude,
+      });
+
+      // Calculate new invoice status
+      const paymentsSum = await tx.payment.aggregate({
+        where: {
+          invoice_id: payment.invoice.id,
+          status: PAYMENT_STATUS.APPROVED,
+        },
+        _sum: {
+          amount_paid: true,
+        },
+      });
+
+      const totalPaid = paymentsSum._sum.amount_paid || 0;
+      const remainingBalance = payment.invoice.invoice_amount - totalPaid;
+
+      let newStatus: string = INVOICE_STATUS.UNPAID;
+      if (remainingBalance <= 0) {
+        newStatus = INVOICE_STATUS.PAID;
+      } else if (totalPaid > 0) {
+        newStatus = INVOICE_STATUS.PARTIAL;
+      }
+
+      // Update invoice status
+      await tx.invoice.update({
+        where: { id: payment.invoice.id },
+        data: {
+          status: newStatus,
+        },
+      });
+
+      return updatedPayment;
+    });
+
+    // Log activity (non-blocking)
+    await createActivityLog({
+      invoice_id: payment.invoice.id,
+      user_id: currentUser.id,
+      action: ACTIVITY_ACTION.PAYMENT_APPROVED,
+      old_data: {
+        payment_id: paymentId,
+        status: PAYMENT_STATUS.PENDING,
+      },
+      new_data: {
+        payment_id: paymentId,
+        status: PAYMENT_STATUS.APPROVED,
+        amount_paid: payment.amount_paid,
+      },
+    });
+
+    // Revalidate paths
+    revalidatePath('/invoices');
+    revalidatePath(`/invoices/${payment.invoice.id}`);
+
+    return {
+      success: true,
+      data: result as PaymentWithRelations,
+    };
+  } catch (error) {
+    console.error('approvePayment error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to approve payment',
+    };
+  }
+}
+
+/**
+ * Reject a pending payment
+ *
+ * @param paymentId - Payment ID
+ * @param reason - Optional rejection reason
+ * @returns Updated payment with relations
+ */
+export async function rejectPayment(
+  paymentId: number,
+  reason?: string
+): Promise<ServerActionResult<PaymentWithRelations>> {
+  try {
+    const currentUser = await getCurrentUser();
+
+    // Only admins can reject payments
+    if (!currentUser.isAdmin) {
+      return {
+        success: false,
+        error: 'Unauthorized: Only administrators can reject payments',
+      };
+    }
+
+    // Get the payment
+    const payment = await db.payment.findUnique({
+      where: { id: paymentId },
+      include: paymentInclude,
+    });
+
+    if (!payment) {
+      return {
+        success: false,
+        error: 'Payment not found',
+      };
+    }
+
+    if (payment.status !== PAYMENT_STATUS.PENDING) {
+      return {
+        success: false,
+        error: `Payment cannot be rejected. Current status: ${payment.status}`,
+      };
+    }
+
+    // Update payment status to rejected
+    const updatedPayment = await db.payment.update({
+      where: { id: paymentId },
+      data: {
+        status: PAYMENT_STATUS.REJECTED,
+      },
+      include: paymentInclude,
+    });
+
+    // Log activity (non-blocking)
+    await createActivityLog({
+      invoice_id: payment.invoice.id,
+      user_id: currentUser.id,
+      action: ACTIVITY_ACTION.PAYMENT_REJECTED,
+      old_data: {
+        payment_id: paymentId,
+        status: PAYMENT_STATUS.PENDING,
+      },
+      new_data: {
+        payment_id: paymentId,
+        status: PAYMENT_STATUS.REJECTED,
+        amount_paid: payment.amount_paid,
+        rejection_reason: reason || null,
+      },
+    });
+
+    // Revalidate paths
+    revalidatePath('/invoices');
+    revalidatePath(`/invoices/${payment.invoice.id}`);
+
+    return {
+      success: true,
+      data: updatedPayment as PaymentWithRelations,
+    };
+  } catch (error) {
+    console.error('rejectPayment error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to reject payment',
+    };
+  }
+}
+
+/**
+ * Get all pending payments (Admin only)
+ *
+ * @returns List of pending payments with relations
+ */
+export async function getPendingPayments(): Promise<
+  ServerActionResult<PaymentWithRelations[]>
+> {
+  try {
+    const currentUser = await getCurrentUser();
+
+    // Only admins can view pending payments list
+    if (!currentUser.isAdmin) {
+      return {
+        success: false,
+        error: 'Unauthorized: Only administrators can view pending payments',
+      };
+    }
+
+    const payments = await db.payment.findMany({
+      where: {
+        status: PAYMENT_STATUS.PENDING,
+      },
+      include: paymentInclude,
+      orderBy: {
+        payment_date: 'asc',
+      },
+    });
+
+    return {
+      success: true,
+      data: payments as PaymentWithRelations[],
+    };
+  } catch (error) {
+    console.error('getPendingPayments error:', error);
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'Failed to fetch pending payments',
     };
   }
 }

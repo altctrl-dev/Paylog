@@ -55,7 +55,7 @@ export async function GET(
             id: true,
             invoice_number: true,
             created_by: true,
-            is_hidden: true,
+            is_archived: true,
           },
         },
         uploader: {
@@ -84,14 +84,14 @@ export async function GET(
     const isCreator = attachment.invoice.created_by === userId;
     const isUploader = attachment.uploaded_by === userId;
     const isAdmin = ['admin', 'super_admin'].includes(session.user.role || '');
-    const isHidden = attachment.invoice.is_hidden;
+    const isArchived = attachment.invoice.is_archived;
 
     if (!isCreator && !isUploader && !isAdmin) {
       return new NextResponse('Forbidden', { status: 403 });
     }
 
-    // Hidden invoices - only creator/uploader/admin can access
-    if (isHidden && !isCreator && !isUploader && !isAdmin) {
+    // Archived invoices - only creator/uploader/admin can access
+    if (isArchived && !isCreator && !isUploader && !isAdmin) {
       return new NextResponse('Forbidden', { status: 403 });
     }
 

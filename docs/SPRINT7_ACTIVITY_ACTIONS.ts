@@ -36,12 +36,6 @@ export const ACTIVITY_ACTION = {
   /** Invoice released from hold by admin (status: on_hold → pending_approval) */
   INVOICE_HOLD_RELEASED: 'invoice_hold_released',
 
-  /** Invoice hidden by admin (is_hidden: false → true) */
-  INVOICE_HIDDEN: 'invoice_hidden',
-
-  /** Invoice unhidden by admin (is_hidden: true → false) */
-  INVOICE_UNHIDDEN: 'invoice_unhidden',
-
   /** Invoice archived by admin (moves files to Archived folder) */
   INVOICE_ARCHIVED: 'invoice_archived',
 
@@ -57,6 +51,12 @@ export const ACTIVITY_ACTION = {
 
   /** Payment added to invoice (may trigger status change to partial/paid) */
   PAYMENT_ADDED: 'payment_added',
+
+  /** Payment approved by admin (status: pending → approved) */
+  PAYMENT_APPROVED: 'payment_approved',
+
+  /** Payment rejected by admin (status: pending → rejected) */
+  PAYMENT_REJECTED: 'payment_rejected',
 
   /** Payment updated (amount, date, or payment type changed) */
   PAYMENT_UPDATED: 'payment_updated',
@@ -125,12 +125,12 @@ export const ACTIVITY_ACTION_LABELS: Record<ActivityAction, string> = {
   [ACTIVITY_ACTION.INVOICE_REJECTED]: 'Rejected invoice',
   [ACTIVITY_ACTION.INVOICE_HOLD_PLACED]: 'Placed invoice on hold',
   [ACTIVITY_ACTION.INVOICE_HOLD_RELEASED]: 'Released invoice from hold',
-  [ACTIVITY_ACTION.INVOICE_HIDDEN]: 'Hidden invoice',
-  [ACTIVITY_ACTION.INVOICE_UNHIDDEN]: 'Unhidden invoice',
   [ACTIVITY_ACTION.INVOICE_ARCHIVED]: 'Archived invoice',
   [ACTIVITY_ACTION.INVOICE_DUPLICATED]: 'Duplicated invoice',
   [ACTIVITY_ACTION.INVOICE_DELETED]: 'Deleted invoice',
   [ACTIVITY_ACTION.PAYMENT_ADDED]: 'Added payment',
+  [ACTIVITY_ACTION.PAYMENT_APPROVED]: 'Approved payment',
+  [ACTIVITY_ACTION.PAYMENT_REJECTED]: 'Rejected payment',
   [ACTIVITY_ACTION.PAYMENT_UPDATED]: 'Updated payment',
   [ACTIVITY_ACTION.PAYMENT_DELETED]: 'Deleted payment',
   [ACTIVITY_ACTION.COMMENT_ADDED]: 'Added comment',
@@ -152,12 +152,12 @@ export const ACTIVITY_ACTION_ICONS: Record<ActivityAction, string> = {
   [ACTIVITY_ACTION.INVOICE_REJECTED]: 'XCircle',
   [ACTIVITY_ACTION.INVOICE_HOLD_PLACED]: 'Pause',
   [ACTIVITY_ACTION.INVOICE_HOLD_RELEASED]: 'Play',
-  [ACTIVITY_ACTION.INVOICE_HIDDEN]: 'EyeOff',
-  [ACTIVITY_ACTION.INVOICE_UNHIDDEN]: 'Eye',
   [ACTIVITY_ACTION.INVOICE_ARCHIVED]: 'Archive',
   [ACTIVITY_ACTION.INVOICE_DUPLICATED]: 'Copy',
   [ACTIVITY_ACTION.INVOICE_DELETED]: 'Trash2',
   [ACTIVITY_ACTION.PAYMENT_ADDED]: 'DollarSign',
+  [ACTIVITY_ACTION.PAYMENT_APPROVED]: 'CheckCircle',
+  [ACTIVITY_ACTION.PAYMENT_REJECTED]: 'XCircle',
   [ACTIVITY_ACTION.PAYMENT_UPDATED]: 'DollarSign',
   [ACTIVITY_ACTION.PAYMENT_DELETED]: 'DollarSign',
   [ACTIVITY_ACTION.COMMENT_ADDED]: 'MessageSquare',
@@ -251,12 +251,12 @@ export const activityActionSchema = z.enum([
   ACTIVITY_ACTION.INVOICE_REJECTED,
   ACTIVITY_ACTION.INVOICE_HOLD_PLACED,
   ACTIVITY_ACTION.INVOICE_HOLD_RELEASED,
-  ACTIVITY_ACTION.INVOICE_HIDDEN,
-  ACTIVITY_ACTION.INVOICE_UNHIDDEN,
   ACTIVITY_ACTION.INVOICE_ARCHIVED,
   ACTIVITY_ACTION.INVOICE_DUPLICATED,
   ACTIVITY_ACTION.INVOICE_DELETED,
   ACTIVITY_ACTION.PAYMENT_ADDED,
+  ACTIVITY_ACTION.PAYMENT_APPROVED,
+  ACTIVITY_ACTION.PAYMENT_REJECTED,
   ACTIVITY_ACTION.PAYMENT_UPDATED,
   ACTIVITY_ACTION.PAYMENT_DELETED,
   ACTIVITY_ACTION.COMMENT_ADDED,

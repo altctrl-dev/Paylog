@@ -6,7 +6,7 @@
  */
 
 import { z } from 'zod';
-import { PAYMENT_STATUS, PAYMENT_METHOD } from '@/types/payment';
+import { PAYMENT_STATUS } from '@/types/payment';
 
 // ============================================================================
 // PAYMENT FORM VALIDATION
@@ -43,10 +43,10 @@ export const paymentFormSchema = z
       required_error: 'Payment date is required',
       invalid_type_error: 'Invalid date format',
     }),
-    // Payment method now references master data payment types (by name)
-    payment_method: z.string({
-      required_error: 'Payment method is required',
-    }).min(1, 'Payment method is required'),
+    // Payment type references master data PaymentType by ID
+    payment_type_id: z.number({
+      required_error: 'Payment type is required',
+    }).int().positive('Payment type is required'),
     // Optional: Transaction reference number
     payment_reference: z.string().max(100, 'Reference too long').optional().nullable(),
     // Optional: TDS amount applied at payment time
@@ -92,16 +92,7 @@ export const paymentFiltersSchema = z.object({
       PAYMENT_STATUS.REJECTED,
     ])
     .optional(),
-  payment_method: z
-    .enum([
-      PAYMENT_METHOD.CASH,
-      PAYMENT_METHOD.CHECK,
-      PAYMENT_METHOD.WIRE_TRANSFER,
-      PAYMENT_METHOD.CARD,
-      PAYMENT_METHOD.UPI,
-      PAYMENT_METHOD.OTHER,
-    ])
-    .optional(),
+  payment_type_id: z.number().int().positive().optional(),
   date_from: z.date().optional(),
   date_to: z.date().optional(),
   page: z.number().int().positive().default(1),

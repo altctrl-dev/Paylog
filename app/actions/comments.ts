@@ -105,7 +105,7 @@ export async function createComment(
     // Check invoice exists and is not hidden
     const invoice = await db.invoice.findUnique({
       where: { id: invoiceId },
-      select: { id: true, invoice_number: true, is_hidden: true },
+      select: { id: true, invoice_number: true, is_archived: true },
     });
 
     if (!invoice) {
@@ -115,10 +115,10 @@ export async function createComment(
       };
     }
 
-    if (invoice.is_hidden) {
+    if (invoice.is_archived) {
       return {
         success: false,
-        error: 'Cannot add comment to hidden invoice',
+        error: 'Cannot add comment to archived invoice',
       };
     }
 
@@ -186,7 +186,7 @@ export async function getComments(
     // Check invoice exists
     const invoice = await db.invoice.findUnique({
       where: { id: invoiceId },
-      select: { id: true, is_hidden: true },
+      select: { id: true, is_archived: true },
     });
 
     if (!invoice) {
@@ -196,10 +196,10 @@ export async function getComments(
       };
     }
 
-    if (invoice.is_hidden) {
+    if (invoice.is_archived) {
       return {
         success: false,
-        error: 'Cannot access comments for hidden invoice',
+        error: 'Cannot access comments for archived invoice',
       };
     }
 

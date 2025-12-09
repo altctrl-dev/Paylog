@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-12-09 03:04:22 IST",
+  "timestamp": "2025-12-09 12:19:25 IST",
   "agents_seen": [
     "Main Agent (Direct Work)"
   ],
@@ -9,9 +9,16 @@
   "open_questions": [],
   "owned_artifacts": [
     "OMPACTION.md",
-    "compaction-summary.json",
-    "components/payments/payment-form-panel.tsx",
-    "logs/context-metrics.jsonl"
+    "app/actions/activity-log.ts",
+    "app/actions/attachments.ts",
+    "app/actions/bulk-operations.ts",
+    "app/actions/comments.ts",
+    "app/actions/dashboard.ts",
+    "app/actions/invoices-v2.ts",
+    "app/actions/invoices.ts",
+    "app/actions/ledger.ts",
+    "app/actions/master-data.ts",
+    "scripts/migrate-schema-cleanup.ts"
   ],
   "contracts_touched": [],
   "files_touched": [
@@ -21,18 +28,53 @@
       "anchors": []
     },
     {
-      "path": "compaction-summary.json",
+      "path": "app/actions/activity-log.ts",
       "reason": "modified",
       "anchors": []
     },
     {
-      "path": "components/payments/payment-form-panel.tsx",
+      "path": "app/actions/attachments.ts",
       "reason": "modified",
       "anchors": []
     },
     {
-      "path": "logs/context-metrics.jsonl",
+      "path": "app/actions/bulk-operations.ts",
       "reason": "modified",
+      "anchors": []
+    },
+    {
+      "path": "app/actions/comments.ts",
+      "reason": "modified",
+      "anchors": []
+    },
+    {
+      "path": "app/actions/dashboard.ts",
+      "reason": "modified",
+      "anchors": []
+    },
+    {
+      "path": "app/actions/invoices-v2.ts",
+      "reason": "modified",
+      "anchors": []
+    },
+    {
+      "path": "app/actions/invoices.ts",
+      "reason": "modified",
+      "anchors": []
+    },
+    {
+      "path": "app/actions/ledger.ts",
+      "reason": "modified",
+      "anchors": []
+    },
+    {
+      "path": "app/actions/master-data.ts",
+      "reason": "modified",
+      "anchors": []
+    },
+    {
+      "path": "scripts/migrate-schema-cleanup.ts",
+      "reason": "created",
       "anchors": []
     }
   ],

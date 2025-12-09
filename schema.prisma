@@ -25,7 +25,6 @@ model User {
   deleted_comments         InvoiceComment[]        @relation("CommentDeleter")
   comments                 InvoiceComment[]        @relation("CommentAuthor")
   created_invoices         Invoice[]               @relation("InvoiceCreator")
-  hidden_invoices          Invoice[]               @relation("InvoiceHider")
   held_invoices            Invoice[]               @relation("InvoiceHolder")
   archived_invoices        Invoice[]               @relation("InvoiceArchiver")
   rejected_invoices        Invoice[]               @relation("InvoiceRejector")
@@ -58,14 +57,13 @@ model InvoiceProfile {
   prepaid_postpaid        String?                 @db.VarChar(10)
   tds_applicable          Boolean                 @default(false)
   tds_percentage          Float?
-  billing_frequency       String?                 // Keep nullable for flexibility
+  billing_frequency       String? // Keep nullable for flexibility
   billing_frequency_unit  String?
   billing_frequency_value Int?
   category                Category                @relation(fields: [category_id], references: [id], onUpdate: NoAction, map: "fk_invoice_profiles_category")
   currency                Currency                @relation(fields: [currency_id], references: [id], onUpdate: NoAction, map: "fk_invoice_profiles_currency")
   entity                  Entity                  @relation(fields: [entity_id], references: [id], onUpdate: NoAction, map: "fk_invoice_profiles_entity")
   vendor                  Vendor                  @relation(fields: [vendor_id], references: [id], onUpdate: NoAction, map: "fk_invoice_profiles_vendor")
-  invoices                Invoice[]               @relation("InvoiceProfileLegacy")
   recurring_invoices      Invoice[]               @relation("InvoiceProfileToInvoice")
   visibilities            UserProfileVisibility[]
 
@@ -94,26 +92,26 @@ model UserProfileVisibility {
 }
 
 model Vendor {
-  id               Int              @id @default(autoincrement())
-  name             String
-  is_active        Boolean          @default(true)
-  created_at       DateTime         @default(now())
-  updated_at       DateTime         @updatedAt
-  address          String?
-  gst_exemption    Boolean          @default(false)
-  bank_details     String?
+  id            Int      @id @default(autoincrement())
+  name          String
+  is_active     Boolean  @default(true)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+  address       String?
+  gst_exemption Boolean  @default(false)
+  bank_details  String?
 
   // Vendor Approval Workflow Fields
-  status              String    @default("APPROVED")  // "PENDING_APPROVAL" | "APPROVED" | "REJECTED"
+  status              String    @default("APPROVED") // "PENDING_APPROVAL" | "APPROVED" | "REJECTED"
   created_by_user_id  Int?
   approved_by_user_id Int?
   approved_at         DateTime?
-  rejected_reason     String?   // Reason for rejection (admin input)
+  rejected_reason     String? // Reason for rejection (admin input)
   deleted_at          DateTime? // Soft delete timestamp
 
   // Relations
-  created_by          User?     @relation("VendorCreatedBy", fields: [created_by_user_id], references: [id])
-  approved_by         User?     @relation("VendorApprovedBy", fields: [approved_by_user_id], references: [id])
+  created_by       User?            @relation("VendorCreatedBy", fields: [created_by_user_id], references: [id])
+  approved_by      User?            @relation("VendorApprovedBy", fields: [approved_by_user_id], references: [id])
   invoice_profiles InvoiceProfile[]
   invoices         Invoice[]
 
@@ -137,17 +135,7 @@ model Category {
   @@map("categories")
 }
 
-model SubEntity {
-  id          Int       @id @default(autoincrement())
-  name        String
-  description String?
-  is_active   Boolean   @default(true)
-  created_at  DateTime  @default(now())
-  updated_at  DateTime  @updatedAt
-  invoices    Invoice[]
-
-  @@map("sub_entities")
-}
+// SubEntity model removed - replaced by Entity in master data
 
 model PaymentType {
   id                 Int       @id @default(autoincrement())
@@ -158,95 +146,71 @@ model PaymentType {
   created_at         DateTime  @default(now())
   updated_at         DateTime  @updatedAt
   payments           Payment[]
-  invoices           Invoice[]
 
   @@map("payment_types")
 }
 
 model Invoice {
-  id                 Int                 @id @default(autoincrement())
-  invoice_number     String
-  vendor_id          Int
-  category_id        Int?
-  profile_id         Int?
-  invoice_amount     Float
+  id                    Int                 @id @default(autoincrement())
+  invoice_number        String
+  vendor_id             Int
+  category_id           Int?
+  invoice_amount        Float
   invoice_date          DateTime?
   invoice_received_date DateTime?
   due_date              DateTime?
-  period_start       DateTime?
-  period_end         DateTime?
-  tds_applicable     Boolean             @default(false)
-  tds_percentage     Float?
-  sub_entity_id      Int?
-  notes              String?
-  status             String              @default("pending_approval")
-  hold_reason        String?
-  hold_by            Int?
-  hold_at            DateTime?
-  submission_count   Int                 @default(1)
-  last_submission_at DateTime            @default(now())
-  rejection_reason   String?
-  rejected_by        Int?
-  rejected_at        DateTime?
-  is_hidden          Boolean             @default(false)
-  hidden_by          Int?
-  hidden_at          DateTime?
-  hidden_reason      String?
+  period_start          DateTime?
+  period_end            DateTime?
+  tds_applicable        Boolean             @default(false)
+  tds_percentage        Float?
+  notes                 String?
+  status                String              @default("pending_approval")
+  hold_reason           String?
+  hold_by               Int?
+  hold_at               DateTime?
+  submission_count      Int                 @default(1)
+  last_submission_at    DateTime            @default(now())
+  rejection_reason      String?
+  rejected_by           Int?
+  rejected_at           DateTime?
   // Archive fields (soft archive with file move)
-  is_archived        Boolean             @default(false)
-  archived_by        Int?
-  archived_at        DateTime?
-  archived_reason    String?
-  created_by         Int
-  created_at         DateTime            @default(now())
-  updated_at         DateTime            @updatedAt
-  currency_id        Int?
-  entity_id          Int?
-  description        String?
-  invoice_type       String?             @default("non-recurring") // Keep for backward compatibility
-  // NEW FIELDS - Invoice Type
-  is_recurring       Boolean             @default(false)
-  invoice_profile_id Int?
-  // NEW FIELDS - Inline Payment Status
-  is_paid            Boolean             @default(false)
-  paid_date          DateTime?
-  paid_amount        Float?
-  paid_currency      String?
-  payment_type_id    Int?
-  payment_reference  String?
-  activity_logs      ActivityLog[]
-  attachments        InvoiceAttachment[]
-  comments           InvoiceComment[]
-  category           Category?           @relation(fields: [category_id], references: [id])
-  creator            User                @relation("InvoiceCreator", fields: [created_by], references: [id])
-  currency           Currency?           @relation(fields: [currency_id], references: [id], onUpdate: NoAction)
-  entity             Entity?             @relation(fields: [entity_id], references: [id], onUpdate: NoAction)
-  hider              User?               @relation("InvoiceHider", fields: [hidden_by], references: [id], onDelete: Restrict)
-  holder             User?               @relation("InvoiceHolder", fields: [hold_by], references: [id], onDelete: Restrict)
-  archiver           User?               @relation("InvoiceArchiver", fields: [archived_by], references: [id], onDelete: Restrict)
-  profile            InvoiceProfile?     @relation("InvoiceProfileLegacy", fields: [profile_id], references: [id])
-  invoice_profile    InvoiceProfile?     @relation("InvoiceProfileToInvoice", fields: [invoice_profile_id], references: [id], onDelete: SetNull)
-  payment_type       PaymentType?        @relation(fields: [payment_type_id], references: [id], onDelete: SetNull)
-  rejector           User?               @relation("InvoiceRejector", fields: [rejected_by], references: [id], onDelete: Restrict)
-  sub_entity         SubEntity?          @relation(fields: [sub_entity_id], references: [id])
-  vendor             Vendor              @relation(fields: [vendor_id], references: [id])
-  payments           Payment[]
+  is_archived           Boolean             @default(false)
+  archived_by           Int?
+  archived_at           DateTime?
+  archived_reason       String?
+  created_by            Int
+  created_at            DateTime            @default(now())
+  updated_at            DateTime            @updatedAt
+  currency_id           Int?
+  entity_id             Int?
+  description           String?
+  // Invoice Type
+  is_recurring          Boolean             @default(false)
+  invoice_profile_id    Int?
+  // Relations
+  activity_logs         ActivityLog[]
+  attachments           InvoiceAttachment[]
+  comments              InvoiceComment[]
+  category              Category?           @relation(fields: [category_id], references: [id])
+  creator               User                @relation("InvoiceCreator", fields: [created_by], references: [id])
+  currency              Currency?           @relation(fields: [currency_id], references: [id], onUpdate: NoAction)
+  entity                Entity?             @relation(fields: [entity_id], references: [id], onUpdate: NoAction)
+  holder                User?               @relation("InvoiceHolder", fields: [hold_by], references: [id], onDelete: Restrict)
+  archiver              User?               @relation("InvoiceArchiver", fields: [archived_by], references: [id], onDelete: Restrict)
+  invoice_profile       InvoiceProfile?     @relation("InvoiceProfileToInvoice", fields: [invoice_profile_id], references: [id], onDelete: SetNull)
+  rejector              User?               @relation("InvoiceRejector", fields: [rejected_by], references: [id], onDelete: Restrict)
+  vendor                Vendor              @relation(fields: [vendor_id], references: [id])
+  payments              Payment[]
 
+  @@unique([invoice_number, vendor_id], map: "idx_invoices_number_vendor")
   @@index([status], map: "idx_invoices_status")
-  @@index([status], map: "idx_invoices_on_hold")
-  @@index([is_hidden], map: "idx_invoices_hidden")
-  @@index([is_hidden], map: "idx_invoices_active")
   @@index([is_archived], map: "idx_invoices_archived")
   @@index([submission_count], map: "idx_invoices_submission_count")
   @@index([created_at], map: "idx_invoices_created_at")
-  @@index([sub_entity_id], map: "idx_invoices_sub_entity")
   @@index([currency_id], map: "idx_invoices_currency")
   @@index([entity_id], map: "idx_invoices_entity")
   @@index([is_recurring], map: "idx_invoices_recurring")
   @@index([invoice_profile_id], map: "idx_invoices_invoice_profile")
-  @@index([payment_type_id], map: "idx_invoices_payment_type")
-  @@index([is_paid], map: "idx_invoices_paid")
-  @@unique([invoice_number, vendor_id], map: "idx_invoices_number_vendor")
   @@map("invoices")
 }
 
@@ -256,10 +220,9 @@ model Payment {
   payment_type_id    Int?
   amount_paid        Float
   payment_date       DateTime
-  payment_method     String?
-  payment_reference  String?      // Transaction reference number
+  payment_reference  String? // Transaction reference number
   status             String       @default("pending")
-  tds_amount_applied Float?       // Actual TDS deducted at payment time
+  tds_amount_applied Float? // Actual TDS deducted at payment time
   tds_rounded        Boolean      @default(false) // Whether ceiling rounding was applied
   created_at         DateTime     @default(now())
   updated_at         DateTime     @updatedAt
@@ -437,18 +400,18 @@ model UserAuditLog {
 /// Notification model for user notifications
 /// Notifications are created for various events like invoice approvals, master data requests, etc.
 model Notification {
-  id              Int       @id @default(autoincrement())
-  user_id         Int                               // Target user to receive notification
-  type            String                            // invoice_pending, invoice_approved, invoice_rejected, master_data_request, etc.
-  title           String                            // Short title
-  message         String                            // Detailed message
-  link            String?                           // Optional link to navigate to
-  reference_type  String?                           // invoice, master_data_request, vendor, etc.
-  reference_id    Int?                              // ID of the referenced entity
-  is_read         Boolean   @default(false)
-  read_at         DateTime?
-  created_at      DateTime  @default(now())
-  user            User      @relation("UserNotifications", fields: [user_id], references: [id], onDelete: Cascade)
+  id             Int       @id @default(autoincrement())
+  user_id        Int // Target user to receive notification
+  type           String // invoice_pending, invoice_approved, invoice_rejected, master_data_request, etc.
+  title          String // Short title
+  message        String // Detailed message
+  link           String? // Optional link to navigate to
+  reference_type String? // invoice, master_data_request, vendor, etc.
+  reference_id   Int? // ID of the referenced entity
+  is_read        Boolean   @default(false)
+  read_at        DateTime?
+  created_at     DateTime  @default(now())
+  user           User      @relation("UserNotifications", fields: [user_id], references: [id], onDelete: Cascade)
 
   @@index([user_id, is_read, created_at], map: "idx_notifications_user_unread")
   @@index([user_id, created_at], map: "idx_notifications_user_time")

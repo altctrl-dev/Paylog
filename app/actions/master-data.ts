@@ -1052,7 +1052,7 @@ export async function getInvoiceProfiles(
             select: { id: true, code: true, name: true },
           },
           _count: {
-            select: { invoices: true },
+            select: { recurring_invoices: true },
           },
         },
         orderBy: { name: 'asc' },
@@ -1083,7 +1083,7 @@ export async function getInvoiceProfiles(
       vendor: p.vendor,
       category: p.category,
       currency: p.currency,
-      invoiceCount: p._count.invoices,
+      invoiceCount: p._count.recurring_invoices,
     }));
 
     return {
@@ -1186,7 +1186,7 @@ export async function createInvoiceProfile(
           select: { id: true, code: true, name: true },
         },
         _count: {
-          select: { invoices: true },
+          select: { recurring_invoices: true },
         },
       },
     });
@@ -1217,7 +1217,7 @@ export async function createInvoiceProfile(
         vendor: profile.vendor,
         category: profile.category,
         currency: profile.currency,
-        invoiceCount: profile._count.invoices,
+        invoiceCount: profile._count.recurring_invoices,
       },
     };
   } catch (error) {
@@ -1323,7 +1323,7 @@ export async function updateInvoiceProfile(
           select: { id: true, code: true, name: true },
         },
         _count: {
-          select: { invoices: true },
+          select: { recurring_invoices: true },
         },
       },
     });
@@ -1354,7 +1354,7 @@ export async function updateInvoiceProfile(
         vendor: profile.vendor,
         category: profile.category,
         currency: profile.currency,
-        invoiceCount: profile._count.invoices,
+        invoiceCount: profile._count.recurring_invoices,
       },
     };
   } catch (error) {
@@ -1381,7 +1381,7 @@ export async function archiveInvoiceProfile(
       where: { id },
       include: {
         _count: {
-          select: { invoices: true },
+          select: { recurring_invoices: true },
         },
       },
     });
@@ -1393,10 +1393,10 @@ export async function archiveInvoiceProfile(
       };
     }
 
-    if (profile._count.invoices > 0) {
+    if (profile._count.recurring_invoices > 0) {
       return {
         success: false,
-        error: `Cannot archive profile with ${profile._count.invoices} invoice(s)`,
+        error: `Cannot archive profile with ${profile._count.recurring_invoices} invoice(s)`,
       };
     }
 
@@ -1462,7 +1462,7 @@ export async function restoreInvoiceProfile(
           select: { id: true, code: true, name: true },
         },
         _count: {
-          select: { invoices: true },
+          select: { recurring_invoices: true },
         },
       },
     });
@@ -1500,7 +1500,7 @@ export async function restoreInvoiceProfile(
         vendor: updated.vendor,
         category: updated.category,
         currency: updated.currency,
-        invoiceCount: updated._count.invoices,
+        invoiceCount: updated._count.recurring_invoices,
       },
     };
   } catch (error) {

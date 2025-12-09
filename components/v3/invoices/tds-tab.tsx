@@ -238,8 +238,7 @@ export function TDSTab() {
     };
 
     if (inv.is_recurring) {
-      // Try invoice_profile first, then profile (legacy)
-      return inv.invoice_profile?.name || inv.profile?.name || 'Unknown Profile';
+      return inv.invoice_profile?.name || 'Unknown Profile';
     }
     // Non-recurring: use description as invoice name, fall back to notes
     return inv.description || inv.notes || 'Unnamed Invoice';
