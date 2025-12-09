@@ -243,7 +243,7 @@ export function EditRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: Edi
 
   // Watch values
   const watchedTdsApplicable = watch('tds_applicable');
-  const watchedIsPaid = watch('is_paid');
+  const watchedRecordPayment = watch('is_paid'); // Repurposed: now means "record a new payment"
   const watchedCurrencyId = watch('currency_id');
 
   // Pre-fill form with existing invoice data
@@ -625,10 +625,10 @@ export function EditRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: Edi
         errors={errors}
       />
 
-      {/* Inline Payment Fields */}
+      {/* Record Payment Section (Optional) */}
       <InlinePaymentFields
-        isPaid={watchedIsPaid}
-        onIsPaidChange={(isPaid) => setValue('is_paid', isPaid)}
+        recordPayment={watchedRecordPayment}
+        onRecordPaymentChange={(record) => setValue('is_paid', record)}
         paidDate={watch('paid_date') ?? null}
         paidAmount={watch('paid_amount') ?? null}
         paidCurrency={watch('paid_currency') ?? null}

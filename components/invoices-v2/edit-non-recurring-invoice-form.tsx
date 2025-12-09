@@ -125,14 +125,15 @@ export function EditNonRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: 
 
   // Watch values
   const watchedTdsApplicable = watch('tds_applicable');
-  const watchedIsPaid = watch('is_paid');
+  const watchedRecordPayment = watch('is_paid'); // Repurposed: now means "record a new payment"
   const watchedCurrencyId = watch('currency_id');
 
   // Pre-fill form with existing invoice data
   React.useEffect(() => {
     if (invoice) {
       const invoiceDate = invoice.invoice_date ? new Date(invoice.invoice_date) : new Date();
-      setValue('invoice_name', invoice.description || '');
+      // Use dedicated invoice_name field (fallback to description for backwards compatibility)
+      setValue('invoice_name', invoice.invoice_name || invoice.description || '');
       setValue('brief_description', invoice.description);
       setValue('vendor_id', invoice.vendor_id ?? 0);
       setValue('entity_id', invoice.entity_id ?? 0);
@@ -488,10 +489,10 @@ export function EditNonRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: 
         errors={errors}
       />
 
-      {/* Inline Payment Fields */}
+      {/* Record Payment Section (Optional) */}
       <InlinePaymentFields
-        isPaid={watchedIsPaid}
-        onIsPaidChange={(isPaid) => setValue('is_paid', isPaid)}
+        recordPayment={watchedRecordPayment}
+        onRecordPaymentChange={(record) => setValue('is_paid', record)}
         paidDate={watch('paid_date') ?? null}
         paidAmount={watch('paid_amount') ?? null}
         paidCurrency={watch('paid_currency') ?? null}

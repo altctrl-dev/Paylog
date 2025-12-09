@@ -1,8 +1,12 @@
 /**
  * Inline Payment Fields Component
  *
- * Conditional payment tracking fields that appear inline in invoice forms.
- * Includes toggle for "Paid?" and conditional fields for payment details.
+ * Conditional payment recording fields that appear inline in invoice forms.
+ * Includes toggle for "Record Payment?" and conditional fields for payment details.
+ *
+ * NOTE: This does NOT show current payment status. It only allows recording
+ * a new payment while editing an invoice. Payment status is derived from
+ * the Payment records in the database.
  */
 
 'use client';
@@ -14,7 +18,6 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { cn } from '@/lib/utils';
 import { AmountInput } from './amount-input';
 import { calculateTds } from '@/lib/utils/tds';
 
@@ -22,10 +25,10 @@ import { calculateTds } from '@/lib/utils/tds';
  * Props interface for InlinePaymentFields
  */
 interface InlinePaymentFieldsProps {
-  /** Whether the invoice is marked as paid */
-  isPaid: boolean;
-  /** Callback when isPaid toggle changes */
-  onIsPaidChange: (isPaid: boolean) => void;
+  /** Whether to show payment recording fields */
+  recordPayment: boolean;
+  /** Callback when record payment toggle changes */
+  onRecordPaymentChange: (record: boolean) => void;
   /** Payment date (null if not paid) */
   paidDate: Date | null;
   /** Amount paid (null if not paid) */
@@ -95,13 +98,13 @@ function formatCurrency(amount: number): string {
 /**
  * Inline Payment Fields Component
  *
- * Shows/hides payment tracking fields based on "Paid?" toggle.
+ * Shows/hides payment recording fields based on "Record Payment?" toggle.
  * Auto-fills currency from invoice currency when toggled on.
  * Conditionally shows reference number field based on payment type.
  */
 export function InlinePaymentFields({
-  isPaid,
-  onIsPaidChange,
+  recordPayment,
+  onRecordPaymentChange,
   paidDate,
   paidAmount,
   paidCurrency,
@@ -147,41 +150,41 @@ export function InlinePaymentFields({
     invoiceAmount > 0 &&
     tdsCalculation.exactTds !== tdsCalculation.roundedTds;
 
-  // Auto-fill currency when toggling paid to true
+  // Auto-fill currency when toggling record payment to true
   React.useEffect(() => {
-    if (isPaid && !paidCurrency && invoiceCurrency) {
+    if (recordPayment && !paidCurrency && invoiceCurrency) {
       onFieldChange('paid_currency', invoiceCurrency);
     }
-  }, [isPaid, paidCurrency, invoiceCurrency, onFieldChange]);
+  }, [recordPayment, paidCurrency, invoiceCurrency, onFieldChange]);
 
-  // Auto-fill date to current date when toggling paid to true
+  // Auto-fill date to current date when toggling record payment to true
   React.useEffect(() => {
-    if (isPaid && !paidDate) {
+    if (recordPayment && !paidDate) {
       onFieldChange('paid_date', new Date());
     }
-  }, [isPaid, paidDate, onFieldChange]);
+  }, [recordPayment, paidDate, onFieldChange]);
 
   return (
     <div className="space-y-4 rounded-lg border border-border bg-card p-4">
-      {/* Toggle: Paid? */}
+      {/* Toggle: Record Payment? */}
       <div className="flex items-center justify-between">
-        <Label htmlFor="is_paid" className="text-base font-semibold">
-          Payment Status
-        </Label>
-        <div className="flex items-center gap-3">
-          <span className={cn('text-sm', !isPaid && 'text-muted-foreground')}>
-            {isPaid ? 'Paid' : 'Unpaid'}
-          </span>
-          <Switch
-            id="is_paid"
-            checked={isPaid}
-            onCheckedChange={onIsPaidChange}
-          />
+        <div>
+          <Label htmlFor="record_payment" className="text-base font-semibold">
+            Record Payment
+          </Label>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Add a payment while updating this invoice
+          </p>
         </div>
+        <Switch
+          id="record_payment"
+          checked={recordPayment}
+          onCheckedChange={onRecordPaymentChange}
+        />
       </div>
 
       {/* Conditional Payment Fields */}
-      {isPaid && (
+      {recordPayment && (
         <div className="space-y-4 pt-2 border-t border-border">
           {/* Payment Date */}
           <div className="space-y-2">

@@ -141,7 +141,7 @@ export function NonRecurringInvoiceForm({ onSuccess, onCancel }: NonRecurringInv
 
   // Watch values
   const watchedTdsApplicable = watch('tds_applicable');
-  const watchedIsPaid = watch('is_paid');
+  const watchedRecordPayment = watch('is_paid'); // Repurposed: now means "record a new payment"
   const watchedCurrencyId = watch('currency_id');
 
   // Handle file selection
@@ -660,8 +660,8 @@ export function NonRecurringInvoiceForm({ onSuccess, onCancel }: NonRecurringInv
         {/* For admin: Invoice saved as paid, payment record created immediately */}
         {/* For standard users: Invoice goes to pending_approval, payment created on approval */}
         <InlinePaymentFields
-          isPaid={watchedIsPaid}
-          onIsPaidChange={(isPaid) => setValue('is_paid', isPaid)}
+          recordPayment={watchedRecordPayment}
+          onRecordPaymentChange={(record) => setValue('is_paid', record)}
           paidDate={watch('paid_date') ?? null}
           paidAmount={watch('paid_amount') ?? null}
           paidCurrency={watch('paid_currency') ?? null}
