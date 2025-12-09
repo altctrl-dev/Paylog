@@ -549,14 +549,14 @@ export function AllInvoicesTab() {
               <TableHead className="w-[14%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Inv Amount
               </TableHead>
-              <TableHead className="w-[14%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Pending
-              </TableHead>
               <TableHead className="w-[10%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Status
               </TableHead>
-              <TableHead className="w-[20%] text-xs font-medium text-muted-foreground uppercase tracking-wider text-left pr-6">
+              <TableHead className="w-[20%] text-xs font-medium text-muted-foreground uppercase tracking-wider text-left">
                 Actions
+              </TableHead>
+              <TableHead className="w-[14%] text-xs font-medium text-muted-foreground uppercase tracking-wider pr-6">
+                Pending
               </TableHead>
             </TableRow>
           </TableHeader>
@@ -572,9 +572,9 @@ export function AllInvoicesTab() {
                   </TableCell>
                   <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                   <TableCell><Skeleton className="h-5 w-16 rounded-full" /></TableCell>
-                  <TableCell className="pr-6"><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell className="pr-6"><Skeleton className="h-4 w-20" /></TableCell>
                 </TableRow>
               ))
             ) : filteredInvoices.length === 0 ? (
@@ -657,16 +657,6 @@ export function AllInvoicesTab() {
                           </div>
                         )}
                       </div>
-                    </TableCell>
-
-                    {/* Pending Amount */}
-                    <TableCell>
-                      <span className={cn(
-                        'font-medium text-sm',
-                        pendingAmount > 0 ? 'text-amber-500' : 'text-green-500'
-                      )}>
-                        {formatCurrency(pendingAmount)}
-                      </span>
                     </TableCell>
 
                     {/* Status */}
@@ -760,6 +750,16 @@ export function AllInvoicesTab() {
                           </button>
                         )}
                       </div>
+                    </TableCell>
+
+                    {/* Pending Amount */}
+                    <TableCell className="pr-6">
+                      <span className={cn(
+                        'font-medium text-sm',
+                        pendingAmount > 0 ? 'text-amber-500' : 'text-green-500'
+                      )}>
+                        {formatCurrency(pendingAmount)}
+                      </span>
                     </TableCell>
                   </TableRow>
                 );
