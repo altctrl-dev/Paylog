@@ -38,6 +38,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -139,6 +140,66 @@ function calculateTdsAmount(invoiceAmount: number, tdsPercentage: number | null)
   return (invoiceAmount * tdsPercentage) / 100;
 }
 
+/**
+ * Get month/year group key for an invoice date
+ * Returns: "Dec 2024" or "Dec" (if current year)
+ */
+function getMonthGroupKey(dateString: string | Date | null, currentYear: number): string {
+  if (!dateString) return 'No Date';
+  const date = new Date(dateString);
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const month = monthNames[date.getMonth()];
+  const year = date.getFullYear();
+  // Only show year if it's not the current year
+  return year === currentYear ? month : `${month} ${year}`;
+}
+
+/**
+ * Get sortable key for month groups (for sorting groups chronologically)
+ */
+function getMonthSortKey(dateString: string | Date | null): number {
+  if (!dateString) return 0;
+  const date = new Date(dateString);
+  return date.getFullYear() * 100 + date.getMonth();
+}
+
+/**
+ * Group invoices by month/year
+ */
+interface GroupableInvoice {
+  id: number;
+  invoice_date: string | Date | null;
+  invoice_number: string;
+}
+
+function groupInvoicesByMonth<T extends GroupableInvoice>(
+  invoices: T[],
+  currentYear: number
+): Array<{ key: string; sortKey: number; invoices: T[] }> {
+  const groups = new Map<string, { sortKey: number; invoices: T[] }>();
+
+  for (const invoice of invoices) {
+    const groupKey = getMonthGroupKey(invoice.invoice_date, currentYear);
+    const sortKey = getMonthSortKey(invoice.invoice_date);
+
+    if (!groups.has(groupKey)) {
+      groups.set(groupKey, { sortKey, invoices: [] });
+    }
+    groups.get(groupKey)!.invoices.push(invoice);
+  }
+
+  // Convert to array and sort by sortKey (oldest first)
+  return Array.from(groups.entries())
+    .map(([key, value]) => ({ key, ...value }))
+    .sort((a, b) => a.sortKey - b.sortKey);
+}
+
+// ============================================================================
+// View Mode Types
+// ============================================================================
+
+type ViewMode = 'pending' | 'monthly';
+
 // ============================================================================
 // Main Component
 // ============================================================================
@@ -157,10 +218,13 @@ export function AllInvoicesTab() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showArchived, setShowArchived] = useState(false);
   const [sortBy, setSortBy] = useState<'invoice_date' | 'invoice_amount' | 'status'>('invoice_date');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc'); // Default: oldest first
   const [showInvoiceTypeMenu, setShowInvoiceTypeMenu] = useState(false);
 
-  // Default to current month
+  // Default view mode: show pending invoices (not paid)
+  const [viewMode, setViewMode] = useState<ViewMode>('pending');
+
+  // Default to current month (used when in monthly view mode)
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
@@ -168,13 +232,27 @@ export function AllInvoicesTab() {
   // Calculate date range for selected month
   const { start, end } = getMonthDateRange(selectedMonth, selectedYear);
 
-  // Fetch invoices for selected month
+  // Determine which statuses to exclude for "pending" view (everything except paid)
+  const pendingStatuses: InvoiceStatus[] = [
+    INVOICE_STATUS.PENDING_APPROVAL as InvoiceStatus,
+    INVOICE_STATUS.UNPAID as InvoiceStatus,
+    INVOICE_STATUS.PARTIAL as InvoiceStatus,
+    INVOICE_STATUS.OVERDUE as InvoiceStatus,
+    INVOICE_STATUS.ON_HOLD as InvoiceStatus,
+  ];
+
+  // Fetch invoices based on view mode
   const { data, isLoading } = useInvoices({
     page: 1,
-    per_page: 100,
-    status: showArchived ? undefined : (statusFilter === 'all' ? undefined : (statusFilter as InvoiceStatus)),
-    start_date: showArchived ? undefined : start, // Don't filter by date when showing archived
-    end_date: showArchived ? undefined : end,
+    per_page: 500, // Fetch more for pending view since no date filter
+    status: showArchived
+      ? undefined
+      : (statusFilter !== 'all'
+          ? (statusFilter as InvoiceStatus)
+          : undefined),
+    // Only apply date filter in monthly view mode (not pending mode)
+    start_date: (showArchived || viewMode === 'pending') ? undefined : start,
+    end_date: (showArchived || viewMode === 'pending') ? undefined : end,
     sort_by: sortBy,
     sort_order: sortOrder,
     show_archived: showArchived,
@@ -185,7 +263,11 @@ export function AllInvoicesTab() {
     setSelectedYear(year);
   };
 
-  const invoices = data?.invoices ?? [];
+  // Filter invoices based on view mode
+  const rawInvoices = data?.invoices ?? [];
+  const invoices = viewMode === 'pending' && !showArchived && statusFilter === 'all'
+    ? rawInvoices.filter(inv => pendingStatuses.includes(inv.status as InvoiceStatus))
+    : rawInvoices;
 
   // Filter by search query
   const filteredInvoices = invoices.filter((invoice) => {
@@ -417,12 +499,27 @@ export function AllInvoicesTab() {
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const titleMonth = `${monthNames[selectedMonth]} ${selectedYear}`;
 
+  // Group invoices by month when in pending view mode
+  const currentYear = now.getFullYear();
+  const groupedInvoices = viewMode === 'pending' && !showArchived
+    ? groupInvoicesByMonth(filteredInvoices, currentYear)
+    : null;
+
+  // Get title based on view mode
+  const getTitle = () => {
+    if (showArchived) return 'Archived Invoices';
+    if (viewMode === 'pending') return 'Pending Actions';
+    return `All Invoices - ${titleMonth}`;
+  };
+
   return (
     <div className="space-y-4">
-      {/* Title with Month */}
-      <h2 className="text-lg font-semibold pl-1">
-        {showArchived ? 'Archived Invoices' : `All Invoices - ${titleMonth}`}
-      </h2>
+      {/* Title */}
+      <div className="pl-1">
+        <h2 className="text-lg font-semibold">
+          {getTitle()}
+        </h2>
+      </div>
 
       {/* Action Bar */}
       <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
@@ -451,6 +548,15 @@ export function AllInvoicesTab() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
+              {/* View Modes */}
+              <DropdownMenuItem onClick={() => { setViewMode('pending'); setStatusFilter('all'); setShowArchived(false); }}>
+                Pending
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { setViewMode('monthly'); setStatusFilter('all'); setShowArchived(false); }}>
+                Monthly
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {/* Status Filters */}
               <DropdownMenuItem onClick={() => { setStatusFilter('all'); setShowArchived(false); }}>
                 All Statuses
               </DropdownMenuItem>
@@ -463,10 +569,7 @@ export function AllInvoicesTab() {
               <DropdownMenuItem onClick={() => { setStatusFilter(INVOICE_STATUS.OVERDUE); setShowArchived(false); }}>
                 Overdue
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => { setStatusFilter(INVOICE_STATUS.PENDING_APPROVAL); setShowArchived(false); }}>
-                Pending Approval
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => { setShowArchived(true); setStatusFilter('all'); }}>
+              <DropdownMenuItem onClick={() => { setShowArchived(true); setStatusFilter('all'); setViewMode('monthly'); }}>
                 Archived
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -494,9 +597,9 @@ export function AllInvoicesTab() {
           </DropdownMenu>
         </div>
 
-        {/* Right: Month Navigator, Export, New Invoice */}
+        {/* Right: Month Navigator (only in monthly mode), Export, New Invoice */}
         <div className="flex items-center gap-2">
-          {!showArchived && (
+          {!showArchived && viewMode === 'monthly' && (
             <MonthNavigator
               month={selectedMonth}
               year={selectedYear}
@@ -580,10 +683,129 @@ export function AllInvoicesTab() {
             ) : filteredInvoices.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
-                  No invoices found
+                  {viewMode === 'pending' ? 'No pending invoices - all caught up!' : 'No invoices found'}
                 </TableCell>
               </TableRow>
+            ) : groupedInvoices ? (
+              // Grouped view (pending mode)
+              groupedInvoices.map((group) => (
+                <React.Fragment key={group.key}>
+                  {/* Month Group Header */}
+                  <TableRow className="bg-muted/50 hover:bg-muted/50">
+                    <TableCell colSpan={7} className="py-2 pl-4">
+                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        {group.key}
+                      </span>
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        ({group.invoices.length} invoice{group.invoices.length !== 1 ? 's' : ''})
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                  {/* Invoices in this group */}
+                  {group.invoices.map((invoice) => {
+                    // Calculate TDS and pending amounts
+                    const tdsAmount = invoice.tds_applicable && invoice.tds_percentage
+                      ? calculateTdsAmount(invoice.invoice_amount, invoice.tds_percentage)
+                      : 0;
+                    const netPayable = invoice.invoice_amount - tdsAmount;
+                    const totalPaid = invoice.totalPaid ?? 0;
+                    const pendingAmount = Math.max(0, netPayable - totalPaid);
+
+                    // Permission checks for actions
+                    const isPendingApproval = invoice.status === INVOICE_STATUS.PENDING_APPROVAL;
+                    const canRecordPayment = !isPendingApproval &&
+                      invoice.status !== INVOICE_STATUS.PAID &&
+                      invoice.status !== INVOICE_STATUS.REJECTED &&
+                      invoice.status !== INVOICE_STATUS.ON_HOLD;
+                    const canApproveReject = isAdmin && isPendingApproval;
+
+                    return (
+                      <TableRow
+                        key={invoice.id}
+                        data-state={selectedInvoices.has(invoice.id) ? 'selected' : undefined}
+                        className="border-b border-border/50"
+                      >
+                        <TableCell className="pl-4">
+                          <Checkbox
+                            checked={selectedInvoices.has(invoice.id)}
+                            onCheckedChange={() => toggleSelect(invoice.id)}
+                            aria-label={`Select ${invoice.invoice_number}`}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-0.5">
+                            <div className="font-medium text-sm">{getInvoiceDetails(invoice)}</div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground">{invoice.invoice_number}</span>
+                              {invoice.is_recurring && (
+                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-orange-500/50 text-orange-500">
+                                  Recurring
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">{formatDate(invoice.invoice_date)}</TableCell>
+                        <TableCell>
+                          <div className="space-y-0.5">
+                            <div className="font-medium text-sm">{formatCurrency(invoice.invoice_amount)}</div>
+                            {invoice.tds_applicable && invoice.tds_percentage && tdsAmount > 0 && (
+                              <div className="text-[10px] text-muted-foreground">
+                                TDS {formatCurrencyWithDecimals(tdsAmount)} ({invoice.tds_percentage}%)
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell><StatusBadge status={invoice.status as InvoiceStatus} /></TableCell>
+                        <TableCell className="pl-4">
+                          <div className="flex items-center gap-2">
+                            <button className="text-muted-foreground hover:text-foreground transition-colors" onClick={() => handleViewInvoice(invoice.id)} title="View">
+                              <Eye className="h-4 w-4" /><span className="sr-only">View</span>
+                            </button>
+                            {!showArchived && (
+                              <button className="text-muted-foreground hover:text-foreground transition-colors" onClick={() => handleEditInvoice(invoice.id, invoice.is_recurring)} title="Edit">
+                                <Pencil className="h-4 w-4" /><span className="sr-only">Edit</span>
+                              </button>
+                            )}
+                            {canRecordPayment && (
+                              <button className="text-muted-foreground hover:text-primary transition-colors" onClick={() => handleRecordPayment(invoice)} title="Record Payment">
+                                <CreditCard className="h-4 w-4" /><span className="sr-only">Record Payment</span>
+                              </button>
+                            )}
+                            {canApproveReject && (
+                              <button className="text-muted-foreground hover:text-green-500 transition-colors" onClick={() => handleApproveInvoice(invoice.id, invoice.invoice_number)} title="Approve">
+                                <Check className="h-4 w-4" /><span className="sr-only">Approve</span>
+                              </button>
+                            )}
+                            {canApproveReject && (
+                              <button className="text-muted-foreground hover:text-destructive transition-colors" onClick={() => handleRejectInvoice(invoice.id, invoice.invoice_number)} title="Reject">
+                                <X className="h-4 w-4" /><span className="sr-only">Reject</span>
+                              </button>
+                            )}
+                            {!showArchived && (
+                              <button className="text-muted-foreground hover:text-amber-500 transition-colors" onClick={() => handleArchiveInvoice(invoice.id, invoice.invoice_number)} title="Archive">
+                                <Archive className="h-4 w-4" /><span className="sr-only">Archive</span>
+                              </button>
+                            )}
+                            {isSuperAdmin && (
+                              <button className="text-muted-foreground hover:text-destructive transition-colors" onClick={() => handleDeleteInvoice(invoice.id, invoice.invoice_number)} disabled={isDeleting} title="Permanently Delete">
+                                <Trash2 className="h-4 w-4" /><span className="sr-only">Delete</span>
+                              </button>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="pr-6">
+                          <span className={cn('font-medium text-sm', pendingAmount > 0 ? 'text-amber-500' : 'text-green-500')}>
+                            {formatCurrency(pendingAmount)}
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </React.Fragment>
+              ))
             ) : (
+              // Flat view (monthly mode or archived)
               filteredInvoices.map((invoice) => {
                 // Calculate TDS and pending amounts
                 const tdsAmount = invoice.tds_applicable && invoice.tds_percentage
