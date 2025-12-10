@@ -19,6 +19,7 @@ import { PasswordResetDialog } from '@/components/users/password-reset-dialog';
 import { Button } from '@/components/ui/button';
 import { Plus, Loader2 } from 'lucide-react';
 import { usePanel } from '@/hooks/use-panel';
+import { PANEL_WIDTH } from '@/types/panel';
 
 export default function UserManagement() {
   const [users, setUsers] = useState<UserWithStats[]>([]);
@@ -78,7 +79,7 @@ export default function UserManagement() {
           handleRefreshData();
         },
       },
-      { width: 500 }
+      { width: PANEL_WIDTH.MEDIUM }
     );
   };
 
@@ -107,7 +108,7 @@ export default function UserManagement() {
         },
         onRefresh: handleRefreshData,
       },
-      { width: 350 }
+      { width: PANEL_WIDTH.MEDIUM }
     );
   };
 
@@ -124,7 +125,7 @@ export default function UserManagement() {
           handleRefreshData();
         },
       },
-      { width: 500 }
+      { width: PANEL_WIDTH.MEDIUM }
     );
   };
 

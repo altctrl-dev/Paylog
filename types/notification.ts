@@ -25,6 +25,11 @@ export const NOTIFICATION_TYPE = {
   ARCHIVE_REQUEST_PENDING: 'archive_request_pending',         // To admins: new archive request
   ARCHIVE_REQUEST_APPROVED: 'archive_request_approved',       // To requester: archive approved
   ARCHIVE_REQUEST_REJECTED: 'archive_request_rejected',       // To requester: archive rejected
+
+  // Payment notifications
+  PAYMENT_PENDING_APPROVAL: 'payment_pending_approval',  // To admins: new payment needs approval
+  PAYMENT_APPROVED: 'payment_approved',                  // To requester: payment was approved
+  PAYMENT_REJECTED: 'payment_rejected',                  // To requester: payment was rejected
 } as const;
 
 export type NotificationType = typeof NOTIFICATION_TYPE[keyof typeof NOTIFICATION_TYPE];
@@ -40,6 +45,7 @@ export const NOTIFICATION_REFERENCE_TYPE = {
   CATEGORY: 'category',
   PAYMENT_TYPE: 'payment_type',
   INVOICE_PROFILE: 'invoice_profile',
+  PAYMENT: 'payment',
 } as const;
 
 export type NotificationReferenceType = typeof NOTIFICATION_REFERENCE_TYPE[keyof typeof NOTIFICATION_REFERENCE_TYPE];

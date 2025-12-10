@@ -22,6 +22,11 @@ import { paymentFormSchema } from '@/lib/validations/payment';
 import { revalidatePath } from 'next/cache';
 import { createActivityLog } from '@/app/actions/activity-log';
 import { ACTIVITY_ACTION } from '@/docs/SPRINT7_ACTIVITY_ACTIONS';
+import {
+  notifyPaymentPendingApproval,
+  notifyPaymentApproved,
+  notifyPaymentRejected,
+} from '@/app/actions/notifications';
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -213,6 +218,54 @@ export async function getPaymentsByInvoiceId(
 }
 
 /**
+ * Get payments with optional status filter (Admin only)
+ *
+ * @param options - Filter options
+ * @returns List of payments with relations
+ */
+export async function getPayments(options?: {
+  status?: string;
+}): Promise<ServerActionResult<PaymentWithRelations[]>> {
+  try {
+    const currentUser = await getCurrentUser();
+
+    // Only admins can view all payments
+    if (!currentUser.isAdmin) {
+      return {
+        success: false,
+        error: 'Unauthorized: Only administrators can view all payments',
+      };
+    }
+
+    const where: Prisma.PaymentWhereInput = {};
+
+    if (options?.status) {
+      where.status = options.status;
+    }
+
+    const payments = await db.payment.findMany({
+      where,
+      include: paymentInclude,
+      orderBy: {
+        payment_date: 'desc',
+      },
+    });
+
+    return {
+      success: true,
+      data: payments as PaymentWithRelations[],
+    };
+  } catch (error) {
+    console.error('getPayments error:', error);
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'Failed to fetch payments',
+    };
+  }
+}
+
+/**
  * Get single payment by ID
  *
  * @param id - Payment ID
@@ -279,6 +332,7 @@ export async function createPayment(
       where: { id: invoiceId },
       select: {
         id: true,
+        invoice_number: true,
         invoice_amount: true,
         status: true,
         is_archived: true,
@@ -367,6 +421,10 @@ export async function createPayment(
           tds_amount_applied: tdsAmountApplied,
           tds_rounded: tdsRounded,
           status: paymentStatus,
+          created_by_user_id: currentUser.id,
+          // If admin creates payment, auto-approve
+          approved_by_user_id: currentUser.isAdmin ? currentUser.id : null,
+          approved_at: currentUser.isAdmin ? new Date() : null,
         },
         include: paymentInclude,
       });
@@ -422,6 +480,24 @@ export async function createPayment(
       },
     });
 
+    // Notify admins if payment is pending approval (non-admin user created it)
+    if (paymentStatus === PAYMENT_STATUS.PENDING) {
+      // Get user's name for notification
+      const user = await db.user.findUnique({
+        where: { id: currentUser.id },
+        select: { full_name: true },
+      });
+      const requesterName = user?.full_name || currentUser.email;
+
+      // Non-blocking notification
+      notifyPaymentPendingApproval(
+        result.id,
+        invoice.invoice_number,
+        validated.amount_paid,
+        requesterName
+      ).catch((err) => console.error('Failed to notify payment pending:', err));
+    }
+
     // Revalidate paths
     revalidatePath('/invoices');
     revalidatePath(`/invoices/${invoiceId}`);
@@ -474,6 +550,7 @@ export async function approvePayment(
         invoice: {
           select: {
             id: true,
+            invoice_number: true,
             invoice_amount: true,
           },
         },
@@ -501,6 +578,8 @@ export async function approvePayment(
         where: { id: paymentId },
         data: {
           status: PAYMENT_STATUS.APPROVED,
+          approved_by_user_id: currentUser.id,
+          approved_at: new Date(),
         },
         include: paymentInclude,
       });
@@ -553,9 +632,20 @@ export async function approvePayment(
       },
     });
 
+    // Notify the payment creator (if different from current user)
+    if (payment.created_by_user_id && payment.created_by_user_id !== currentUser.id) {
+      notifyPaymentApproved(
+        payment.created_by_user_id,
+        paymentId,
+        payment.invoice.invoice_number,
+        payment.amount_paid
+      ).catch((err) => console.error('Failed to notify payment approved:', err));
+    }
+
     // Revalidate paths
     revalidatePath('/invoices');
     revalidatePath(`/invoices/${payment.invoice.id}`);
+    revalidatePath('/admin');
 
     return {
       success: true,
@@ -592,10 +682,19 @@ export async function rejectPayment(
       };
     }
 
-    // Get the payment
+    // Get the payment with invoice details
     const payment = await db.payment.findUnique({
       where: { id: paymentId },
-      include: paymentInclude,
+      include: {
+        ...paymentInclude,
+        invoice: {
+          select: {
+            id: true,
+            invoice_number: true,
+            invoice_amount: true,
+          },
+        },
+      },
     });
 
     if (!payment) {
@@ -612,11 +711,12 @@ export async function rejectPayment(
       };
     }
 
-    // Update payment status to rejected
+    // Update payment status to rejected with reason
     const updatedPayment = await db.payment.update({
       where: { id: paymentId },
       data: {
         status: PAYMENT_STATUS.REJECTED,
+        rejection_reason: reason || null,
       },
       include: paymentInclude,
     });
@@ -638,9 +738,21 @@ export async function rejectPayment(
       },
     });
 
+    // Notify the payment creator (if different from current user)
+    if (payment.created_by_user_id && payment.created_by_user_id !== currentUser.id) {
+      notifyPaymentRejected(
+        payment.created_by_user_id,
+        paymentId,
+        payment.invoice.invoice_number,
+        payment.amount_paid,
+        reason
+      ).catch((err) => console.error('Failed to notify payment rejected:', err));
+    }
+
     // Revalidate paths
     revalidatePath('/invoices');
     revalidatePath(`/invoices/${payment.invoice.id}`);
+    revalidatePath('/admin');
 
     return {
       success: true,

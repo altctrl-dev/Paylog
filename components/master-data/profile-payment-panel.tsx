@@ -33,6 +33,7 @@ import { useLedgerSummary } from '@/hooks/use-ledger';
 import { calculateTds } from '@/lib/utils/tds';
 import { cn } from '@/lib/utils';
 import type { PanelConfig } from '@/types/panel';
+import { PANEL_WIDTH } from '@/types/panel';
 import { INVOICE_STATUS_CONFIG, type InvoiceStatus } from '@/types/invoice';
 
 interface ProfilePaymentPanelProps {
@@ -219,7 +220,7 @@ export function ProfilePaymentPanel({
 
   // Handle view invoice detail
   const handleViewInvoice = (invoiceId: number) => {
-    openPanel('invoice-v2-detail', { invoiceId });
+    openPanel('invoice-v3-detail', { invoiceId }, { width: PANEL_WIDTH.LARGE });
   };
 
   const isLoading = isLoadingProfile || isLoadingInvoices;

@@ -11,13 +11,14 @@ import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { VendorList } from './vendor-list';
 import { usePanel } from '@/hooks/use-panel';
+import { PANEL_WIDTH } from '@/types/panel';
 
 export default function VendorManagement() {
   const [showArchived, setShowArchived] = useState(false);
   const { openPanel } = usePanel();
 
   const handleCreateVendor = () => {
-    openPanel('vendor-form', {});
+    openPanel('vendor-form', {}, { width: PANEL_WIDTH.SMALL });
   };
 
   const handleEditVendor = (vendor: {
@@ -27,7 +28,7 @@ export default function VendorManagement() {
     gst_exemption?: boolean;
     bank_details?: string | null;
   }) => {
-    openPanel('vendor-form', { vendor });
+    openPanel('vendor-form', { vendor }, { width: PANEL_WIDTH.SMALL });
   };
 
   return (

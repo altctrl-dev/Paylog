@@ -4,7 +4,7 @@
  * Admin Tabs Component (v3)
  *
  * Modern tab navigation for switching between admin views:
- * - Dashboard: Admin dashboard overview
+ * - Approvals: Pending approvals for invoices, payments, vendors, archives
  * - Master Data: Master data management (with sub-tabs)
  * - User Management: User management (super_admin only)
  *
@@ -19,7 +19,7 @@ import { cn } from '@/lib/utils';
 // Types
 // ============================================================================
 
-export type AdminTab = 'dashboard' | 'master-data' | 'users';
+export type AdminTab = 'approvals' | 'master-data' | 'users';
 
 export interface AdminTabsProps
   extends Omit<React.HTMLAttributes<HTMLDivElement>, 'onChange'> {
@@ -42,7 +42,7 @@ interface TabConfig {
 }
 
 const TAB_CONFIG: TabConfig[] = [
-  { id: 'dashboard', label: 'Dashboard' },
+  { id: 'approvals', label: 'Approvals' },
   { id: 'master-data', label: 'Master Data' },
   { id: 'users', label: 'User Management', superAdminOnly: true },
 ];

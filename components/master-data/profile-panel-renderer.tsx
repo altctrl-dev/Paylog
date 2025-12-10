@@ -9,10 +9,10 @@
 
 import * as React from 'react';
 import { usePanelStack } from '@/hooks/use-panel-stack';
-import { ProfileDetailPanel } from './profile-detail-panel';
+import { ProfileDetailPanelV3 } from './profile-detail-panel-v3';
 import { ProfileFormPanel } from './profile-form-panel';
-import { ProfileInvoicesPanel } from './profile-invoices-panel';
-import { ProfilePaymentPanel } from './profile-payment-panel';
+import { ProfileInvoicesPanelV3 } from './profile-invoices-panel-v3';
+import { ProfilePaymentPanelV3 } from './profile-payment-panel-v3';
 
 interface ProfilePanelRendererProps {
   id: string;
@@ -45,7 +45,7 @@ export function ProfilePanelRenderer({
   switch (type) {
     case 'profile-detail':
       return (
-        <ProfileDetailPanel
+        <ProfileDetailPanelV3
           config={config}
           onClose={onClose}
           profileId={props.profileId as number}
@@ -67,7 +67,7 @@ export function ProfilePanelRenderer({
 
     case 'profile-invoices':
       return (
-        <ProfileInvoicesPanel
+        <ProfileInvoicesPanelV3
           config={config}
           onClose={onClose}
           profileId={props.profileId as number}
@@ -76,7 +76,7 @@ export function ProfilePanelRenderer({
 
     case 'profile-payment':
       return (
-        <ProfilePaymentPanel
+        <ProfilePaymentPanelV3
           config={config}
           onClose={onClose}
           profileId={props.profileId as number}

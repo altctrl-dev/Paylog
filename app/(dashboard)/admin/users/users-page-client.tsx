@@ -103,7 +103,7 @@ export function UsersPageClient({ initialUsers }: UsersPageClientProps) {
         },
         onRefresh: handleRefreshData,
       },
-      { width: PANEL_WIDTH.SMALL }
+      { width: PANEL_WIDTH.MEDIUM }
     );
   };
 

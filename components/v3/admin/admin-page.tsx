@@ -4,7 +4,7 @@
  * Admin Page Component (v3)
  *
  * Main admin management page with tabbed navigation:
- * - Dashboard: Admin dashboard overview
+ * - Approvals: Pending approvals for invoices, payments, vendors, archives
  * - Master Data: Master data management with sub-tabs
  * - User Management: User management (super_admin only)
  *
@@ -14,8 +14,7 @@
 import * as React from 'react';
 import { AdminTabsResponsive, type AdminTab } from './admin-tabs';
 import { MasterDataTabsResponsive, type MasterDataTab } from './master-data-tabs';
-import AdminDashboard from '@/components/admin/admin-dashboard';
-import MasterDataRequests from '@/components/admin/master-data-requests';
+import { ApprovalsPage } from './approvals/approvals-page';
 import VendorManagement from '@/components/master-data/vendor-management';
 import CategoryManagement from '@/components/master-data/category-management';
 import EntityManagement from '@/components/master-data/entity-management';
@@ -33,10 +32,14 @@ export interface AdminPageProps {
   activeTab?: AdminTab;
   /** Currently active sub-tab for Master Data (controlled by parent/URL) */
   activeSubTab?: MasterDataTab;
+  /** Currently active sub-tab for Approvals (controlled by parent/URL) */
+  activeApprovalTab?: 'invoices' | 'payments' | 'vendors' | 'archives';
   /** Callback when tab changes */
   onTabChange?: (tab: AdminTab) => void;
   /** Callback when sub-tab changes */
   onSubTabChange?: (subtab: MasterDataTab) => void;
+  /** Callback when approval sub-tab changes */
+  onApprovalTabChange?: (tab: 'invoices' | 'payments' | 'vendors' | 'archives') => void;
   /** Whether user is super_admin */
   isSuperAdmin?: boolean;
 }
@@ -46,10 +49,12 @@ export interface AdminPageProps {
 // ============================================================================
 
 export function AdminPage({
-  activeTab = 'dashboard',
-  activeSubTab = 'requests',
+  activeTab = 'approvals',
+  activeSubTab = 'vendors',
+  activeApprovalTab = 'invoices',
   onTabChange,
   onSubTabChange,
+  onApprovalTabChange,
   isSuperAdmin = false,
 }: AdminPageProps) {
   // Handle tab change
@@ -60,6 +65,11 @@ export function AdminPage({
   // Handle sub-tab change
   const handleSubTabChange = (subtab: MasterDataTab) => {
     onSubTabChange?.(subtab);
+  };
+
+  // Handle approval tab change
+  const handleApprovalTabChange = (tab: 'invoices' | 'payments' | 'vendors' | 'archives') => {
+    onApprovalTabChange?.(tab);
   };
 
   return (
@@ -86,7 +96,12 @@ export function AdminPage({
         id={`panel-${activeTab}`}
         aria-labelledby={`tab-${activeTab}`}
       >
-        {activeTab === 'dashboard' && <AdminDashboard />}
+        {activeTab === 'approvals' && (
+          <ApprovalsPage
+            activeTab={activeApprovalTab}
+            onTabChange={handleApprovalTabChange}
+          />
+        )}
         {activeTab === 'master-data' && (
           <MasterDataContent
             activeSubTab={activeSubTab}
@@ -135,7 +150,6 @@ function MasterDataContent({
         id={`panel-${activeSubTab}`}
         aria-labelledby={`tab-${activeSubTab}`}
       >
-        {activeSubTab === 'requests' && <MasterDataRequests />}
         {activeSubTab === 'vendors' && <VendorManagement />}
         {activeSubTab === 'categories' && <CategoryManagement />}
         {activeSubTab === 'entities' && <EntityManagement />}

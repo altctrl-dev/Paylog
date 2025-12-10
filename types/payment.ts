@@ -63,6 +63,11 @@ export interface Payment {
   tds_rounded: boolean;
   created_at: Date;
   updated_at: Date;
+  // Payment approval workflow fields
+  created_by_user_id: number | null;
+  approved_by_user_id: number | null;
+  approved_at: Date | null;
+  rejection_reason: string | null;
 }
 
 /**
@@ -78,6 +83,14 @@ export interface PaymentWithRelations extends Payment {
     id: number;
     name: string;
     requires_reference: boolean;
+  } | null;
+  created_by?: {
+    id: number;
+    full_name: string;
+  } | null;
+  approved_by?: {
+    id: number;
+    full_name: string;
   } | null;
 }
 

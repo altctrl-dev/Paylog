@@ -4,13 +4,14 @@
  * Master Data Tabs Component (v3)
  *
  * Modern tab navigation for switching between master data management views:
- * - All Requests: Master data change requests
  * - Vendors: Vendor management
  * - Categories: Category management
  * - Entities: Entity management
  * - Payment Types: Payment type management
  * - Currencies: Currency management
  * - Invoice Profiles: Invoice profile management
+ *
+ * Note: Approval requests have been moved to Admin > Approvals
  *
  * Design: Clean pill-style tabs with subtle hover states (matches Invoice/Settings/Admin tabs)
  */
@@ -24,7 +25,6 @@ import { cn } from '@/lib/utils';
 // ============================================================================
 
 export type MasterDataTab =
-  | 'requests'
   | 'vendors'
   | 'categories'
   | 'entities'
@@ -50,7 +50,6 @@ interface TabConfig {
 }
 
 const TAB_CONFIG: TabConfig[] = [
-  { id: 'requests', label: 'All Requests' },
   { id: 'vendors', label: 'Vendors' },
   { id: 'categories', label: 'Categories' },
   { id: 'entities', label: 'Entities' },

@@ -37,6 +37,8 @@ model User {
   created_vendors          Vendor[]                @relation("VendorCreatedBy")
   approved_vendors         Vendor[]                @relation("VendorApprovedBy")
   notifications            Notification[]          @relation("UserNotifications")
+  created_payments         Payment[]               @relation("PaymentCreator")
+  approved_payments        Payment[]               @relation("PaymentApprover")
 
   @@index([role, is_active], map: "idx_users_role_active")
   @@index([role], map: "idx_users_super_admin")
@@ -184,7 +186,7 @@ model Invoice {
   currency_id           Int?
   entity_id             Int?
   description           String?
-  invoice_name          String?             // For non-recurring: user-entered name; For recurring: auto-populated from invoice_profile.name
+  invoice_name          String? // For non-recurring: user-entered name; For recurring: auto-populated from invoice_profile.name
   // Invoice Type
   is_recurring          Boolean             @default(false)
   invoice_profile_id    Int?
@@ -216,24 +218,36 @@ model Invoice {
 }
 
 model Payment {
-  id                 Int          @id @default(autoincrement())
+  id                 Int      @id @default(autoincrement())
   invoice_id         Int
   payment_type_id    Int?
   amount_paid        Float
   payment_date       DateTime
   payment_reference  String? // Transaction reference number
-  status             String       @default("pending")
+  status             String   @default("pending")
   tds_amount_applied Float? // Actual TDS deducted at payment time
-  tds_rounded        Boolean      @default(false) // Whether ceiling rounding was applied
-  created_at         DateTime     @default(now())
-  updated_at         DateTime     @updatedAt
-  invoice            Invoice      @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
-  payment_type       PaymentType? @relation(fields: [payment_type_id], references: [id])
+  tds_rounded        Boolean  @default(false) // Whether ceiling rounding was applied
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
+
+  // Payment Approval Workflow Fields
+  created_by_user_id  Int?
+  approved_by_user_id Int?
+  approved_at         DateTime?
+  rejection_reason    String?
+
+  // Relations
+  invoice      Invoice      @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
+  payment_type PaymentType? @relation(fields: [payment_type_id], references: [id])
+  created_by   User?        @relation("PaymentCreator", fields: [created_by_user_id], references: [id])
+  approved_by  User?        @relation("PaymentApprover", fields: [approved_by_user_id], references: [id])
 
   @@index([invoice_id], map: "idx_payments_invoice")
   @@index([payment_type_id], map: "idx_payments_type")
   @@index([status], map: "idx_payments_status")
   @@index([payment_date], map: "idx_payments_date")
+  @@index([created_by_user_id], map: "idx_payments_created_by")
+  @@index([approved_by_user_id], map: "idx_payments_approved_by")
   @@map("payments")
 }
 

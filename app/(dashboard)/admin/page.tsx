@@ -25,14 +25,15 @@ export default function AdminPage() {
 
   const isSuperAdmin = session?.user?.role === 'super_admin';
 
-  // Get active tab from URL, default to 'dashboard'
-  const activeTab = (searchParams.get('tab') as AdminTab) || 'dashboard';
-  const activeSubTab = (searchParams.get('subtab') as MasterDataTab) || 'requests';
+  // Get active tab from URL, default to 'approvals'
+  const activeTab = (searchParams.get('tab') as AdminTab) || 'approvals';
+  const activeSubTab = (searchParams.get('subtab') as MasterDataTab) || 'vendors';
+  const activeApprovalTab = (searchParams.get('approval') as 'invoices' | 'payments' | 'vendors' | 'archives') || 'invoices';
 
-  // Redirect old "requests" tab to Master Data > All Requests
+  // Redirect old "dashboard" tab to Approvals
   React.useEffect(() => {
-    if (activeTab === ('requests' as string)) {
-      router.replace('/admin?tab=master-data&subtab=requests');
+    if (activeTab === ('dashboard' as string)) {
+      router.replace('/admin?tab=approvals');
     }
   }, [activeTab, router]);
 
@@ -42,8 +43,18 @@ export default function AdminPage() {
     params.set('tab', tab);
     // Reset subtab when switching main tabs
     if (tab === 'master-data') {
-      params.set('subtab', 'requests');
+      params.set('subtab', 'vendors');
+    } else if (tab === 'approvals') {
+      params.set('approval', 'invoices');
     }
+    router.push(`/admin?${params.toString()}`);
+  };
+
+  // Handle approval sub-tab change by updating URL
+  const handleApprovalTabChange = (approval: 'invoices' | 'payments' | 'vendors' | 'archives') => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('tab', 'approvals');
+    params.set('approval', approval);
     router.push(`/admin?${params.toString()}`);
   };
 
@@ -59,8 +70,10 @@ export default function AdminPage() {
     <AdminPageV3
       activeTab={activeTab}
       activeSubTab={activeSubTab}
+      activeApprovalTab={activeApprovalTab}
       onTabChange={handleTabChange}
       onSubTabChange={handleSubTabChange}
+      onApprovalTabChange={handleApprovalTabChange}
       isSuperAdmin={isSuperAdmin}
     />
   );

@@ -455,3 +455,90 @@ export async function notifyArchiveRequestPending(
     referenceId: requestId,
   });
 }
+
+// ============================================================================
+// PAYMENT NOTIFICATION HELPERS
+// ============================================================================
+
+/**
+ * Notify admins about a new payment pending approval
+ */
+export async function notifyPaymentPendingApproval(
+  paymentId: number,
+  invoiceNumber: string,
+  amount: number,
+  requesterName: string
+): Promise<void> {
+  const formattedAmount = new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(amount);
+
+  await notifyAdmins({
+    type: NOTIFICATION_TYPE.PAYMENT_PENDING_APPROVAL,
+    title: 'Payment Pending Approval',
+    message: `${requesterName} recorded a ${formattedAmount} payment for invoice ${invoiceNumber}`,
+    link: `/admin?tab=approvals&subtab=payments&highlight=${paymentId}`,
+    referenceType: NOTIFICATION_REFERENCE_TYPE.PAYMENT,
+    referenceId: paymentId,
+  });
+}
+
+/**
+ * Notify user about payment approval
+ */
+export async function notifyPaymentApproved(
+  userId: number,
+  paymentId: number,
+  invoiceNumber: string,
+  amount: number
+): Promise<void> {
+  const formattedAmount = new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(amount);
+
+  await createNotification({
+    userId,
+    type: NOTIFICATION_TYPE.PAYMENT_APPROVED,
+    title: 'Payment Approved',
+    message: `Your ${formattedAmount} payment for invoice ${invoiceNumber} has been approved`,
+    link: `/invoices?highlight=${paymentId}`,
+    referenceType: NOTIFICATION_REFERENCE_TYPE.PAYMENT,
+    referenceId: paymentId,
+  });
+}
+
+/**
+ * Notify user about payment rejection
+ */
+export async function notifyPaymentRejected(
+  userId: number,
+  paymentId: number,
+  invoiceNumber: string,
+  amount: number,
+  reason?: string
+): Promise<void> {
+  const formattedAmount = new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(amount);
+
+  await createNotification({
+    userId,
+    type: NOTIFICATION_TYPE.PAYMENT_REJECTED,
+    title: 'Payment Rejected',
+    message: reason
+      ? `Your ${formattedAmount} payment for invoice ${invoiceNumber} was rejected: ${reason}`
+      : `Your ${formattedAmount} payment for invoice ${invoiceNumber} was rejected`,
+    link: `/invoices?highlight=${paymentId}`,
+    referenceType: NOTIFICATION_REFERENCE_TYPE.PAYMENT,
+    referenceId: paymentId,
+  });
+}

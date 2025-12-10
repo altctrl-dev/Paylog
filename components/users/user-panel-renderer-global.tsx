@@ -11,7 +11,7 @@
 
 import * as React from 'react';
 import { usePanelStack } from '@/hooks/use-panel-stack';
-import { UserDetailPanelGlobal } from './user-detail-panel-global';
+import { UserDetailPanelV3 } from './user-detail-panel-v3';
 import { UserFormPanelGlobal } from './user-form-panel-global';
 
 interface UserPanelRendererGlobalProps {
@@ -43,7 +43,7 @@ export function UserPanelRendererGlobal({
   switch (type) {
     case 'user-detail':
       return (
-        <UserDetailPanelGlobal
+        <UserDetailPanelV3
           config={config}
           onClose={onClose}
           userId={props.userId as number}

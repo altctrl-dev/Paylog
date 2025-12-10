@@ -12,13 +12,14 @@ import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PaymentTypeList } from './payment-type-list';
 import { usePanel } from '@/hooks/use-panel';
+import { PANEL_WIDTH } from '@/types/panel';
 
 export default function PaymentTypeManagement() {
   const [showArchived, setShowArchived] = useState(false);
   const { openPanel } = usePanel();
 
   const handleCreatePaymentType = () => {
-    openPanel('payment-type-form', {});
+    openPanel('payment-type-form', {}, { width: PANEL_WIDTH.SMALL });
   };
 
   const handleEditPaymentType = (paymentType: {
@@ -27,7 +28,7 @@ export default function PaymentTypeManagement() {
     description?: string | null;
     requires_reference: boolean;
   }) => {
-    openPanel('payment-type-form', { paymentType });
+    openPanel('payment-type-form', { paymentType }, { width: PANEL_WIDTH.SMALL });
   };
 
   return (

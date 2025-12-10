@@ -24,6 +24,7 @@ import { LedgerTab } from './ledger-tab';
 import { useInvoiceProfiles } from '@/hooks/use-invoices-v2';
 import { useInvoices } from '@/hooks/use-invoices';
 import { usePanel } from '@/hooks/use-panel';
+import { PANEL_WIDTH } from '@/types/panel';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { calculateTds } from '@/lib/utils/tds';
@@ -434,18 +435,18 @@ export function InvoicesPage({
   // Action handlers
   const handleViewDetails = (profileId: number) => {
     // Opens panel showing profile description and pending invoices
-    openPanel('profile-invoices', { profileId });
+    openPanel('profile-invoices', { profileId }, { width: PANEL_WIDTH.LARGE });
   };
 
   const handleAddInvoice = (profileId: number) => {
     // Opens recurring invoice form with profile pre-selected
-    openPanel('invoice-create-recurring', { profileId });
+    openPanel('invoice-create-recurring', { profileId }, { width: PANEL_WIDTH.LARGE });
   };
 
   const handleRecordPayment = (profileId: number) => {
     // Opens payment panel showing all outstanding invoices for this profile
     // User can select specific invoices to pay
-    openPanel('profile-payment', { profileId });
+    openPanel('profile-payment', { profileId }, { width: PANEL_WIDTH.LARGE });
   };
 
   // Loading state

@@ -20,6 +20,7 @@ import {
   Archive,
   CheckCheck,
   Loader2,
+  IndianRupee,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -110,6 +111,22 @@ const notificationConfig: Record<
     icon: Archive,
     colorClass: 'text-red-500',
     label: 'Archive Rejected',
+  },
+  // Payment notifications
+  [NOTIFICATION_TYPE.PAYMENT_PENDING_APPROVAL]: {
+    icon: IndianRupee,
+    colorClass: 'text-purple-500',
+    label: 'Payment Approval',
+  },
+  [NOTIFICATION_TYPE.PAYMENT_APPROVED]: {
+    icon: IndianRupee,
+    colorClass: 'text-green-500',
+    label: 'Payment Approved',
+  },
+  [NOTIFICATION_TYPE.PAYMENT_REJECTED]: {
+    icon: IndianRupee,
+    colorClass: 'text-red-500',
+    label: 'Payment Rejected',
   },
 };
 

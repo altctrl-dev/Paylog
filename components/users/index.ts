@@ -15,5 +15,6 @@ export { UserFormPanel } from './user-form-panel';
 export { UserPanelRenderer } from './user-panel-renderer';
 export { UserPanelRendererGlobal } from './user-panel-renderer-global';
 export { UserDetailPanelGlobal } from './user-detail-panel-global';
+export { UserDetailPanelV3 } from './user-detail-panel-v3';
 export { UserFormPanelGlobal } from './user-form-panel-global';
 export { UserSelector } from './user-selector';

@@ -1,0 +1,222 @@
+'use client';
+
+/**
+ * Details Tab Component
+ *
+ * Displays comprehensive invoice details in a two-column grid layout.
+ * Organized into sections: Invoice Details, Financial, Classification,
+ * Profile (recurring only), Notes/Description, and Metadata.
+ */
+
+import { format } from 'date-fns';
+import { PanelSection } from '@/components/panels/shared';
+import { Badge } from '@/components/ui/badge';
+import { formatCurrency } from '@/lib/utils/format';
+import { VENDOR_STATUS_CONFIG, type VendorStatus } from '@/types/vendor';
+import type { InvoicePanelData } from '../hooks/use-invoice-panel-v3';
+
+// ============================================================================
+// Types
+// ============================================================================
+
+export interface DetailsTabProps {
+  invoice: InvoicePanelData;
+}
+
+// ============================================================================
+// Helper Components
+// ============================================================================
+
+interface DetailItemProps {
+  label: string;
+  value: React.ReactNode;
+  className?: string;
+}
+
+function DetailItem({ label, value, className = '' }: DetailItemProps) {
+  return (
+    <div className={className}>
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="text-sm font-medium mt-0.5">{value ?? '-'}</dd>
+    </div>
+  );
+}
+
+// ============================================================================
+// Component
+// ============================================================================
+
+export function DetailsTab({ invoice }: DetailsTabProps) {
+  const currencyCode = invoice.currency?.code || 'USD';
+
+  // Calculate TDS amount and payable amount
+  const tdsAmount =
+    invoice.tds_applicable && invoice.tds_percentage
+      ? (invoice.invoice_amount * invoice.tds_percentage) / 100
+      : 0;
+  const payableAmount = invoice.invoice_amount - tdsAmount;
+
+  // Format date helper
+  const formatDateValue = (date: Date | null | undefined): string => {
+    if (!date) return '-';
+    return format(new Date(date), 'MMM dd, yyyy');
+  };
+
+  // Format datetime helper (for metadata)
+  const formatDateTimeValue = (date: Date | null | undefined): string => {
+    if (!date) return '-';
+    return format(new Date(date), 'MMM dd, yyyy HH:mm');
+  };
+
+  // Check if vendor needs status badge (not approved)
+  const vendorNeedsBadge =
+    invoice.vendor.status && invoice.vendor.status !== 'APPROVED';
+  const vendorStatusConfig = vendorNeedsBadge
+    ? VENDOR_STATUS_CONFIG[invoice.vendor.status as VendorStatus]
+    : null;
+
+  return (
+    <div className="space-y-6">
+      {/* Section 1: Invoice Details */}
+      <PanelSection title="Invoice Details">
+        <dl className="grid grid-cols-2 gap-x-8 gap-y-4">
+          <DetailItem
+            label="Invoice Date"
+            value={formatDateValue(invoice.invoice_date)}
+          />
+          {invoice.invoice_received_date && (
+            <DetailItem
+              label="Date Received"
+              value={formatDateValue(invoice.invoice_received_date)}
+            />
+          )}
+          <DetailItem
+            label="Due Date"
+            value={formatDateValue(invoice.due_date)}
+          />
+          {invoice.period_start && invoice.period_end && (
+            <DetailItem
+              label="Billing Period"
+              value={`${format(new Date(invoice.period_start), 'MMM dd')} - ${format(new Date(invoice.period_end), 'MMM dd, yyyy')}`}
+            />
+          )}
+        </dl>
+      </PanelSection>
+
+      {/* Section 2: Financial */}
+      <PanelSection title="Financial">
+        <dl className="grid grid-cols-2 gap-x-8 gap-y-4">
+          <DetailItem
+            label="Invoice Amount"
+            value={formatCurrency(invoice.invoice_amount, currencyCode)}
+          />
+          {invoice.tds_applicable && invoice.tds_percentage && (
+            <DetailItem
+              label="TDS"
+              value={`${invoice.tds_percentage}% (${formatCurrency(tdsAmount, currencyCode)})`}
+            />
+          )}
+          <DetailItem
+            label="Payable Amount"
+            value={formatCurrency(payableAmount, currencyCode)}
+          />
+        </dl>
+      </PanelSection>
+
+      {/* Section 3: Classification */}
+      <PanelSection title="Classification">
+        <dl className="grid grid-cols-2 gap-x-8 gap-y-4">
+          <DetailItem
+            label="Vendor"
+            value={
+              <div className="flex items-center gap-2">
+                <span>{invoice.vendor.name}</span>
+                {vendorStatusConfig && (
+                  <Badge variant={vendorStatusConfig.variant} className="text-xs">
+                    {vendorStatusConfig.label}
+                  </Badge>
+                )}
+              </div>
+            }
+          />
+          {invoice.entity && (
+            <DetailItem label="Entity" value={invoice.entity.name} />
+          )}
+          {invoice.category && (
+            <DetailItem label="Category" value={invoice.category.name} />
+          )}
+          {invoice.currency && (
+            <DetailItem
+              label="Currency"
+              value={`${invoice.currency.code} (${invoice.currency.symbol})`}
+            />
+          )}
+        </dl>
+      </PanelSection>
+
+      {/* Section 4: Profile (only for recurring invoices) */}
+      {invoice.is_recurring && invoice.invoice_profile && (
+        <PanelSection title="Profile">
+          <dl className="grid grid-cols-2 gap-x-8 gap-y-4">
+            <DetailItem
+              label="Profile Name"
+              value={invoice.invoice_profile.name}
+            />
+            {invoice.invoice_profile.description && (
+              <DetailItem
+                label="Profile Description"
+                value={invoice.invoice_profile.description}
+                className="col-span-2"
+              />
+            )}
+          </dl>
+        </PanelSection>
+      )}
+
+      {/* Section 5: Notes/Description */}
+      {(invoice.description || invoice.notes) && (
+        <PanelSection title="Notes">
+          <dl className="grid grid-cols-1 gap-y-4">
+            {invoice.description && (
+              <DetailItem
+                label="Description"
+                value={invoice.description}
+              />
+            )}
+            {invoice.notes && (
+              <DetailItem label="Notes" value={invoice.notes} />
+            )}
+          </dl>
+        </PanelSection>
+      )}
+
+      {/* Section 6: Metadata */}
+      <PanelSection title="Metadata">
+        <dl className="grid grid-cols-2 gap-x-8 gap-y-4">
+          <DetailItem
+            label="Created By"
+            value={
+              <div>
+                <div>{invoice.creator.full_name}</div>
+                <div className="text-xs text-muted-foreground font-normal">
+                  {invoice.creator.email}
+                </div>
+              </div>
+            }
+          />
+          <DetailItem
+            label="Created At"
+            value={formatDateTimeValue(invoice.created_at)}
+          />
+          <DetailItem
+            label="Last Updated"
+            value={formatDateTimeValue(invoice.updated_at)}
+            className="col-span-2"
+          />
+        </dl>
+      </PanelSection>
+    </div>
+  );
+}
+
+export default DetailsTab;

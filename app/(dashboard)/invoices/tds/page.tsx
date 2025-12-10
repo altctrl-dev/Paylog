@@ -46,7 +46,7 @@ export default function TDSInvoicesPage() {
   };
 
   const handleRowClick = (invoice: InvoiceWithRelations) => {
-    openPanel('invoice-v2-detail', { invoiceId: invoice.id }, { width: PANEL_WIDTH.LARGE });
+    openPanel('invoice-v3-detail', { invoiceId: invoice.id }, { width: PANEL_WIDTH.LARGE });
   };
 
   // Calculate TDS totals

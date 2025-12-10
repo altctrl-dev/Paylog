@@ -22,6 +22,7 @@ import type {
   MasterDataRequestWithDetails,
 } from '@/app/actions/master-data-requests';
 import type { PanelConfig } from '@/types/panel';
+import { PANEL_WIDTH } from '@/types/panel';
 import { useToast } from '@/hooks/use-toast';
 
 interface AdminRequestReviewPanelProps {
@@ -210,7 +211,7 @@ export function AdminRequestReviewPanel({ config, onClose, requestId }: AdminReq
 
   const handleReject = () => {
     // Open Level 3 rejection modal
-    openPanel('admin-rejection-modal', { requestId }, { width: 500 });
+    openPanel('admin-rejection-modal', { requestId }, { width: PANEL_WIDTH.SMALL });
   };
 
   const getEntityTypeLabel = (entityType: string) => {

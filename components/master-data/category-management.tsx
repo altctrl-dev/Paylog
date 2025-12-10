@@ -11,17 +11,18 @@ import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CategoryList } from './category-list';
 import { usePanel } from '@/hooks/use-panel';
+import { PANEL_WIDTH } from '@/types/panel';
 
 export default function CategoryManagement() {
   const [showArchived, setShowArchived] = useState(false);
   const { openPanel } = usePanel();
 
   const handleCreateCategory = () => {
-    openPanel('category-form', {});
+    openPanel('category-form', {}, { width: PANEL_WIDTH.SMALL });
   };
 
   const handleEditCategory = (category: { id: number; name: string }) => {
-    openPanel('category-form', { category });
+    openPanel('category-form', { category }, { width: PANEL_WIDTH.SMALL });
   };
 
   return (

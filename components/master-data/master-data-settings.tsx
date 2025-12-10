@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { VendorList } from './vendor-list';
 import { CategoryList } from './category-list';
 import { usePanel } from '@/hooks/use-panel';
+import { PANEL_WIDTH } from '@/types/panel';
 
 export function MasterDataSettings() {
   const [activeTab, setActiveTab] = useState<'vendors' | 'categories'>('vendors');
@@ -20,19 +21,19 @@ export function MasterDataSettings() {
   const { openPanel } = usePanel();
 
   const handleCreateVendor = () => {
-    openPanel('vendor-form', {});
+    openPanel('vendor-form', {}, { width: PANEL_WIDTH.SMALL });
   };
 
   const handleEditVendor = (vendor: { id: number; name: string }) => {
-    openPanel('vendor-form', { vendor });
+    openPanel('vendor-form', { vendor }, { width: PANEL_WIDTH.SMALL });
   };
 
   const handleCreateCategory = () => {
-    openPanel('category-form', {});
+    openPanel('category-form', {}, { width: PANEL_WIDTH.SMALL });
   };
 
   const handleEditCategory = (category: { id: number; name: string }) => {
-    openPanel('category-form', { category });
+    openPanel('category-form', { category }, { width: PANEL_WIDTH.SMALL });
   };
 
   return (

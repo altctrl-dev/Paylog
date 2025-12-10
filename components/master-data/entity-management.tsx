@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { usePanel } from '@/hooks/use-panel';
+import { PANEL_WIDTH } from '@/types/panel';
 import {
   toggleEntityStatus,
   getEntities,
@@ -74,11 +75,11 @@ export default function EntityManagement() {
   };
 
   const handleCreate = () => {
-    openPanel('entity-form', {});
+    openPanel('entity-form', {}, { width: PANEL_WIDTH.SMALL });
   };
 
   const handleEdit = (entity: Entity) => {
-    openPanel('entity-form', { entity });
+    openPanel('entity-form', { entity }, { width: PANEL_WIDTH.SMALL });
   };
 
   const handleToggleStatus = async (id: number, currentStatus: boolean) => {

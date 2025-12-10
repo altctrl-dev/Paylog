@@ -11,6 +11,7 @@ import * as React from 'react';
 import { useSession } from 'next-auth/react';
 import { usePanelStack } from '@/hooks/use-panel-stack';
 import { InvoiceDetailPanelV2 } from './invoice-detail-panel-v2';
+import { InvoiceDetailPanelV3 } from './invoice-detail-panel-v3';
 // ARCHIVED: Legacy panels moved to @/components/_archived/invoices/
 // - InvoiceDetailPanel (invoice-detail-panel.tsx)
 // - InvoiceFormPanel (invoice-form-panel.tsx)
@@ -77,6 +78,23 @@ export function InvoicePanelRenderer({
         );
       } catch (error) {
         console.error('[InvoicePanelRenderer] Error rendering invoice-v2-detail:', error);
+        return <div className="p-4 text-red-500">Error loading invoice panel. Check console for details.</div>;
+      }
+
+    case 'invoice-v3-detail':
+      console.log('[InvoicePanelRenderer] Rendering invoice-v3-detail for invoiceId:', props.invoiceId);
+      try {
+        return (
+          <InvoiceDetailPanelV3
+            config={config}
+            onClose={onClose}
+            invoiceId={props.invoiceId as number}
+            userRole={userRole}
+            userId={userId}
+          />
+        );
+      } catch (error) {
+        console.error('[InvoicePanelRenderer] Error rendering invoice-v3-detail:', error);
         return <div className="p-4 text-red-500">Error loading invoice panel. Check console for details.</div>;
       }
 

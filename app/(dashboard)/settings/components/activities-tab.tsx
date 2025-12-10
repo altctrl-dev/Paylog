@@ -148,7 +148,7 @@ export function ActivitiesTab() {
   };
 
   const handleInvoiceClick = (invoiceId: number) => {
-    openPanel('invoice-v2-detail', { invoiceId }, { width: PANEL_WIDTH.LARGE });
+    openPanel('invoice-v3-detail', { invoiceId }, { width: PANEL_WIDTH.LARGE });
   };
 
   const getIcon = (action: string) => {
