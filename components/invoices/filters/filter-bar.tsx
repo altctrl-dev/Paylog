@@ -97,7 +97,7 @@ export function FilterBar({
 
   // Sort change handler
   const handleSortChange = React.useCallback(
-    (sortBy: 'invoice_date' | 'due_date' | 'invoice_amount' | 'status' | 'created_at' | undefined, sortOrder: 'asc' | 'desc') => {
+    (sortBy: InvoiceFilters['sort_by'], sortOrder: 'asc' | 'desc') => {
       onFilterChange('sort_by', sortBy);
       onFilterChange('sort_order', sortOrder);
     },

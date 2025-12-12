@@ -117,11 +117,20 @@ export async function getPaymentSummary(
       _count: true,
     });
 
+    // Check for any pending payments
+    const pendingPaymentCount = await db.payment.count({
+      where: {
+        invoice_id: invoiceId,
+        status: PAYMENT_STATUS.PENDING,
+      },
+    });
+
     const totalPaid = paymentsSum._sum.amount_paid || 0;
     const paymentCount = paymentsSum._count;
     const remainingBalance = invoice.invoice_amount - totalPaid;
     const isFullyPaid = remainingBalance <= 0;
     const isPartiallyPaid = totalPaid > 0 && !isFullyPaid;
+    const hasPendingPayment = pendingPaymentCount > 0;
 
     return {
       success: true,
@@ -133,6 +142,7 @@ export async function getPaymentSummary(
         payment_count: paymentCount,
         is_fully_paid: isFullyPaid,
         is_partially_paid: isPartiallyPaid,
+        has_pending_payment: hasPendingPayment,
       },
     };
   } catch (error) {
@@ -374,6 +384,21 @@ export async function createPayment(
       return {
         success: false,
         error: 'Cannot add payment to invoice on hold.',
+      };
+    }
+
+    // BUG-001: Block payments when there's already a pending payment awaiting approval
+    const pendingPaymentCount = await db.payment.count({
+      where: {
+        invoice_id: invoiceId,
+        status: PAYMENT_STATUS.PENDING,
+      },
+    });
+
+    if (pendingPaymentCount > 0) {
+      return {
+        success: false,
+        error: 'Cannot add payment while another payment is pending approval. Please wait for the pending payment to be approved or rejected.',
       };
     }
 

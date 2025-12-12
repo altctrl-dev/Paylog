@@ -21,6 +21,25 @@ import {
   PanelActionBar,
   type ActionBarAction,
 } from '@/components/panels/shared';
+import type { RecordPaymentBlockedReason } from './hooks/use-invoice-panel-v3';
+
+/**
+ * Get tooltip message for blocked payment
+ */
+function getRecordPaymentTooltip(reason: RecordPaymentBlockedReason): string | undefined {
+  switch (reason) {
+    case 'pending_payment':
+      return 'Payment pending approval. Please wait for the pending payment to be approved or rejected.';
+    case 'pending_approval':
+      return 'Invoice pending approval. Cannot record payment until invoice is approved.';
+    case 'already_paid':
+      return 'Invoice is fully paid.';
+    case 'rejected':
+      return 'Invoice is rejected. Cannot record payment.';
+    default:
+      return undefined;
+  }
+}
 
 export interface PanelV3ActionBarProps {
   permissions: {
@@ -33,6 +52,8 @@ export interface PanelV3ActionBarProps {
     canReject: boolean;
   };
   hasRemainingBalance: boolean;
+  hasPendingPayment?: boolean;
+  recordPaymentBlockedReason?: RecordPaymentBlockedReason;
   onEdit: () => void;
   onRecordPayment: () => void;
   onPutOnHold: () => void;
@@ -46,6 +67,8 @@ export interface PanelV3ActionBarProps {
 export function PanelV3ActionBar({
   permissions,
   hasRemainingBalance,
+  // hasPendingPayment is included in permissions.canRecordPayment
+  recordPaymentBlockedReason,
   onEdit,
   onRecordPayment,
   onPutOnHold,
@@ -55,6 +78,13 @@ export function PanelV3ActionBar({
   onReject,
   isProcessing = false,
 }: PanelV3ActionBarProps) {
+  // Determine if record payment should be shown but disabled (for tooltip)
+  // Show the button if there's remaining balance, but disable if there's a blocking reason
+  const showRecordPaymentButton = hasRemainingBalance;
+  const recordPaymentTooltip = recordPaymentBlockedReason
+    ? getRecordPaymentTooltip(recordPaymentBlockedReason)
+    : undefined;
+
   const primaryActions: ActionBarAction[] = [
     {
       id: 'edit',
@@ -69,8 +99,11 @@ export function PanelV3ActionBar({
       icon: <IndianRupee />,
       label: 'Record Payment',
       onClick: onRecordPayment,
-      hidden: !permissions.canRecordPayment || !hasRemainingBalance,
-      disabled: isProcessing,
+      // Show if there's balance, but may be disabled due to blocking reason
+      hidden: !showRecordPaymentButton,
+      // Disabled if processing OR if there's a blocking reason
+      disabled: isProcessing || !permissions.canRecordPayment,
+      tooltip: recordPaymentTooltip,
     },
     {
       id: 'put-on-hold',

@@ -232,11 +232,13 @@ export interface InvoiceFilters {
   is_recurring?: boolean;
   tds_applicable?: boolean;
   invoice_profile_id?: number;
+  /** Filter invoices by payment type (invoices with at least one approved payment of this type) */
+  payment_type_id?: number;
   // Archive filter - when true, shows only archived invoices
   show_archived?: boolean;
   start_date?: Date;
   end_date?: Date;
-  sort_by?: 'invoice_date' | 'due_date' | 'invoice_amount' | 'status' | 'created_at';
+  sort_by?: 'invoice_date' | 'due_date' | 'invoice_amount' | 'status' | 'created_at' | 'remaining_balance';
   sort_order?: 'asc' | 'desc';
   page: number;
   per_page: number;

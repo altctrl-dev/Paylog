@@ -4,20 +4,19 @@
  * All Invoices Tab Component (v3)
  *
  * Displays all invoices in a table format with:
- * - Month navigation with calendar picker
- * - Search bar
- * - Filter dropdown
- * - Export button
- * - New Invoice button
- * - Table with: checkbox, Invoice ID, Vendor, Amount, Status, Date, Actions
+ * - Month navigation with calendar picker (monthly view)
+ * - Search bar for quick filtering
+ * - Comprehensive filter popover (status, vendor, category, profile, payment type,
+ *   entity, invoice type, TDS, archived, date range, sort)
+ * - Export button (Excel)
+ * - New Invoice button (recurring/non-recurring)
+ * - Table with: checkbox, Invoice Details, Date, Amount, Status, Actions, Remaining
  */
 
 import * as React from 'react';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Search,
-  Filter,
-  ArrowUpDown,
   Download,
   Plus,
   Eye,
@@ -29,6 +28,9 @@ import {
   CreditCard,
   Check,
   X,
+  ChevronUp,
+  ChevronDown,
+  ArrowUpDown,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Button } from '@/components/ui/button';
@@ -38,7 +40,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -51,8 +52,16 @@ import {
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import { useInvoices } from '@/hooks/use-invoices';
+import { useInvoices, useInvoiceFormOptions } from '@/hooks/use-invoices';
+import { useActivePaymentTypes } from '@/hooks/use-payment-types';
 import { createInvoiceArchiveRequest, permanentDeleteInvoice, approveInvoice, rejectInvoice } from '@/app/actions/invoices';
+import {
+  InvoiceFilterPopover,
+  type InvoiceFilterState,
+  type FilterOptions,
+} from './invoice-filter-popover';
+import { InvoiceFilterSheet } from './invoice-filter-sheet';
+import { SlidersHorizontal } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { usePanel } from '@/hooks/use-panel';
@@ -60,8 +69,55 @@ import { PANEL_WIDTH } from '@/types/panel';
 import { useUIVersion } from '@/lib/stores/ui-version-store';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { type InvoiceStatus, INVOICE_STATUS } from '@/types/invoice';
+import { type InvoiceStatus, INVOICE_STATUS, type InvoiceFilters } from '@/types/invoice';
 import { MonthNavigator } from './month-navigator';
+
+// ============================================================================
+// Sortable Table Head Component
+// ============================================================================
+
+interface SortableTableHeadProps {
+  children: React.ReactNode;
+  sortKey: NonNullable<InvoiceFilters['sort_by']>;
+  currentSortBy?: InvoiceFilters['sort_by'];
+  currentSortOrder: 'asc' | 'desc';
+  onSort: (sortBy: NonNullable<InvoiceFilters['sort_by']>) => void;
+  className?: string;
+}
+
+function SortableTableHead({
+  children,
+  sortKey,
+  currentSortBy,
+  currentSortOrder,
+  onSort,
+  className,
+}: SortableTableHeadProps) {
+  const isActive = currentSortBy === sortKey;
+
+  return (
+    <TableHead
+      className={cn(
+        'text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors select-none',
+        className
+      )}
+      onClick={() => onSort(sortKey)}
+    >
+      <div className="flex items-center gap-1">
+        {children}
+        {isActive ? (
+          currentSortOrder === 'asc' ? (
+            <ChevronUp className="h-3 w-3" />
+          ) : (
+            <ChevronDown className="h-3 w-3" />
+          )
+        ) : (
+          <ArrowUpDown className="h-3 w-3 opacity-40" />
+        )}
+      </div>
+    </TableHead>
+  );
+}
 
 // ============================================================================
 // Helper Functions
@@ -74,6 +130,52 @@ function getMonthDateRange(month: number, year: number): { start: Date; end: Dat
   const start = new Date(year, month, 1);
   const end = new Date(year, month + 1, 0); // Last day of month
   return { start, end };
+}
+
+/**
+ * Get human-readable label for active filters (used by filter pills)
+ */
+function getFilterLabel(
+  key: keyof InvoiceFilterState,
+  value: unknown,
+  options: FilterOptions
+): string | null {
+  switch (key) {
+    case 'status':
+      return `Status: ${String(value).replace(/_/g, ' ')}`;
+    case 'vendorId': {
+      const vendor = options.vendors.find(v => v.id === value);
+      return vendor ? `Vendor: ${vendor.name}` : null;
+    }
+    case 'categoryId': {
+      const category = options.categories.find(c => c.id === value);
+      return category ? `Category: ${category.name}` : null;
+    }
+    case 'profileId': {
+      const profile = options.profiles.find(p => p.id === value);
+      return profile ? `Profile: ${profile.name}` : null;
+    }
+    case 'paymentTypeId': {
+      const paymentType = options.paymentTypes.find(pt => pt.id === value);
+      return paymentType ? `Payment: ${paymentType.name}` : null;
+    }
+    case 'entityId': {
+      const entity = options.entities.find(e => e.id === value);
+      return entity ? `Entity: ${entity.name}` : null;
+    }
+    case 'isRecurring':
+      return value === true ? 'Recurring' : value === false ? 'One-time' : null;
+    case 'tdsApplicable':
+      return value === true ? 'TDS Applicable' : null;
+    case 'showArchived':
+      return value === true ? 'Archived' : null;
+    case 'startDate':
+    case 'endDate':
+      // Combined date range handled separately in activeFilterPills
+      return null;
+    default:
+      return null;
+  }
 }
 
 // ============================================================================
@@ -195,12 +297,6 @@ function groupInvoicesByMonth<T extends GroupableInvoice>(
 }
 
 // ============================================================================
-// View Mode Types
-// ============================================================================
-
-type ViewMode = 'pending' | 'monthly';
-
-// ============================================================================
 // Main Component
 // ============================================================================
 
@@ -215,14 +311,25 @@ export function AllInvoicesTab() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [selectedInvoices, setSelectedInvoices] = useState<Set<number>>(new Set());
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [showArchived, setShowArchived] = useState(false);
-  const [sortBy, setSortBy] = useState<'invoice_date' | 'invoice_amount' | 'status'>('invoice_date');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc'); // Default: oldest first
   const [showInvoiceTypeMenu, setShowInvoiceTypeMenu] = useState(false);
 
-  // Default view mode: show pending invoices (not paid)
-  const [viewMode, setViewMode] = useState<ViewMode>('pending');
+  // Unified filter state for InvoiceFilterPopover
+  const [filters, setFilters] = useState<InvoiceFilterState>({
+    viewMode: 'pending',
+    showArchived: false,
+    sortOrder: 'asc',
+  });
+
+  // Mobile detection for filter UI
+  const [isMobile, setIsMobile] = useState(false);
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+
+  React.useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Default to current month (used when in monthly view mode)
   const now = new Date();
@@ -231,6 +338,122 @@ export function AllInvoicesTab() {
 
   // Calculate date range for selected month
   const { start, end } = getMonthDateRange(selectedMonth, selectedYear);
+
+  // Fetch filter options for the popover
+  const { data: formOptions, isLoading: isLoadingOptions } = useInvoiceFormOptions();
+  const { data: paymentTypes = [] } = useActivePaymentTypes();
+
+  // Build filter options for the popover
+  const filterOptions: FilterOptions = {
+    vendors: formOptions?.vendors ?? [],
+    categories: formOptions?.categories ?? [],
+    profiles: formOptions?.profiles ?? [],
+    entities: formOptions?.entities ?? [],
+    paymentTypes: paymentTypes,
+  };
+
+  // Compute active filter count
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (filters.status) count++;
+    if (filters.vendorId) count++;
+    if (filters.categoryId) count++;
+    if (filters.profileId) count++;
+    if (filters.paymentTypeId) count++;
+    if (filters.entityId) count++;
+    if (filters.isRecurring !== undefined) count++;
+    if (filters.tdsApplicable !== undefined) count++;
+    if (filters.showArchived) count++;
+    if (filters.startDate || filters.endDate) count++;
+    return count;
+  }, [filters]);
+
+  // Build list of active filter pills for display
+  const activeFilterPills = useMemo(() => {
+    const pills: Array<{ key: keyof InvoiceFilterState; label: string }> = [];
+
+    if (filters.status) {
+      const label = getFilterLabel('status', filters.status, filterOptions);
+      if (label) pills.push({ key: 'status', label });
+    }
+    if (filters.vendorId) {
+      const label = getFilterLabel('vendorId', filters.vendorId, filterOptions);
+      if (label) pills.push({ key: 'vendorId', label });
+    }
+    if (filters.categoryId) {
+      const label = getFilterLabel('categoryId', filters.categoryId, filterOptions);
+      if (label) pills.push({ key: 'categoryId', label });
+    }
+    if (filters.profileId) {
+      const label = getFilterLabel('profileId', filters.profileId, filterOptions);
+      if (label) pills.push({ key: 'profileId', label });
+    }
+    if (filters.paymentTypeId) {
+      const label = getFilterLabel('paymentTypeId', filters.paymentTypeId, filterOptions);
+      if (label) pills.push({ key: 'paymentTypeId', label });
+    }
+    if (filters.entityId) {
+      const label = getFilterLabel('entityId', filters.entityId, filterOptions);
+      if (label) pills.push({ key: 'entityId', label });
+    }
+    if (filters.isRecurring !== undefined) {
+      const label = getFilterLabel('isRecurring', filters.isRecurring, filterOptions);
+      if (label) pills.push({ key: 'isRecurring', label });
+    }
+    if (filters.tdsApplicable !== undefined) {
+      const label = getFilterLabel('tdsApplicable', filters.tdsApplicable, filterOptions);
+      if (label) pills.push({ key: 'tdsApplicable', label });
+    }
+    if (filters.showArchived) {
+      pills.push({ key: 'showArchived', label: 'Archived' });
+    }
+    // Date range (show as single pill)
+    if (filters.startDate || filters.endDate) {
+      const startStr = filters.startDate?.toLocaleDateString('en-IN') ?? '';
+      const endStr = filters.endDate?.toLocaleDateString('en-IN') ?? '';
+      pills.push({ key: 'startDate', label: `Date: ${startStr} - ${endStr}` });
+    }
+
+    return pills;
+  }, [filters, filterOptions]);
+
+  // Remove single filter handler
+  const handleRemoveFilter = (key: keyof InvoiceFilterState) => {
+    setFilters(prev => {
+      const next = { ...prev };
+      if (key === 'startDate') {
+        // Remove both date filters together
+        next.startDate = undefined;
+        next.endDate = undefined;
+      } else if (key === 'showArchived') {
+        // showArchived is non-optional boolean, reset to false
+        next.showArchived = false;
+      } else if (key === 'isRecurring' || key === 'tdsApplicable') {
+        next[key] = undefined;
+      } else {
+        (next as Record<string, unknown>)[key] = undefined;
+      }
+      return next;
+    });
+  };
+
+  // Clear all filters handler
+  const handleClearAllFilters = () => {
+    setFilters({
+      viewMode: filters.viewMode, // Keep view mode
+      showArchived: false,
+      sortOrder: 'asc',
+    });
+  };
+
+  // Handle column header sort click
+  const handleColumnSort = (sortKey: NonNullable<InvoiceFilters['sort_by']>) => {
+    setFilters(prev => ({
+      ...prev,
+      sortBy: sortKey,
+      sortOrder: prev.sortBy === sortKey && prev.sortOrder === 'asc' ? 'desc' : 'asc',
+    }));
+  };
 
   // Determine which statuses to exclude for "pending" view (everything except paid)
   const pendingStatuses: InvoiceStatus[] = [
@@ -241,21 +464,28 @@ export function AllInvoicesTab() {
     INVOICE_STATUS.ON_HOLD as InvoiceStatus,
   ];
 
-  // Fetch invoices based on view mode
+  // Fetch invoices based on filter state
   const { data, isLoading } = useInvoices({
     page: 1,
     per_page: 500, // Fetch more for pending view since no date filter
-    status: showArchived
-      ? undefined
-      : (statusFilter !== 'all'
-          ? (statusFilter as InvoiceStatus)
-          : undefined),
-    // Only apply date filter in monthly view mode (not pending mode)
-    start_date: (showArchived || viewMode === 'pending') ? undefined : start,
-    end_date: (showArchived || viewMode === 'pending') ? undefined : end,
-    sort_by: sortBy,
-    sort_order: sortOrder,
-    show_archived: showArchived,
+    status: filters.showArchived ? undefined : filters.status,
+    vendor_id: filters.vendorId,
+    category_id: filters.categoryId,
+    entity_id: filters.entityId,
+    invoice_profile_id: filters.profileId,
+    payment_type_id: filters.paymentTypeId,
+    is_recurring: filters.isRecurring,
+    tds_applicable: filters.tdsApplicable,
+    // Use date range from filters if provided, otherwise use month range in monthly view
+    start_date: filters.showArchived || filters.viewMode === 'pending'
+      ? filters.startDate
+      : (filters.startDate ?? start),
+    end_date: filters.showArchived || filters.viewMode === 'pending'
+      ? filters.endDate
+      : (filters.endDate ?? end),
+    sort_by: filters.sortBy,
+    sort_order: filters.sortOrder,
+    show_archived: filters.showArchived,
   });
 
   const handleMonthChange = (month: number, year: number) => {
@@ -265,7 +495,7 @@ export function AllInvoicesTab() {
 
   // Filter invoices based on view mode
   const rawInvoices = data?.invoices ?? [];
-  const invoices = viewMode === 'pending' && !showArchived && statusFilter === 'all'
+  const invoices = filters.viewMode === 'pending' && !filters.showArchived && !filters.status
     ? rawInvoices.filter(inv => pendingStatuses.includes(inv.status as InvoiceStatus))
     : rawInvoices;
 
@@ -373,15 +603,6 @@ export function AllInvoicesTab() {
 
     // Download
     XLSX.writeFile(wb, filename);
-  };
-
-  const handleSort = (field: 'invoice_date' | 'invoice_amount' | 'status') => {
-    if (sortBy === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortBy(field);
-      setSortOrder('desc');
-    }
   };
 
   const handleDeleteInvoice = async (invoiceId: number, invoiceNumber: string) => {
@@ -501,14 +722,14 @@ export function AllInvoicesTab() {
 
   // Group invoices by month when in pending view mode
   const currentYear = now.getFullYear();
-  const groupedInvoices = viewMode === 'pending' && !showArchived
+  const groupedInvoices = filters.viewMode === 'pending' && !filters.showArchived
     ? groupInvoicesByMonth(filteredInvoices, currentYear)
     : null;
 
   // Get title based on view mode
   const getTitle = () => {
-    if (showArchived) return 'Archived Invoices';
-    if (viewMode === 'pending') return 'Pending Actions';
+    if (filters.showArchived) return 'Archived Invoices';
+    if (filters.viewMode === 'pending') return 'Pending Actions';
     return `All Invoices - ${titleMonth}`;
   };
 
@@ -536,70 +757,47 @@ export function AllInvoicesTab() {
             />
           </div>
 
-          {/* Filter */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+          {/* Filters - Popover on desktop, Sheet on mobile */}
+          {isMobile ? (
+            <>
               <Button
-                variant={showArchived ? 'default' : 'outline'}
-                className={cn('gap-2', showArchived && 'bg-amber-600 hover:bg-amber-700 text-white')}
+                variant={activeFilterCount > 0 ? 'default' : 'outline'}
+                className={cn('gap-2', activeFilterCount > 0 && 'bg-primary text-primary-foreground')}
+                onClick={() => setFilterSheetOpen(true)}
+                aria-label={activeFilterCount > 0 ? `Filters (${activeFilterCount} active)` : 'Open filters'}
               >
-                {showArchived ? <Archive className="h-4 w-4" /> : <Filter className="h-4 w-4" />}
-                {showArchived ? 'Archived' : 'Filter'}
+                <SlidersHorizontal className="h-4 w-4" />
+                Filters
+                {activeFilterCount > 0 && (
+                  <span className="ml-1 rounded-full bg-primary-foreground/20 px-1.5 py-0.5 text-xs font-medium">
+                    {activeFilterCount}
+                  </span>
+                )}
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              {/* View Modes */}
-              <DropdownMenuItem onClick={() => { setViewMode('pending'); setStatusFilter('all'); setShowArchived(false); }}>
-                Pending
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => { setViewMode('monthly'); setStatusFilter('all'); setShowArchived(false); }}>
-                Monthly
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              {/* Status Filters */}
-              <DropdownMenuItem onClick={() => { setStatusFilter('all'); setShowArchived(false); }}>
-                All Statuses
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => { setStatusFilter(INVOICE_STATUS.PAID); setShowArchived(false); }}>
-                Paid
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => { setStatusFilter(INVOICE_STATUS.UNPAID); setShowArchived(false); }}>
-                Unpaid
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => { setStatusFilter(INVOICE_STATUS.OVERDUE); setShowArchived(false); }}>
-                Overdue
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => { setShowArchived(true); setStatusFilter('all'); setViewMode('monthly'); }}>
-                Archived
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* Sort */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2">
-                <ArrowUpDown className="h-4 w-4" />
-                Sort
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuItem onClick={() => handleSort('invoice_date')}>
-                Date {sortBy === 'invoice_date' && (sortOrder === 'asc' ? '↑' : '↓')}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleSort('invoice_amount')}>
-                Amount {sortBy === 'invoice_amount' && (sortOrder === 'asc' ? '↑' : '↓')}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleSort('status')}>
-                Status {sortBy === 'status' && (sortOrder === 'asc' ? '↑' : '↓')}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+              <InvoiceFilterSheet
+                open={filterSheetOpen}
+                onOpenChange={setFilterSheetOpen}
+                filters={filters}
+                onFiltersChange={setFilters}
+                options={filterOptions}
+                isLoading={isLoadingOptions}
+                activeFilterCount={activeFilterCount}
+              />
+            </>
+          ) : (
+            <InvoiceFilterPopover
+              filters={filters}
+              onFiltersChange={setFilters}
+              options={filterOptions}
+              isLoading={isLoadingOptions}
+              activeFilterCount={activeFilterCount}
+            />
+          )}
         </div>
 
         {/* Right: Month Navigator (only in monthly mode), Export, New Invoice */}
         <div className="flex items-center gap-2">
-          {!showArchived && viewMode === 'monthly' && (
+          {!filters.showArchived && filters.viewMode === 'monthly' && (
             <MonthNavigator
               month={selectedMonth}
               year={selectedYear}
@@ -631,11 +829,56 @@ export function AllInvoicesTab() {
         </div>
       </div>
 
+      {/* Active Filter Pills */}
+      {activeFilterPills.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2" role="region" aria-label="Active filters">
+          {activeFilterPills.map((pill) => (
+            <Badge
+              key={pill.key}
+              variant="secondary"
+              className="gap-1 pr-1 text-xs"
+              aria-label={`Filter: ${pill.label}`}
+            >
+              {pill.label}
+              <button
+                className="ml-1 rounded-full hover:bg-muted p-0.5"
+                onClick={() => handleRemoveFilter(pill.key)}
+                aria-label={`Remove ${pill.label} filter`}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          ))}
+          {activeFilterPills.length >= 2 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 text-xs"
+              onClick={handleClearAllFilters}
+            >
+              Clear All
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* Result Count */}
+      <div className="flex items-center">
+        <p className="text-sm text-muted-foreground">
+          {isLoading ? (
+            <span className="animate-pulse">Loading...</span>
+          ) : (
+            `${filteredInvoices.length} invoice${filteredInvoices.length !== 1 ? 's' : ''}`
+          )}
+        </p>
+      </div>
+
       {/* Table */}
       <div className="rounded-lg border overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/30 hover:bg-muted/30 border-b">
+              {/* Checkbox - not sortable */}
               <TableHead className="w-10 pl-4">
                 <Checkbox
                   checked={isAllSelected}
@@ -643,24 +886,60 @@ export function AllInvoicesTab() {
                   aria-label="Select all"
                 />
               </TableHead>
+
+              {/* Invoice Details - not sortable (composite field) */}
               <TableHead className="w-[22%] text-xs font-medium text-muted-foreground uppercase tracking-wider text-left">
                 Invoice Details
               </TableHead>
-              <TableHead className="w-[12%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
+
+              {/* Date - sortable */}
+              <SortableTableHead
+                sortKey="invoice_date"
+                currentSortBy={filters.sortBy}
+                currentSortOrder={filters.sortOrder}
+                onSort={handleColumnSort}
+                className="w-[12%]"
+              >
                 Inv Date
-              </TableHead>
-              <TableHead className="w-[14%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              </SortableTableHead>
+
+              {/* Amount - sortable */}
+              <SortableTableHead
+                sortKey="invoice_amount"
+                currentSortBy={filters.sortBy}
+                currentSortOrder={filters.sortOrder}
+                onSort={handleColumnSort}
+                className="w-[14%]"
+              >
                 Inv Amount
-              </TableHead>
-              <TableHead className="w-[10%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              </SortableTableHead>
+
+              {/* Status - sortable */}
+              <SortableTableHead
+                sortKey="status"
+                currentSortBy={filters.sortBy}
+                currentSortOrder={filters.sortOrder}
+                onSort={handleColumnSort}
+                className="w-[10%]"
+              >
                 Status
-              </TableHead>
+              </SortableTableHead>
+
+              {/* Actions - not sortable */}
               <TableHead className="w-[20%] text-xs font-medium text-muted-foreground uppercase tracking-wider text-left">
                 Actions
               </TableHead>
-              <TableHead className="w-[14%] text-xs font-medium text-muted-foreground uppercase tracking-wider pr-6">
-                Pending
-              </TableHead>
+
+              {/* Remaining - sortable */}
+              <SortableTableHead
+                sortKey="remaining_balance"
+                currentSortBy={filters.sortBy}
+                currentSortOrder={filters.sortOrder}
+                onSort={handleColumnSort}
+                className="w-[14%] pr-6"
+              >
+                Remaining
+              </SortableTableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -682,8 +961,29 @@ export function AllInvoicesTab() {
               ))
             ) : filteredInvoices.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
-                  {viewMode === 'pending' ? 'No pending invoices - all caught up!' : 'No invoices found'}
+                <TableCell colSpan={7} className="h-32 text-center">
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    {activeFilterCount > 0 ? (
+                      <>
+                        <p className="text-muted-foreground">No invoices match your filters</p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleClearAllFilters}
+                          className="mt-2"
+                        >
+                          Clear All Filters
+                        </Button>
+                      </>
+                    ) : filters.viewMode === 'pending' ? (
+                      <>
+                        <p className="text-muted-foreground">No pending invoices</p>
+                        <p className="text-xs text-muted-foreground/70">All caught up!</p>
+                      </>
+                    ) : (
+                      <p className="text-muted-foreground">No invoices found for {titleMonth}</p>
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             ) : groupedInvoices ? (
@@ -762,7 +1062,7 @@ export function AllInvoicesTab() {
                             <button className="text-muted-foreground hover:text-foreground transition-colors" onClick={() => handleViewInvoice(invoice.id)} title="View">
                               <Eye className="h-4 w-4" /><span className="sr-only">View</span>
                             </button>
-                            {!showArchived && (
+                            {!filters.showArchived && (
                               <button className="text-muted-foreground hover:text-foreground transition-colors" onClick={() => handleEditInvoice(invoice.id, invoice.is_recurring)} title="Edit">
                                 <Pencil className="h-4 w-4" /><span className="sr-only">Edit</span>
                               </button>
@@ -782,7 +1082,7 @@ export function AllInvoicesTab() {
                                 <X className="h-4 w-4" /><span className="sr-only">Reject</span>
                               </button>
                             )}
-                            {!showArchived && (
+                            {!filters.showArchived && (
                               <button className="text-muted-foreground hover:text-amber-500 transition-colors" onClick={() => handleArchiveInvoice(invoice.id, invoice.invoice_number)} title="Archive">
                                 <Archive className="h-4 w-4" /><span className="sr-only">Archive</span>
                               </button>
@@ -900,7 +1200,7 @@ export function AllInvoicesTab() {
                         </button>
 
                         {/* Edit - hide when archived */}
-                        {!showArchived && (
+                        {!filters.showArchived && (
                           <button
                             className="text-muted-foreground hover:text-foreground transition-colors"
                             onClick={() => handleEditInvoice(invoice.id, invoice.is_recurring)}
@@ -948,7 +1248,7 @@ export function AllInvoicesTab() {
                         )}
 
                         {/* Archive - hide when archived */}
-                        {!showArchived && (
+                        {!filters.showArchived && (
                           <button
                             className="text-muted-foreground hover:text-amber-500 transition-colors"
                             onClick={() => handleArchiveInvoice(invoice.id, invoice.invoice_number)}

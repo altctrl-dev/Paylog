@@ -176,15 +176,17 @@ export const invoiceFiltersSchema = z
     is_recurring: z.boolean().optional(),
     tds_applicable: z.boolean().optional(),
     invoice_profile_id: z.number().int().positive().optional(),
+    // Payment type filter - filter invoices by payment type (requires relation query)
+    payment_type_id: z.number().int().positive().optional(),
     // Archive filter - when true, shows only archived invoices
     show_archived: z.boolean().optional(),
     // Date range filters for invoice_date
     // Use coerce to handle string dates from client-server serialization
     start_date: z.coerce.date().optional(),
     end_date: z.coerce.date().optional(),
-    // Sorting parameters
+    // Sorting parameters (including remaining_balance for computed field sorting)
     sort_by: z
-      .enum(['invoice_date', 'due_date', 'invoice_amount', 'status', 'created_at'])
+      .enum(['invoice_date', 'due_date', 'invoice_amount', 'status', 'created_at', 'remaining_balance'])
       .optional(),
     sort_order: z.enum(['asc', 'desc']).default('desc'),
     page: z.number().int().positive().default(1),

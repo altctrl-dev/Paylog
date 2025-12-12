@@ -304,6 +304,17 @@ export async function getInvoices(
       where.invoice_profile_id = validated.invoice_profile_id;
     }
 
+    // Payment type filter - filter invoices by payment type (relation query)
+    // Shows invoices that have at least one approved payment of the specified type
+    if (validated.payment_type_id) {
+      where.payments = {
+        some: {
+          payment_type_id: validated.payment_type_id,
+          status: PAYMENT_STATUS.APPROVED,
+        },
+      };
+    }
+
     // Date range filter for invoice_date
     if (validated.start_date || validated.end_date) {
       where.invoice_date = {};
@@ -326,16 +337,19 @@ export async function getInvoices(
     // Determine ordering strategy
     // If explicit sort requested, use database ordering and skip priority sort
     // Otherwise, fetch all and apply priority sorting in-memory
+    // Note: remaining_balance is a computed field - must be sorted in-memory
     let orderBy: Prisma.InvoiceOrderByWithRelationInput | undefined;
     const useExplicitSort = Boolean(validated.sort_by);
+    const isComputedFieldSort = validated.sort_by === 'remaining_balance';
 
-    if (useExplicitSort) {
-      // Map sort_by to database field
+    if (useExplicitSort && !isComputedFieldSort) {
+      // Map sort_by to database field (only for non-computed fields)
       orderBy = {
         [validated.sort_by!]: validated.sort_order,
       };
     } else {
-      // Default ordering for priority sort (will be re-sorted after enrichment)
+      // Default ordering for priority sort or computed field sort
+      // (will be re-sorted after enrichment)
       orderBy = {
         created_at: 'desc',
       };
@@ -403,15 +417,23 @@ export async function getInvoices(
       };
     }) as InvoiceWithRelations[];
 
-    // Apply priority sorting only if no explicit sort was requested
-    // Otherwise, database ordering (already applied) takes precedence
+    // Apply sorting logic
+    // - If explicit sort on DB field: database ordering (already applied)
+    // - If explicit sort on computed field (remaining_balance): in-memory sort
+    // - If no explicit sort: priority-based sorting in-memory
     let finalInvoices: InvoiceWithRelations[];
 
-    if (useExplicitSort) {
+    if (useExplicitSort && !isComputedFieldSort) {
       // Use database ordering (already sorted)
       finalInvoices = enrichedInvoices;
+    } else if (isComputedFieldSort) {
+      // Sort by computed field (remaining_balance) in-memory
+      const sortMultiplier = validated.sort_order === 'asc' ? 1 : -1;
+      finalInvoices = enrichedInvoices.sort((a, b) => {
+        return ((a.remainingBalance ?? 0) - (b.remainingBalance ?? 0)) * sortMultiplier;
+      });
     } else {
-      // Apply priority-based sorting in-memory
+      // Apply priority-based sorting in-memory (default)
       finalInvoices = enrichedInvoices.sort((a, b) => {
         const rankDiff = (a.priorityRank ?? 99) - (b.priorityRank ?? 99);
         if (rankDiff !== 0) {

@@ -32,6 +32,8 @@ export interface ActionBarAction {
   destructive?: boolean;
   /** Completely hide the action */
   hidden?: boolean;
+  /** Custom tooltip message (overrides label when provided, useful for showing why action is disabled) */
+  tooltip?: string;
 }
 
 export interface PanelActionBarProps {
@@ -90,6 +92,10 @@ export function PanelActionBar({
 }
 
 function ActionButton({ action }: { action: ActionBarAction }) {
+  // Use custom tooltip if provided (e.g., to explain why action is disabled)
+  // Otherwise fall back to the label
+  const tooltipContent = action.tooltip || action.label;
+
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -109,8 +115,8 @@ function ActionButton({ action }: { action: ActionBarAction }) {
           </span>
         </Button>
       </TooltipTrigger>
-      <TooltipContent side="left">
-        {action.label}
+      <TooltipContent side="left" className="max-w-xs">
+        {tooltipContent}
       </TooltipContent>
     </Tooltip>
   );

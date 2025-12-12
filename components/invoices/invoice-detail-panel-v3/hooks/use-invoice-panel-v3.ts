@@ -44,6 +44,16 @@ export interface InvoicePanelPermissions {
   canReject: boolean;
 }
 
+/**
+ * Reasons why record payment might be blocked
+ */
+export type RecordPaymentBlockedReason =
+  | 'pending_approval'
+  | 'already_paid'
+  | 'rejected'
+  | 'pending_payment'
+  | null;
+
 export interface UseInvoicePanelV3Return {
   // Data
   invoice: InvoiceV2Data | undefined;
@@ -56,6 +66,8 @@ export interface UseInvoicePanelV3Return {
 
   // Computed values
   hasRemainingBalance: boolean;
+  hasPendingPayment: boolean;
+  recordPaymentBlockedReason: RecordPaymentBlockedReason;
   isAdmin: boolean;
   isSuperAdmin: boolean;
   isOwner: boolean;
@@ -147,6 +159,11 @@ export function useInvoicePanelV3({
     );
   }, [paymentSummary, invoice?.status]);
 
+  // Computed: has pending payment awaiting approval
+  const hasPendingPayment = useMemo(() => {
+    return paymentSummary?.has_pending_payment ?? false;
+  }, [paymentSummary?.has_pending_payment]);
+
   // Permission calculations (memoized)
   const permissions = useMemo<InvoicePanelPermissions>(() => {
     // Edit: Admins always can edit, owners can edit if not pending approval
@@ -172,12 +189,14 @@ export function useInvoicePanelV3({
     // Delete: Super admin only
     const canDelete = isSuperAdmin;
 
-    // Record Payment: Can record if balance > 0, not pending approval, not paid, not rejected
+    // Record Payment: Can record if balance > 0, not pending approval, not paid, not rejected,
+    // AND no pending payment awaiting approval (BUG-001)
     const canRecordPayment =
       invoice?.status !== INVOICE_STATUS.PENDING_APPROVAL &&
       invoice?.status !== INVOICE_STATUS.PAID &&
       invoice?.status !== INVOICE_STATUS.REJECTED &&
-      hasRemainingBalance;
+      hasRemainingBalance &&
+      !hasPendingPayment;
 
     return {
       canEdit,
@@ -194,9 +213,27 @@ export function useInvoicePanelV3({
     isOwner,
     isInvoicePending,
     hasRemainingBalance,
+    hasPendingPayment,
     invoice?.status,
     invoice?.is_archived,
   ]);
+
+  // Compute reason why record payment is blocked (for tooltip)
+  const recordPaymentBlockedReason = useMemo<RecordPaymentBlockedReason>(() => {
+    if (invoice?.status === INVOICE_STATUS.PENDING_APPROVAL) {
+      return 'pending_approval';
+    }
+    if (invoice?.status === INVOICE_STATUS.PAID || !hasRemainingBalance) {
+      return 'already_paid';
+    }
+    if (invoice?.status === INVOICE_STATUS.REJECTED) {
+      return 'rejected';
+    }
+    if (hasPendingPayment) {
+      return 'pending_payment';
+    }
+    return null;
+  }, [invoice?.status, hasRemainingBalance, hasPendingPayment]);
 
   // Combined loading state
   const isLoading = isInvoiceLoading || isPaymentLoading;
@@ -216,6 +253,8 @@ export function useInvoicePanelV3({
 
     // Computed values
     hasRemainingBalance,
+    hasPendingPayment,
+    recordPaymentBlockedReason,
     isAdmin,
     isSuperAdmin,
     isOwner,

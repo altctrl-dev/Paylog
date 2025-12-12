@@ -163,6 +163,8 @@ export interface PaymentSummary {
   payment_count: number;
   is_fully_paid: boolean;
   is_partially_paid: boolean;
+  /** Whether there's a pending payment awaiting approval */
+  has_pending_payment: boolean;
 }
 
 /**

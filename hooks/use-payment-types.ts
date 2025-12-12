@@ -71,6 +71,39 @@ export function useSearchPaymentTypes(query: string, enabled = true) {
   });
 }
 
+/**
+ * Fetch active payment types for filter/form dropdowns
+ * Returns simplified format with just id and name
+ *
+ * @returns Query result with simplified payment type list
+ *
+ * @example
+ * ```tsx
+ * const { data: paymentTypes, isLoading } = useActivePaymentTypes();
+ * // Returns: [{ id: 1, name: 'Bank Transfer' }, { id: 2, name: 'Cash' }]
+ * ```
+ */
+export function useActivePaymentTypes() {
+  return useQuery({
+    queryKey: [...paymentTypeKeys.all, 'active-simple'],
+    queryFn: async () => {
+      const result = await getPaymentTypes({
+        is_active: true,
+        per_page: 100,
+      });
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      return result.data.paymentTypes.map((pt) => ({
+        id: pt.id,
+        name: pt.name,
+      }));
+    },
+    staleTime: 300000, // 5 minutes (master data changes infrequently)
+    refetchOnWindowFocus: false,
+  });
+}
+
 // ============================================================================
 // MUTATION HOOKS
 // ============================================================================

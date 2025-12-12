@@ -81,6 +81,8 @@ export function InvoiceDetailPanelV3({
     error,
     permissions,
     hasRemainingBalance,
+    hasPendingPayment,
+    recordPaymentBlockedReason,
     isAdmin,
   } = useInvoicePanelV3({ invoiceId, userRole, userId });
 
@@ -330,6 +332,8 @@ export function InvoiceDetailPanelV3({
             <PanelV3ActionBar
               permissions={permissions}
               hasRemainingBalance={hasRemainingBalance}
+              hasPendingPayment={hasPendingPayment}
+              recordPaymentBlockedReason={recordPaymentBlockedReason}
               onEdit={handleEdit}
               onRecordPayment={handleRecordPayment}
               onPutOnHold={handlePutOnHold}

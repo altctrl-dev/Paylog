@@ -10,27 +10,32 @@
 import * as React from 'react';
 import { Select } from '@/components/ui/select';
 
+/** Sort field type - matches InvoiceFilters.sort_by */
+export type SortByField = 'invoice_date' | 'due_date' | 'invoice_amount' | 'status' | 'created_at' | 'remaining_balance';
+
 export interface SortFilterProps {
-  sortBy?: 'invoice_date' | 'due_date' | 'invoice_amount' | 'status' | 'created_at';
+  sortBy?: SortByField;
   sortOrder: 'asc' | 'desc';
-  onSortChange: (sortBy: 'invoice_date' | 'due_date' | 'invoice_amount' | 'status' | 'created_at' | undefined, sortOrder: 'asc' | 'desc') => void;
+  onSortChange: (sortBy: SortByField | undefined, sortOrder: 'asc' | 'desc') => void;
 }
 
 /**
  * Sort options combining field + direction into single values
  */
-const SORT_OPTIONS = [
-  { value: 'default', label: 'Priority (Default)', sortBy: undefined as undefined, sortOrder: 'desc' as const },
-  { value: 'invoice_date_desc', label: 'Invoice Date: Newest First', sortBy: 'invoice_date' as const, sortOrder: 'desc' as const },
-  { value: 'invoice_date_asc', label: 'Invoice Date: Oldest First', sortBy: 'invoice_date' as const, sortOrder: 'asc' as const },
-  { value: 'due_date_asc', label: 'Due Date: Soonest First', sortBy: 'due_date' as const, sortOrder: 'asc' as const },
-  { value: 'due_date_desc', label: 'Due Date: Latest First', sortBy: 'due_date' as const, sortOrder: 'desc' as const },
-  { value: 'invoice_amount_desc', label: 'Amount: Highest First', sortBy: 'invoice_amount' as const, sortOrder: 'desc' as const },
-  { value: 'invoice_amount_asc', label: 'Amount: Lowest First', sortBy: 'invoice_amount' as const, sortOrder: 'asc' as const },
-  { value: 'status_asc', label: 'Status (A-Z)', sortBy: 'status' as const, sortOrder: 'asc' as const },
-  { value: 'status_desc', label: 'Status (Z-A)', sortBy: 'status' as const, sortOrder: 'desc' as const },
-  { value: 'created_at_desc', label: 'Created: Newest First', sortBy: 'created_at' as const, sortOrder: 'desc' as const },
-  { value: 'created_at_asc', label: 'Created: Oldest First', sortBy: 'created_at' as const, sortOrder: 'asc' as const },
+const SORT_OPTIONS: Array<{ value: string; label: string; sortBy: SortByField | undefined; sortOrder: 'asc' | 'desc' }> = [
+  { value: 'default', label: 'Priority (Default)', sortBy: undefined, sortOrder: 'desc' },
+  { value: 'invoice_date_desc', label: 'Invoice Date: Newest First', sortBy: 'invoice_date', sortOrder: 'desc' },
+  { value: 'invoice_date_asc', label: 'Invoice Date: Oldest First', sortBy: 'invoice_date', sortOrder: 'asc' },
+  { value: 'due_date_asc', label: 'Due Date: Soonest First', sortBy: 'due_date', sortOrder: 'asc' },
+  { value: 'due_date_desc', label: 'Due Date: Latest First', sortBy: 'due_date', sortOrder: 'desc' },
+  { value: 'invoice_amount_desc', label: 'Amount: Highest First', sortBy: 'invoice_amount', sortOrder: 'desc' },
+  { value: 'invoice_amount_asc', label: 'Amount: Lowest First', sortBy: 'invoice_amount', sortOrder: 'asc' },
+  { value: 'remaining_balance_desc', label: 'Remaining: Highest First', sortBy: 'remaining_balance', sortOrder: 'desc' },
+  { value: 'remaining_balance_asc', label: 'Remaining: Lowest First', sortBy: 'remaining_balance', sortOrder: 'asc' },
+  { value: 'status_asc', label: 'Status (A-Z)', sortBy: 'status', sortOrder: 'asc' },
+  { value: 'status_desc', label: 'Status (Z-A)', sortBy: 'status', sortOrder: 'desc' },
+  { value: 'created_at_desc', label: 'Created: Newest First', sortBy: 'created_at', sortOrder: 'desc' },
+  { value: 'created_at_asc', label: 'Created: Oldest First', sortBy: 'created_at', sortOrder: 'asc' },
 ];
 
 /**
