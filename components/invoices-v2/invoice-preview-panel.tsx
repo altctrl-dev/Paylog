@@ -9,10 +9,12 @@
 
 import * as React from 'react';
 import { format } from 'date-fns';
+import { ArrowUp } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { calculateTds } from '@/lib/utils/tds';
 
 /**
  * Common invoice data structure
@@ -44,6 +46,7 @@ interface InvoicePreviewData {
   // TDS Details
   tds_applicable: boolean;
   tds_percentage?: number | null;
+  tds_rounded?: boolean;
 
   // Payment Details
   is_paid?: boolean;
@@ -92,20 +95,6 @@ function formatCurrency(amount: number, symbol?: string): string {
 }
 
 /**
- * Calculate TDS amount
- */
-function calculateTdsAmount(amount: number, percentage: number): number {
-  return (amount * percentage) / 100;
-}
-
-/**
- * Calculate net amount after TDS
- */
-function calculateNetAmount(amount: number, tdsAmount: number): number {
-  return amount - tdsAmount;
-}
-
-/**
  * Display row component
  */
 function DisplayRow({
@@ -142,13 +131,20 @@ export function InvoicePreviewPanel({
   isSubmitting = false,
   isRecurring = false,
 }: InvoicePreviewPanelProps) {
-  // Calculate TDS if applicable
-  const tdsAmount =
-    invoiceData.tds_applicable && invoiceData.tds_percentage
-      ? calculateTdsAmount(invoiceData.invoice_amount, invoiceData.tds_percentage)
-      : 0;
+  // Calculate TDS if applicable (using the shared calculateTds utility)
+  const tdsCalc = React.useMemo(() => {
+    if (!invoiceData.tds_applicable || !invoiceData.tds_percentage) {
+      return { tdsAmount: 0, payableAmount: invoiceData.invoice_amount, isRounded: false };
+    }
+    return calculateTds(
+      invoiceData.invoice_amount,
+      invoiceData.tds_percentage,
+      invoiceData.tds_rounded ?? false
+    );
+  }, [invoiceData.invoice_amount, invoiceData.tds_percentage, invoiceData.tds_applicable, invoiceData.tds_rounded]);
 
-  const netAmount = calculateNetAmount(invoiceData.invoice_amount, tdsAmount);
+  const tdsAmount = tdsCalc.tdsAmount;
+  const netAmount = tdsCalc.payableAmount;
 
   return (
     <div className="space-y-6">
@@ -285,7 +281,17 @@ export function InvoicePreviewPanel({
                   />
                   <DisplayRow
                     label="TDS Amount"
-                    value={formatCurrency(tdsAmount, invoiceData.currency_symbol)}
+                    value={
+                      <span className="flex items-center gap-1">
+                        {formatCurrency(tdsAmount, invoiceData.currency_symbol)}
+                        {invoiceData.tds_rounded && (
+                          <Badge variant="outline" className="ml-1 px-1 py-0 text-xs bg-amber-50 border-amber-200 text-amber-700">
+                            <ArrowUp className="h-3 w-3 mr-0.5" />
+                            Rounded
+                          </Badge>
+                        )}
+                      </span>
+                    }
                   />
                   <DisplayRow
                     label="Net Amount (After TDS)"

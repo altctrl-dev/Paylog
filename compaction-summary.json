@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-12-10 10:03:23 IST",
+  "timestamp": "2025-12-13 22:44:45 IST",
   "agents_seen": [
     "Main Agent (Direct Work)"
   ],
@@ -9,24 +9,15 @@
   "open_questions": [],
   "owned_artifacts": [
     "OMPACTION.md",
-    "app/(dashboard)/admin/page.tsx",
-    "app/(dashboard)/admin/users/users-page-client.tsx",
-    "app/(dashboard)/invoices/recurring/page.tsx",
-    "app/(dashboard)/invoices/tds/page.tsx",
-    "app/(dashboard)/settings/components/activities-tab.tsx",
-    "app/actions/notifications.ts",
+    "IMPROVEMENT_PLAN_2024-12-12.md",
+    "app/actions/invoices-v2.ts",
+    "app/actions/invoices.ts",
     "app/actions/payments.ts",
     "compaction-summary.json",
-    "components/admin/user-management.tsx",
-    "app/actions/admin/approval-counts.ts",
-    "components/invoices/invoice-detail-panel-v3/",
-    "components/master-data/profile-detail-panel-v3.tsx",
-    "components/master-data/profile-invoices-panel-v3.tsx",
-    "components/panels/shared/",
-    "components/v3/admin/approvals/",
-    "docs/SIDEPANEL_STANDARDIZATION_PLAN.md",
-    "docs/SPRINT_UI_OVERHAUL_PLAN.md",
-    "hooks/use-approvals.ts"
+    "components/invoices-v2/edit-non-recurring-invoice-form.tsx",
+    "components/invoices-v2/edit-recurring-invoice-form.tsx",
+    "components/invoices-v2/invoice-preview-panel.tsx",
+    "components/invoices-v2/non-recurring-invoice-form.tsx"
   ],
   "contracts_touched": [],
   "files_touched": [
@@ -36,32 +27,17 @@
       "anchors": []
     },
     {
-      "path": "app/(dashboard)/admin/page.tsx",
+      "path": "IMPROVEMENT_PLAN_2024-12-12.md",
       "reason": "modified",
       "anchors": []
     },
     {
-      "path": "app/(dashboard)/admin/users/users-page-client.tsx",
+      "path": "app/actions/invoices-v2.ts",
       "reason": "modified",
       "anchors": []
     },
     {
-      "path": "app/(dashboard)/invoices/recurring/page.tsx",
-      "reason": "modified",
-      "anchors": []
-    },
-    {
-      "path": "app/(dashboard)/invoices/tds/page.tsx",
-      "reason": "modified",
-      "anchors": []
-    },
-    {
-      "path": "app/(dashboard)/settings/components/activities-tab.tsx",
-      "reason": "modified",
-      "anchors": []
-    },
-    {
-      "path": "app/actions/notifications.ts",
+      "path": "app/actions/invoices.ts",
       "reason": "modified",
       "anchors": []
     },
@@ -76,53 +52,23 @@
       "anchors": []
     },
     {
-      "path": "components/admin/user-management.tsx",
+      "path": "components/invoices-v2/edit-non-recurring-invoice-form.tsx",
       "reason": "modified",
       "anchors": []
     },
     {
-      "path": "app/actions/admin/approval-counts.ts",
-      "reason": "created",
+      "path": "components/invoices-v2/edit-recurring-invoice-form.tsx",
+      "reason": "modified",
       "anchors": []
     },
     {
-      "path": "components/invoices/invoice-detail-panel-v3/",
-      "reason": "created",
+      "path": "components/invoices-v2/invoice-preview-panel.tsx",
+      "reason": "modified",
       "anchors": []
     },
     {
-      "path": "components/master-data/profile-detail-panel-v3.tsx",
-      "reason": "created",
-      "anchors": []
-    },
-    {
-      "path": "components/master-data/profile-invoices-panel-v3.tsx",
-      "reason": "created",
-      "anchors": []
-    },
-    {
-      "path": "components/panels/shared/",
-      "reason": "created",
-      "anchors": []
-    },
-    {
-      "path": "components/v3/admin/approvals/",
-      "reason": "created",
-      "anchors": []
-    },
-    {
-      "path": "docs/SIDEPANEL_STANDARDIZATION_PLAN.md",
-      "reason": "created",
-      "anchors": []
-    },
-    {
-      "path": "docs/SPRINT_UI_OVERHAUL_PLAN.md",
-      "reason": "created",
-      "anchors": []
-    },
-    {
-      "path": "hooks/use-approvals.ts",
-      "reason": "created",
+      "path": "components/invoices-v2/non-recurring-invoice-form.tsx",
+      "reason": "modified",
       "anchors": []
     }
   ],

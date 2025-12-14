@@ -236,6 +236,7 @@ export function RecurringInvoiceForm({ onSuccess, onCancel, defaultProfileId }: 
         currency_id: formValues.currency_id,
         tds_applicable: formValues.tds_applicable,
         tds_percentage: formValues.tds_percentage || null,
+        tds_rounded: formValues.tds_rounded ?? false, // BUG-003: Include TDS rounding preference
         is_paid: formValues.is_paid,
         paid_date: formValues.is_paid && formValues.paid_date ? formValues.paid_date.toISOString() : null,
         paid_amount: formValues.is_paid ? formValues.paid_amount : null,
@@ -330,6 +331,7 @@ export function RecurringInvoiceForm({ onSuccess, onCancel, defaultProfileId }: 
       currency_symbol: selectedCurrency?.symbol,
       tds_applicable: formData.tds_applicable,
       tds_percentage: formData.tds_percentage,
+      tds_rounded: formData.tds_rounded,
       is_paid: formData.is_paid,
       paid_date: formData.paid_date,
       paid_amount: formData.paid_amount,
@@ -620,6 +622,9 @@ export function RecurringInvoiceForm({ onSuccess, onCancel, defaultProfileId }: 
         errors={errors as Record<string, { message?: string }>}
         control={control as any} // eslint-disable-line @typescript-eslint/no-explicit-any
         showDefaultsInfo={watchedProfileId > 0}
+        invoiceAmount={watch('invoice_amount') ?? 0}
+        tdsRounded={watch('tds_rounded') ?? false}
+        onTdsRoundedChange={(rounded) => setValue('tds_rounded', rounded)}
       />
 
       {/* Payment Section - Available for all users */}

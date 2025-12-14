@@ -45,6 +45,8 @@ interface PaymentFormPanelProps {
   tdsApplicable?: boolean;
   /** TDS percentage (e.g., 10 for 10%) */
   tdsPercentage?: number;
+  /** Whether TDS should be rounded (ceiling) - from invoice preference (BUG-003) */
+  tdsRounded?: boolean;
 }
 
 /**
@@ -88,6 +90,7 @@ export function PaymentFormPanel({
   remainingBalance,
   tdsApplicable = false,
   tdsPercentage = 0,
+  tdsRounded = false,
 }: PaymentFormPanelProps) {
   const { closeAllPanels } = usePanel();
   const createPaymentMutation = useCreatePayment();
@@ -95,8 +98,8 @@ export function PaymentFormPanel({
   // Fetch payment types from master data
   const { data: paymentTypes = [], isLoading: isLoadingPaymentTypes } = usePaymentTypes();
 
-  // TDS rounding state (only relevant if TDS is applicable)
-  const [roundTds, setRoundTds] = React.useState(false);
+  // TDS rounding state - initialize from invoice preference (BUG-003)
+  const [roundTds, setRoundTds] = React.useState(tdsRounded);
 
   // Form setup
   const {
@@ -115,7 +118,7 @@ export function PaymentFormPanel({
       payment_type_id: 0, // Will be set when payment types load
       payment_reference: null,
       tds_amount_applied: null,
-      tds_rounded: false,
+      tds_rounded: tdsRounded, // Initialize from invoice preference (BUG-003)
     },
   });
 
@@ -148,19 +151,27 @@ export function PaymentFormPanel({
   }, [invoiceAmount, tdsApplicable, tdsPercentage, roundTds]);
 
   // Calculate the actual remaining balance (accounting for TDS)
-  // The passed remainingBalance may be based on invoice amount, but we need it based on net payable
+  // The passed remainingBalance is already: originalNetPayable - totalPaid (TDS already deducted by caller)
+  // When user toggles TDS rounding, we need to recalculate based on new net payable
   const actualRemainingBalance = React.useMemo(() => {
-    // If TDS is applicable, the remaining balance should be based on net payable
-    // remainingBalance from caller = invoiceAmount - totalPaid (without TDS consideration)
-    // We need: netPayable - totalPaid
     if (tdsApplicable && tdsPercentage) {
-      const netPayable = roundTds ? tdsCalculation.payableRounded : tdsCalculation.payableExact;
-      // Calculate what's already been paid: invoiceAmount - remainingBalance
-      const alreadyPaid = invoiceAmount - remainingBalance;
-      return Math.max(0, netPayable - alreadyPaid);
+      // Calculate original TDS using invoice's tdsRounded preference (passed as prop)
+      const originalTdsResult = calculateTds(invoiceAmount, tdsPercentage, tdsRounded);
+      const originalNetPayable = originalTdsResult.payableAmount;
+
+      // Calculate what's already been paid from the passed remainingBalance
+      // remainingBalance = originalNetPayable - totalPaid
+      // So: totalPaid = originalNetPayable - remainingBalance
+      const totalPaid = Math.max(0, originalNetPayable - remainingBalance);
+
+      // Calculate current net payable based on user's toggle state
+      const currentNetPayable = roundTds ? tdsCalculation.payableRounded : tdsCalculation.payableExact;
+
+      // Actual remaining = current net payable - what's been paid
+      return Math.max(0, currentNetPayable - totalPaid);
     }
     return remainingBalance;
-  }, [remainingBalance, invoiceAmount, tdsApplicable, tdsPercentage, roundTds, tdsCalculation]);
+  }, [remainingBalance, invoiceAmount, tdsApplicable, tdsPercentage, tdsRounded, roundTds, tdsCalculation]);
 
   // Calculate remaining balance after this payment
   const remainingAfterPayment = React.useMemo(() => {

@@ -165,6 +165,7 @@ model Invoice {
   period_end            DateTime?
   tds_applicable        Boolean             @default(false)
   tds_percentage        Float?
+  tds_rounded           Boolean             @default(false)
   notes                 String?
   status                String              @default("pending_approval")
   hold_reason           String?

@@ -263,6 +263,18 @@ export async function getInvoices(
             },
           },
         },
+        {
+          invoice_name: {
+            contains: validated.search,
+          },
+        },
+        {
+          invoice_profile: {
+            name: {
+              contains: validated.search,
+            },
+          },
+        },
       ];
     }
 
@@ -365,8 +377,10 @@ export async function getInvoices(
     // Compute payment aggregates for invoices in the current page
     const invoiceIds = invoices.map((invoice: (typeof invoices)[number]) => invoice.id);
     let paymentsByInvoice = new Map<number, number>();
+    let pendingPaymentsByInvoice = new Map<number, boolean>();
 
     if (invoiceIds.length > 0) {
+      // Get approved payment totals
       const paymentAggregates = await db.payment.groupBy({
         by: ['invoice_id'],
         where: {
@@ -386,6 +400,25 @@ export async function getInvoices(
           aggregate._sum.amount_paid ?? 0,
         ])
       );
+
+      // BUG-002: Check for pending payments to show "Payment Pending" badge
+      const pendingPayments = await db.payment.groupBy({
+        by: ['invoice_id'],
+        where: {
+          invoice_id: {
+            in: invoiceIds,
+          },
+          status: PAYMENT_STATUS.PENDING,
+        },
+        _count: true,
+      });
+
+      pendingPaymentsByInvoice = new Map(
+        pendingPayments.map((p: (typeof pendingPayments)[number]) => [
+          p.invoice_id,
+          p._count > 0,
+        ])
+      );
     }
 
     const enrichedInvoices = invoices.map((invoice: (typeof invoices)[number]) => {
@@ -402,6 +435,8 @@ export async function getInvoices(
       });
 
       const priorityRank = computePriorityRank(invoice.status, dueState);
+      // BUG-002: Include pending payment flag for status badge display
+      const hasPendingPayment = pendingPaymentsByInvoice.get(invoice.id) ?? false;
 
       return {
         ...invoice,
@@ -414,6 +449,7 @@ export async function getInvoices(
         isDueSoon: dueState.isDueSoon,
         priorityRank,
         dueStatusVariant: dueState.variant,
+        has_pending_payment: hasPendingPayment, // BUG-002: For purple badge in list
       };
     }) as InvoiceWithRelations[];
 

@@ -54,15 +54,18 @@ export function VendorTextAutocomplete({
   const { data: vendors = [], isLoading } = useSearchVendors(search || '', shouldFetchVendors);
 
   // Initialize search with selected vendor name when value changes (for edit forms)
+  // Note: `search` is intentionally excluded from dependencies to avoid race conditions
+  // where the effect re-runs and interferes with vendor name initialization
   React.useEffect(() => {
     if (value && value > 0 && vendors.length > 0) {
       const selected = vendors.find((v) => v.id === value);
-      if (selected && search !== selected.name) {
+      if (selected) {
         setSearch(selected.name);
         setSelectedVendorName(selected.name);
       }
     }
-  }, [value, vendors, search]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value, vendors]);
 
   /**
    * Handle input change

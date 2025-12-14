@@ -1,31 +1,80 @@
 # Invoice Management Improvement Plan
 
-> **Status**: ✅ COMPLETED
+> **Status**: 🔄 IN PROGRESS
 > **Created**: 2024-12-12
-> **Last Updated**: 2024-12-12
-> **Completed**: 2024-12-12
+> **Last Updated**: 2024-12-13
 
 ## Progress Summary
 
-| Item | Status | Notes |
-|------|--------|-------|
-| BUG-001: Block Payment Recording | ✅ **COMPLETED** | Implemented 2024-12-12 |
-| IMP-001 Phase 1: Backend & Types | ✅ **COMPLETED** | Implemented 2024-12-12 |
-| IMP-001 Phase 2: Filter UI Components | ✅ **COMPLETED** | Implemented 2024-12-12 |
-| IMP-001 Phase 3: Integration & Table Sorting | ✅ **COMPLETED** | Implemented 2024-12-12 |
-| IMP-001 Phase 4: Mobile Filter Sheet | ✅ **COMPLETED** | Implemented 2024-12-12 |
-| IMP-001 Phase 5: Polish & Testing | ✅ **COMPLETED** | Implemented 2024-12-12 |
+| Item | Status | Group | Notes |
+|------|--------|-------|-------|
+| **Completed** | | | |
+| BUG-001: Block Payment Recording | ✅ **COMPLETED** | - | Implemented 2024-12-12 |
+| IMP-001: Comprehensive Invoice Filtering | ✅ **COMPLETED** | - | All 5 phases done 2024-12-12 |
+| BUG-006: TDS Not Deducted in Remaining Balance | ✅ **COMPLETED** | A | Fixed 2024-12-13 |
+| BUG-004: Search Missing Invoice Name/Profile | ✅ **COMPLETED** | B | Fixed 2024-12-13 |
+| IMP-003: Zero Balance Display as Dash | ✅ **COMPLETED** | B | Fixed 2024-12-13 |
+| IMP-002: Responsive Action Bar | ✅ **COMPLETED** | B | Fixed 2024-12-13 |
+| BUG-005: Vendor Not Populated on Edit | ✅ **COMPLETED** | C | Fixed 2024-12-13 |
+| BUG-002: Invoice Status Colors for Payment Pending | ✅ **COMPLETED** | D | Fixed 2024-12-13 |
+| BUG-003: TDS Rounding Consistency (Invoice-Level) | ✅ **COMPLETED** | A | Fixed 2024-12-13 |
+
+---
+
+## Task Groupings & Priority
+
+### Recommended Execution Order
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ GROUP A: TDS Calculation Fixes (CRITICAL - Do First)            │
+│ ├─ BUG-006: TDS not deducted in remaining balance (~1 hour)     │
+│ └─ BUG-003: TDS rounding as invoice preference (~4-6 hours)     │
+│     Files: app/actions/payments.ts, schema.prisma, forms        │
+├─────────────────────────────────────────────────────────────────┤
+│ GROUP B: All Invoices Tab Quick Fixes (Same File - Do Together) │
+│ ├─ BUG-004: Search missing fields (~30 min)                     │
+│ ├─ IMP-003: Zero balance as dash (~15 min)                      │
+│ └─ IMP-002: Responsive action bar (~1 hour)                     │
+│     Files: all-invoices-tab.tsx, app/actions/invoices.ts        │
+├─────────────────────────────────────────────────────────────────┤
+│ GROUP C: Form Data Loading (Investigation Required)             │
+│ └─ BUG-005: Vendor not populated on edit (~1 hour)              │
+│     Files: edit-non-recurring-invoice-form.tsx,                 │
+│            vendor-text-autocomplete.tsx                         │
+├─────────────────────────────────────────────────────────────────┤
+│ GROUP D: Status UI (Standalone)                                 │
+│ └─ BUG-002: Status color differentiation (~2 hours)             │
+│     Files: Status badge components                              │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Why This Order?
+
+1. **Group A first**: BUG-006 is causing wrong data display RIGHT NOW (your screenshot). BUG-003 builds on the same TDS logic.
+2. **Group B second**: All in same file, can be one PR. Quick wins with visible impact.
+3. **Group C third**: Needs investigation, isolated to edit forms.
+4. **Group D last**: Pure UI polish, doesn't affect data.
 
 ---
 
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [Improvements](#improvements)
+2. [Task Groupings & Priority](#task-groupings--priority)
+3. [Improvements](#improvements)
    - [IMP-001: Comprehensive Invoice Filtering System](#imp-001-comprehensive-invoice-filtering-system)
-3. [Bug Fixes](#bug-fixes)
-4. [Implementation Phases](#implementation-phases)
-5. [Implementation Checklist](#implementation-checklist)
+   - [IMP-002: Responsive Action Bar](#imp-002-responsive-action-bar)
+   - [IMP-003: Zero Balance Display as Dash](#imp-003-zero-balance-display-as-dash)
+4. [Bug Fixes](#bug-fixes)
+   - [BUG-001: Block Payment Recording While Pending Payment Exists](#bug-001-block-payment-recording-while-pending-payment-exists)
+   - [BUG-002: Invoice Status Colors for Payment Pending](#bug-002-invoice-status-colors-for-payment-pending)
+   - [BUG-003: TDS Rounding Consistency (Invoice-Level Preference)](#bug-003-tds-rounding-consistency-invoice-level-preference)
+   - [BUG-004: Search Missing Invoice Name/Profile](#bug-004-search-missing-invoice-nameprofile)
+   - [BUG-005: Vendor Not Populated on Edit](#bug-005-vendor-not-populated-on-edit)
+   - [BUG-006: TDS Not Deducted in Remaining Balance Calculation](#bug-006-tds-not-deducted-in-remaining-balance-calculation)
+5. [Implementation Phases](#implementation-phases)
+6. [Implementation Checklist](#implementation-checklist)
 
 ---
 
@@ -360,6 +409,150 @@ if (validated.payment_type_id) {
 
 ---
 
+### IMP-002: Responsive Action Bar
+
+**Priority**: Medium
+**Effort**: Low (~1 hour)
+**Status**: 🔴 NOT STARTED
+
+#### Problem Statement
+
+On smaller screens (mobile/tablet), the action bar on the All Invoices tab becomes crowded with full-text buttons. The current layout shows "Filters", "Export", and "+ New Invoice" with full labels, which takes up too much horizontal space on mobile devices.
+
+#### Current State
+
+**Action bar layout (`all-invoices-tab.tsx` lines 745-830):**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ [🔍 Search invoices...        ] [Filters (3)] [Export] [+ New Invoice] │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+- Uses `flex flex-col sm:flex-row` - stacks vertically on mobile
+- Search field: `max-w-xs` (320px)
+- All buttons show full text labels regardless of screen size
+- Filter button: "Filters" + badge count
+- Export button: "Export"
+- New Invoice button: "+ New Invoice"
+
+#### Expected State
+
+**On smaller screens (< 640px / `sm` breakpoint):**
+```
+┌─────────────────────────────────────────────────┐
+│ [🔍 Search...    ] [🔽] [📥] [+ New]            │
+└─────────────────────────────────────────────────┘
+```
+
+- Search field: Reduced width, shorter placeholder
+- Filter button: **Icon only** (funnel icon) + badge count
+- Export button: **Icon only** (download icon)
+- New Invoice button: **"+ New"** (shortened label)
+
+**On larger screens (≥ 640px):** Keep current layout with full labels.
+
+#### Technical Implementation
+
+**Pattern to follow:** The table action buttons already use icon-only pattern (lines 1191-1275):
+```typescript
+<button className="..." title="View">
+  <Eye className="h-4 w-4" />
+  <span className="sr-only">View</span>
+</button>
+```
+
+**Changes needed:**
+```typescript
+// Filter button
+<Button variant="outline" size="sm">
+  <Filter className="h-4 w-4" />
+  <span className="hidden sm:inline ml-2">Filters</span>
+  {activeFilterCount > 0 && <Badge>...</Badge>}
+</Button>
+
+// Export button
+<Button variant="outline" size="sm">
+  <Download className="h-4 w-4" />
+  <span className="hidden sm:inline ml-2">Export</span>
+</Button>
+
+// New Invoice button
+<Button size="sm">
+  <Plus className="h-4 w-4" />
+  <span className="sm:hidden">New</span>
+  <span className="hidden sm:inline">New Invoice</span>
+</Button>
+```
+
+#### Acceptance Criteria
+
+- [ ] On screens < 640px: Filter button shows icon only + badge
+- [ ] On screens < 640px: Export button shows icon only
+- [ ] On screens < 640px: New Invoice button shows "+ New"
+- [ ] On screens ≥ 640px: All buttons show full labels (unchanged)
+- [ ] All buttons have `title` attribute for tooltip on hover
+- [ ] All buttons have `sr-only` text for screen readers
+- [ ] Build passes with no TypeScript errors
+
+#### Files to Modify
+
+- [ ] `components/v3/invoices/all-invoices-tab.tsx` - Action bar buttons
+
+---
+
+### IMP-003: Zero Balance Display as Dash
+
+**Priority**: Low
+**Effort**: Low (~15 minutes)
+**Status**: 🔴 NOT STARTED
+
+#### Problem Statement
+
+When an invoice is fully paid (remaining balance = ₹0), the "Remaining" column shows "₹0" which adds visual noise. A dash "-" would be cleaner and immediately indicate "nothing remaining".
+
+#### Current State
+
+**Remaining column display (`all-invoices-tab.tsx` lines 1097-1100):**
+```typescript
+<span className={cn('font-medium text-sm',
+  pendingAmount > 0 ? 'text-amber-500' : 'text-green-500'
+)}>
+  {formatCurrency(pendingAmount)}
+</span>
+```
+
+- Zero balance: Shows "₹0" in green
+- Non-zero: Shows amount in amber (e.g., "₹5,000")
+
+#### Expected State
+
+- Zero balance: Show **"-"** (dash) in green or muted color
+- Non-zero: Show formatted amount in amber (unchanged)
+
+#### Technical Implementation
+
+```typescript
+<span className={cn('font-medium text-sm',
+  pendingAmount > 0 ? 'text-amber-500' : 'text-muted-foreground'
+)}>
+  {pendingAmount > 0 ? formatCurrency(pendingAmount) : '–'}
+</span>
+```
+
+#### Acceptance Criteria
+
+- [ ] Zero remaining balance shows "-" instead of "₹0"
+- [ ] Non-zero amounts display normally with currency formatting
+- [ ] Dash uses muted/subtle color (not green)
+- [ ] Change applied to all invoice table views (Pending, Monthly, All)
+- [ ] Build passes
+
+#### Files to Modify
+
+- [ ] `components/v3/invoices/all-invoices-tab.tsx` - Remaining column rendering (multiple locations)
+
+---
+
 ## Bug Fixes
 
 ### BUG-001: Block Payment Recording While Pending Payment Exists
@@ -445,6 +638,683 @@ if (hasPendingPayment) {
 - [x] `components/invoices/invoice-detail-panel-v3/panel-v3-action-bar.tsx` - Added tooltip for disabled state
 - [x] `components/invoices/invoice-detail-panel-v3/index.tsx` - Pass new props to action bar
 - [x] `components/panels/shared/panel-action-bar.tsx` - Added `tooltip` property to `ActionBarAction` type
+
+---
+
+### BUG-002: Invoice Status Colors for Payment Pending
+
+**Priority**: High
+**Effort**: Low (~2 hours)
+**Status**: 🔴 NOT STARTED
+
+#### Description
+
+When a standard user records a payment for an **already approved** invoice, the invoice status changes to indicate a payment is pending approval. Currently, there's confusion because both "invoice pending approval" and "payment pending approval" use similar visual styling.
+
+**Two Distinct Pending States**:
+1. **Invoice Pending Approval** (`pending_approval`) - Invoice request itself is awaiting admin approval
+2. **Payment Pending Approval** - Invoice is approved, but a new payment recorded by a standard user is awaiting approval
+
+These states need **visually distinct** status badges to avoid confusion.
+
+#### Color Scheme Specification
+
+| Status | Condition | Badge Color | Background | Text Color |
+|--------|-----------|-------------|------------|------------|
+| **Invoice Pending** | Invoice `status === 'pending_approval'` | **Amber/Yellow** | `bg-amber-100` | `text-amber-800` |
+| **Payment Pending** | Invoice approved + has pending payment | **Purple** | `bg-purple-100` | `text-purple-800` |
+
+**Visual Reference** (from user screenshots):
+- Invoice pending: Amber/Yellow badge with "pending_approval" text
+- Payment pending: Purple badge with "Pending" text
+
+#### Current Behavior
+
+When a standard user records a payment on an approved invoice:
+- The invoice shows some pending state
+- Status badge color does not differentiate between invoice pending vs payment pending
+- Users are confused about what is actually pending (the invoice or the payment)
+
+#### Expected Behavior
+
+1. **Invoice pending approval** (`pending_approval`):
+   - Badge: Amber/Yellow background
+   - Text: "Pending Approval"
+   - Meaning: The invoice itself was created/modified by a standard user and awaits admin approval
+
+2. **Payment pending approval**:
+   - Badge: Purple background
+   - Text: "Pending" or "Payment Pending"
+   - Meaning: The invoice is approved, but a payment recorded by a standard user awaits approval
+   - Condition: Invoice `status !== 'pending_approval'` AND `has_pending_payment === true`
+
+3. **Visual Differentiation**:
+   - Amber = Invoice-level approval needed
+   - Purple = Payment-level approval needed
+   - These should never appear at the same time (if invoice is pending, payments shouldn't be recordable)
+
+#### Technical Implementation
+
+**1. Update Status Badge Component**:
+```typescript
+// In status badge rendering logic
+function getStatusBadgeStyle(invoice: Invoice) {
+  // Invoice-level pending (amber/yellow)
+  if (invoice.status === 'pending_approval') {
+    return {
+      bg: 'bg-amber-100 dark:bg-amber-900/30',
+      text: 'text-amber-800 dark:text-amber-200',
+      label: 'Pending Approval'
+    };
+  }
+
+  // Payment-level pending (purple)
+  if (invoice.has_pending_payment) {
+    return {
+      bg: 'bg-purple-100 dark:bg-purple-900/30',
+      text: 'text-purple-800 dark:text-purple-200',
+      label: 'Payment Pending'
+    };
+  }
+
+  // Other statuses...
+}
+```
+
+**2. Update Table Row Status Display**:
+- Show purple "Pending" badge when invoice has pending payment
+- Show amber "Pending Approval" for invoice-level pending
+
+**3. Update Invoice Detail Panel**:
+- Show appropriate badge color based on pending type
+- Add clear indicator text explaining what is pending
+
+#### Acceptance Criteria
+
+- [ ] Invoice `pending_approval` status shows **Amber/Yellow** badge
+- [ ] Invoice with pending payment shows **Purple** badge
+- [ ] Badge text clearly indicates what is pending ("Pending Approval" vs "Payment Pending")
+- [ ] Colors work correctly in both light and dark mode
+- [ ] All invoice list views show correct badge colors
+- [ ] Invoice detail panel shows correct badge color
+- [ ] Visual consistency across all views (tabs, tables, panels)
+
+#### Files to Modify
+
+- [ ] `components/v3/invoices/all-invoices-tab.tsx` - Table row status badge
+- [ ] `components/invoices/invoice-detail-panel-v3/` - Detail panel status display
+- [ ] `lib/utils/invoice-status.ts` or similar - Status color utility (if exists)
+- [ ] Any shared status badge components
+- [ ] Possibly `types/invoice.ts` - Ensure `has_pending_payment` is available on invoice type
+
+#### Dependencies
+
+- BUG-001 (Block Payment Recording) must be completed first - ✅ DONE
+- `has_pending_payment` field must be available on invoice data
+
+---
+
+### BUG-003: TDS Rounding Consistency (Invoice-Level Preference)
+
+**Priority**: High
+**Effort**: Medium (~4-6 hours)
+**Status**: 🔴 NOT STARTED
+
+#### Problem Statement
+
+TDS rounding is currently stored **only on the Payment model**, leading to inconsistent TDS calculations across the application. When a user records a payment and chooses to round TDS, that choice:
+- Is saved only on that specific payment
+- Is NOT remembered for subsequent payments on the same invoice
+- Is NOT used when calculating remaining balance on invoice tables
+- Creates discrepancies between what's shown in different parts of the app
+
+#### Current State (Problematic)
+
+```
+Invoice Created (TDS applicable)
+    ↓
+No TDS rounding preference stored on invoice
+    ↓
+Record Payment #1 → Choose "Round TDS" toggle → Saved on Payment ONLY
+    ↓
+Record Payment #2 → Toggle resets to OFF, user must choose again
+    ↓
+Different screens calculate TDS differently:
+  - Invoice table: Uses exact TDS (no rounding) → Shows wrong remaining balance
+  - Payment form: Uses whatever toggle says at that moment
+  - Invoice detail: Uses exact TDS → Inconsistent with payments
+  - TDS tab: Uses exact TDS → Doesn't match ledger
+  - Ledger: Uses payment's stored value → Different from invoice views
+```
+
+**Result:** Remaining balance, TDS amounts, and payable amounts are **inconsistent** across the app.
+
+#### Expected State (Solution)
+
+```
+Invoice Created (TDS applicable)
+    ↓
+TDS Section shows "Round Off TDS" toggle → User makes choice
+    ↓
+Choice is SAVED on the Invoice (invoice.tds_rounded = true/false)
+    ↓
+ALL screens use this single source of truth:
+  ✓ Invoice table: Remaining balance uses invoice.tds_rounded
+  ✓ Invoice detail panel: Uses invoice.tds_rounded
+  ✓ Record Payment form: Pre-filled from invoice.tds_rounded (but can be changed)
+  ✓ TDS tab: Uses invoice.tds_rounded
+  ✓ Ledger tab: Uses invoice.tds_rounded
+    ↓
+If user changes choice during payment recording:
+  → Update invoice.tds_rounded on the invoice
+  → All subsequent views reflect the new choice
+    ↓
+Record Payment #2 → Toggle shows current invoice.tds_rounded value
+```
+
+#### Database Change Required
+
+```prisma
+model Invoice {
+  // ... existing fields
+  tds_applicable    Boolean   @default(false)
+  tds_percentage    Float?
+  tds_rounded       Boolean   @default(false)  // NEW FIELD
+}
+```
+
+**Migration Strategy:**
+1. Add `tds_rounded` column with default `false`
+2. For existing invoices with payments that have `tds_rounded = true`, update the invoice to match
+
+#### Screens/Areas to Update
+
+| Screen | Current Behavior | Required Change |
+|--------|------------------|-----------------|
+| **Invoice Creation Forms** | No TDS rounding toggle | Add toggle in TDS section |
+| **Invoice Edit Forms** | No TDS rounding toggle | Add toggle in TDS section |
+| **Invoice Table (All Invoices)** | Remaining balance ignores rounding | Use `invoice.tds_rounded` in calculation |
+| **Invoice Detail Panel** | Shows exact TDS | Use `invoice.tds_rounded` for display |
+| **Record Payment Panel** | Toggle defaults to OFF | Pre-fill from `invoice.tds_rounded`, update invoice on change |
+| **TDS Tab** | Uses exact TDS | Use `invoice.tds_rounded` |
+| **Ledger Tab** | Uses payment's `tds_rounded` | Use `invoice.tds_rounded` for consistency |
+| **Summary Cards** | May use inconsistent calculations | Use `invoice.tds_rounded` |
+
+#### Implementation Phases
+
+**Phase 1: Database & Backend (~2 hours)**
+- [ ] Add `tds_rounded` field to Invoice model in `schema.prisma`
+- [ ] Create migration
+- [ ] Update `createInvoice` action to accept `tds_rounded`
+- [ ] Update `updateInvoice` action to accept `tds_rounded`
+- [ ] Update `getInvoices` to return `tds_rounded`
+- [ ] Update `getInvoiceById` to return `tds_rounded`
+- [ ] Create helper function `calculateInvoiceNetPayable(invoice)` that uses `invoice.tds_rounded`
+
+**Phase 2: Invoice Forms (~1.5 hours)**
+- [ ] Add TDS rounding toggle to `non-recurring-invoice-form.tsx` (in TDS section)
+- [ ] Add TDS rounding toggle to `recurring-invoice-form.tsx` (in TDS section)
+- [ ] Add TDS rounding toggle to edit forms
+- [ ] Ensure toggle only shows when TDS is applicable and has decimal TDS amount
+
+**Phase 3: Calculation Consistency (~1.5 hours)**
+- [ ] Update `all-invoices-tab.tsx` remaining balance calculation
+- [ ] Update invoice detail panel TDS display
+- [ ] Update TDS tab calculations
+- [ ] Update Ledger tab calculations
+- [ ] Update any summary card calculations
+
+**Phase 4: Payment Form Integration (~1 hour)**
+- [ ] Pre-fill TDS toggle from `invoice.tds_rounded` in `payment-form-panel.tsx`
+- [ ] When user changes toggle, update `invoice.tds_rounded` via API call
+- [ ] Ensure subsequent payment forms show updated preference
+
+#### Acceptance Criteria
+
+- [ ] Invoice creation forms show TDS rounding toggle when TDS is applicable
+- [ ] TDS rounding choice is saved on the Invoice model
+- [ ] All invoice tables show remaining balance using `invoice.tds_rounded`
+- [ ] Invoice detail panel shows TDS values using `invoice.tds_rounded`
+- [ ] TDS tab shows values consistent with `invoice.tds_rounded`
+- [ ] Ledger tab shows values consistent with `invoice.tds_rounded`
+- [ ] Record Payment form pre-fills toggle from `invoice.tds_rounded`
+- [ ] Changing toggle during payment updates `invoice.tds_rounded`
+- [ ] Subsequent payments for same invoice show the updated preference
+- [ ] Existing invoices default to `tds_rounded = false`
+- [ ] Build passes with no TypeScript errors
+
+#### Files to Modify
+
+**Schema & Backend:**
+- [ ] `schema.prisma` - Add `tds_rounded` to Invoice model
+- [ ] `app/actions/invoices.ts` - Update create/update/get actions
+- [ ] `lib/utils/tds.ts` - Add/update helper for consistent calculation
+- [ ] `types/invoice.ts` - Add `tds_rounded` to Invoice type
+
+**Invoice Forms:**
+- [ ] `components/invoices-v2/non-recurring-invoice-form.tsx`
+- [ ] `components/invoices-v2/recurring-invoice-form.tsx`
+- [ ] `components/invoices-v2/edit-non-recurring-invoice-form.tsx`
+- [ ] `components/invoices-v2/edit-recurring-invoice-form.tsx`
+
+**Display Components:**
+- [ ] `components/v3/invoices/all-invoices-tab.tsx`
+- [ ] `components/invoices/invoice-detail-panel-v3/`
+- [ ] `components/v3/invoices/tds-tab.tsx`
+- [ ] `components/v3/invoices/ledger-table-view.tsx`
+- [ ] `app/actions/ledger.ts`
+
+**Payment Form:**
+- [ ] `components/payments/payment-form-panel.tsx`
+- [ ] `components/invoices-v2/inline-payment-fields.tsx`
+
+#### Dependencies
+
+- None (can be implemented independently)
+
+#### Notes
+
+- The `payment.tds_rounded` field can be kept for audit purposes (what was the choice at payment time)
+- Consider showing a visual indicator on invoices where TDS rounding is enabled
+- This fix ensures that when a user says "round TDS", the app respects that choice everywhere
+
+---
+
+### BUG-004: Search Missing Invoice Name/Profile
+
+**Priority**: High
+**Effort**: Low (~30 minutes)
+**Status**: 🔴 NOT STARTED
+
+#### Problem Statement
+
+The search functionality on the "All Invoices" page does not include `invoice_name` (for one-time invoices) or `invoice_profile.name` (for recurring invoices) in the search query. Users cannot find invoices by searching for the invoice name or profile name.
+
+#### Current State
+
+**Client-side search (`all-invoices-tab.tsx` lines 502-510):**
+```typescript
+const filteredInvoices = invoices.filter((invoice) => {
+  if (!searchQuery) return true;
+  const query = searchQuery.toLowerCase();
+  return (
+    invoice.invoice_number?.toLowerCase().includes(query) ||
+    invoice.vendor?.name?.toLowerCase().includes(query)
+  );
+});
+```
+
+**Backend search (`app/actions/invoices.ts` lines 252-267):**
+```typescript
+if (validated.search) {
+  where.OR = [
+    { invoice_number: { contains: validated.search } },
+    { vendor: { name: { contains: validated.search } } },
+  ];
+}
+```
+
+**Currently searched:**
+- ✅ `invoice_number` - Invoice identifier
+- ✅ `vendor.name` - Vendor company name
+
+**NOT searched (but displayed in table):**
+- ❌ `invoice_name` - User-entered name for one-time invoices
+- ❌ `invoice_profile.name` - Profile name for recurring invoices
+
+**Note:** The `getInvoiceDetails()` function (lines 704-717) shows these fields ARE displayed in the "Invoice Details" column, but they're not searchable.
+
+#### Expected State
+
+Search should query across all visible identifier fields:
+- `invoice_number`
+- `vendor.name`
+- `invoice_name` (for non-recurring invoices)
+- `invoice_profile.name` (for recurring invoices)
+
+#### Technical Implementation
+
+**Backend (`app/actions/invoices.ts`):**
+```typescript
+if (validated.search) {
+  where.OR = [
+    { invoice_number: { contains: validated.search, mode: 'insensitive' } },
+    { vendor: { name: { contains: validated.search, mode: 'insensitive' } } },
+    { invoice_name: { contains: validated.search, mode: 'insensitive' } },
+    { invoice_profile: { name: { contains: validated.search, mode: 'insensitive' } } },
+  ];
+}
+```
+
+**Client-side (`all-invoices-tab.tsx`):**
+```typescript
+const filteredInvoices = invoices.filter((invoice) => {
+  if (!searchQuery) return true;
+  const query = searchQuery.toLowerCase();
+  return (
+    invoice.invoice_number?.toLowerCase().includes(query) ||
+    invoice.vendor?.name?.toLowerCase().includes(query) ||
+    invoice.invoice_name?.toLowerCase().includes(query) ||
+    invoice.invoice_profile?.name?.toLowerCase().includes(query)
+  );
+});
+```
+
+#### Acceptance Criteria
+
+- [ ] Search finds invoices by `invoice_name`
+- [ ] Search finds invoices by `invoice_profile.name`
+- [ ] Search is case-insensitive
+- [ ] Both backend and client-side search are updated
+- [ ] Build passes with no TypeScript errors
+
+#### Files to Modify
+
+- [ ] `app/actions/invoices.ts` - Backend search query (lines 252-267)
+- [ ] `components/v3/invoices/all-invoices-tab.tsx` - Client-side search filter (lines 502-510)
+
+---
+
+### BUG-005: Vendor Not Populated on Edit
+
+**Priority**: High
+**Effort**: Low (~1 hour)
+**Status**: 🔴 NOT STARTED
+
+#### Problem Statement
+
+When editing a one-time (non-recurring) invoice, the vendor field appears blank/empty even though the invoice has a vendor assigned. The vendor dropdown should be pre-populated with the existing vendor.
+
+#### Current State
+
+**Form initialization (`edit-non-recurring-invoice-form.tsx` lines 89-124):**
+```typescript
+const form = useForm<NonRecurringInvoiceFormData>({
+  defaultValues: {
+    vendor_id: 0,  // Default to 0
+    // ...other fields
+  },
+});
+```
+
+**Pre-filling with existing data (lines 132-152):**
+```typescript
+React.useEffect(() => {
+  if (invoice) {
+    setValue('vendor_id', invoice.vendor_id ?? 0);
+    // ...other fields
+  }
+}, [invoice, setValue]);
+```
+
+**VendorTextAutocomplete initialization (`vendor-text-autocomplete.tsx` lines 56-65):**
+```typescript
+React.useEffect(() => {
+  if (value && value > 0 && vendors.length > 0) {
+    const selected = vendors.find((v) => v.id === value);
+    if (selected && search !== selected.name) {
+      setSearch(selected.name);  // Display vendor name
+      setSelectedVendorName(selected.name);
+    }
+  }
+}, [value, vendors, search]);
+```
+
+#### Potential Root Causes
+
+1. **Race condition:** `vendors` list not loaded when `value` is set
+2. **Data issue:** `invoice.vendor_id` might be `null`/`undefined` from API
+3. **Inactive vendor:** Vendor might be archived/inactive and not in the active vendors list
+4. **useEffect dependency:** The effect might not re-run when needed
+
+#### Investigation Steps
+
+1. Check if `invoice.vendor_id` is properly returned from `getInvoiceById` action
+2. Verify `vendors` query includes the invoice's vendor (even if inactive)
+3. Check timing of `setValue` vs `vendors` data loading
+4. Add console logs to trace the data flow
+
+#### Technical Implementation
+
+**Option A: Ensure vendors load before setting value**
+```typescript
+// In edit form
+React.useEffect(() => {
+  if (invoice && vendors.length > 0) {
+    setValue('vendor_id', invoice.vendor_id ?? 0);
+  }
+}, [invoice, vendors, setValue]);
+```
+
+**Option B: Include inactive vendors in the list**
+```typescript
+// In useVendors hook or VendorTextAutocomplete
+const { data: vendors } = useQuery({
+  queryKey: ['vendors', { includeInactive: true }],
+  // ...
+});
+```
+
+**Option C: Fix VendorTextAutocomplete to handle async loading**
+```typescript
+React.useEffect(() => {
+  if (value && value > 0 && vendors.length > 0) {
+    const selected = vendors.find((v) => v.id === value);
+    if (selected) {
+      setSearch(selected.name);
+      setSelectedVendorName(selected.name);
+    }
+  }
+}, [value, vendors]); // Remove 'search' from dependencies
+```
+
+#### Acceptance Criteria
+
+- [ ] Vendor field shows existing vendor name when editing invoice
+- [ ] Works for both active and inactive vendors
+- [ ] No race conditions between data loading
+- [ ] Build passes with no TypeScript errors
+
+#### Files to Modify
+
+- [ ] `components/invoices-v2/edit-non-recurring-invoice-form.tsx` - Form data loading
+- [ ] `components/invoices-v2/vendor-text-autocomplete.tsx` - Autocomplete initialization
+- [ ] Possibly `hooks/use-vendors.ts` - Include inactive vendors option
+
+#### Dependencies
+
+- Need to investigate root cause before implementing fix
+
+---
+
+### BUG-006: TDS Not Deducted in Remaining Balance Calculation
+
+**Priority**: 🚨 CRITICAL
+**Effort**: Medium (~1-2 hours)
+**Status**: 🔴 NOT STARTED
+**Group**: A (TDS Calculation Fixes)
+
+#### Problem Statement
+
+The backend payment actions calculate remaining balance incorrectly by using `invoice_amount - totalPaid` instead of `(invoice_amount - TDS) - totalPaid`. This causes the invoice detail panel to show wrong remaining balance values even when invoices are fully paid.
+
+**Evidence from user screenshots:**
+- Invoice Amount: ₹123,456
+- TDS (10%): ₹12,346
+- Net Payable: ₹111,110
+- Payment Made: ₹111,110
+- **Expected Remaining**: ₹0 (fully paid)
+- **Actual Remaining Shown**: ₹12,346 (equals TDS amount!)
+
+The frontend table shows correct values (₹0) because it calculates locally, but the detail panel uses backend-provided values which are wrong.
+
+#### Root Cause Analysis
+
+**Location: `app/actions/payments.ts`**
+
+Three functions have the same bug:
+
+**1. `getPaymentSummary()` (line ~130):**
+```typescript
+// CURRENT (WRONG):
+const remainingBalance = invoice.invoice_amount - totalPaid;
+
+// SHOULD BE:
+const tdsCalc = invoice.tds_applicable && invoice.tds_percentage
+  ? calculateTds(invoice.invoice_amount, invoice.tds_percentage, invoice.tds_rounded ?? false)
+  : { payableAmount: invoice.invoice_amount };
+const remainingBalance = tdsCalc.payableAmount - totalPaid;
+```
+
+**2. `createPayment()` (line ~472):**
+```typescript
+// CURRENT (WRONG):
+const remainingBalance = invoice.invoice_amount - totalPaid;
+// ...used to validate payment amount doesn't exceed remaining
+
+// SHOULD BE:
+const tdsCalc = calculateTds(...);
+const remainingBalance = tdsCalc.payableAmount - totalPaid;
+```
+
+**3. `approvePayment()` (line ~624):**
+```typescript
+// CURRENT (WRONG):
+const totalPaid = invoice.payments.reduce(...);
+const remainingBalance = invoice.invoice_amount - totalPaid;
+// ...used to determine new invoice status
+
+// SHOULD BE:
+const tdsCalc = calculateTds(...);
+const remainingBalance = tdsCalc.payableAmount - totalPaid;
+```
+
+#### Why Table Shows Correct Values
+
+The `all-invoices-tab.tsx` calculates remaining balance locally:
+```typescript
+// Frontend calculation (CORRECT):
+const pendingAmount = Math.max(0,
+  (invoice.tds_applicable
+    ? calculateTds(invoice.invoice_amount, invoice.tds_percentage ?? 0, false).payableAmount
+    : invoice.invoice_amount
+  ) - (invoice.total_paid || 0)
+);
+```
+
+This creates a **data inconsistency**: table shows ₹0, but opening the invoice detail panel shows ₹12,346.
+
+#### Technical Implementation
+
+**Step 1: Create helper function for consistent calculation**
+```typescript
+// Add to app/actions/payments.ts or lib/utils/tds.ts
+
+function calculateRemainingBalance(invoice: {
+  invoice_amount: number;
+  tds_applicable: boolean;
+  tds_percentage: number | null;
+  tds_rounded?: boolean;
+}, totalPaid: number): number {
+  const tdsCalc = invoice.tds_applicable && invoice.tds_percentage
+    ? calculateTds(invoice.invoice_amount, invoice.tds_percentage, invoice.tds_rounded ?? false)
+    : { payableAmount: invoice.invoice_amount };
+
+  return Math.max(0, tdsCalc.payableAmount - totalPaid);
+}
+```
+
+**Step 2: Update `getPaymentSummary()`**
+```typescript
+// Replace line ~130
+const remainingBalance = calculateRemainingBalance(invoice, totalPaid);
+```
+
+**Step 3: Update `createPayment()`**
+```typescript
+// Replace line ~472
+const remainingBalance = calculateRemainingBalance(invoice, totalPaid);
+```
+
+**Step 4: Update `approvePayment()`**
+```typescript
+// Replace line ~624
+const remainingBalance = calculateRemainingBalance(invoice, totalPaid);
+```
+
+**Step 5: Update status determination logic**
+
+The status determination should also use net payable:
+```typescript
+// When determining if invoice is 'paid' vs 'partial':
+if (remainingBalance <= 0.01) {  // Use small epsilon for float comparison
+  newStatus = 'paid';
+} else if (totalPaid > 0) {
+  newStatus = 'partial';
+}
+```
+
+#### Impact Areas
+
+| Area | Current | After Fix |
+|------|---------|-----------|
+| Invoice Detail Panel | Shows wrong remaining (₹12,346) | Shows correct (₹0) |
+| Payment Form Validation | May allow overpayments | Correctly validates max amount |
+| Invoice Status | May incorrectly show 'partial' | Correctly shows 'paid' |
+| Payment Approval | Wrong status determination | Correct status after approval |
+| Ledger Summary | May show wrong outstanding | Shows correct outstanding |
+
+#### Acceptance Criteria
+
+- [ ] `getPaymentSummary()` returns correct remaining balance accounting for TDS
+- [ ] `createPayment()` validates amount against TDS-adjusted remaining balance
+- [ ] `approvePayment()` determines status using TDS-adjusted remaining balance
+- [ ] Invoice detail panel shows ₹0 remaining when fully paid (with TDS)
+- [ ] Payment form shows correct "Maximum: ₹X" hint
+- [ ] Invoice status correctly transitions to "paid" when net payable is paid
+- [ ] All existing tests pass
+- [ ] Build passes with no TypeScript errors
+
+#### Files to Modify
+
+- [ ] `app/actions/payments.ts` - Fix `getPaymentSummary()`, `createPayment()`, `approvePayment()`
+- [ ] Optionally `lib/utils/tds.ts` - Add `calculateRemainingBalance()` helper
+
+#### Dependencies
+
+- This fix is **foundational** and should be done FIRST before BUG-003 (TDS Rounding Consistency)
+- BUG-003 will add `tds_rounded` to the Invoice model; this fix should use `invoice.tds_rounded ?? false` to be forward-compatible
+
+#### Testing Scenarios
+
+1. **TDS Invoice, Fully Paid:**
+   - Invoice: ₹100,000, TDS 10%
+   - Net Payable: ₹90,000
+   - Payment: ₹90,000
+   - Expected Remaining: ₹0
+   - Expected Status: `paid`
+
+2. **TDS Invoice, Partial Payment:**
+   - Invoice: ₹100,000, TDS 10%
+   - Net Payable: ₹90,000
+   - Payment: ₹50,000
+   - Expected Remaining: ₹40,000
+   - Expected Status: `partial`
+
+3. **Non-TDS Invoice:**
+   - Invoice: ₹100,000, TDS N/A
+   - Net Payable: ₹100,000
+   - Payment: ₹100,000
+   - Expected Remaining: ₹0
+   - Expected Status: `paid`
+
+4. **TDS Invoice with Rounding (after BUG-003):**
+   - Invoice: ₹123,456, TDS 10%
+   - Exact TDS: ₹12,345.60, Rounded TDS: ₹12,346
+   - Net Payable (rounded): ₹111,110
+   - Payment: ₹111,110
+   - Expected Remaining: ₹0
+   - Expected Status: `paid`
 
 ---
 
@@ -600,7 +1470,7 @@ if (hasPendingPayment) {
 ### Post-Implementation
 - [x] All items tested (build verification)
 - [x] Build passes
-- [ ] Code committed and pushed
+- [x] Code committed and pushed (IMP-001 committed 2024-12-12)
 - [x] Documentation updated (this file)
 
 ---
@@ -610,3 +1480,51 @@ if (hasPendingPayment) {
 - This document will be updated as more improvements and bugs are identified
 - Please share additional items to add to this plan
 - Phase 2 (URL sync) for filter persistence is deferred to future sprint
+
+## Session Progress Log
+
+### 2024-12-13 Session (Continued)
+
+**Completed This Session**:
+- ✅ IMP-001 Phases 3, 4, 5 - Comprehensive Invoice Filtering System fully implemented
+- ✅ Code committed and pushed to main branch
+- ✅ BUG-002 documented (Invoice Status Colors - Amber vs Purple)
+- ✅ BUG-003 documented (TDS Rounding Consistency - Invoice-Level Preference)
+- ✅ BUG-004 documented (Search Missing Invoice Name/Profile)
+- ✅ BUG-005 documented (Vendor Not Populated on Edit)
+- ✅ BUG-006 documented (🚨 CRITICAL - TDS Not Deducted in Remaining Balance)
+- ✅ IMP-002 documented (Responsive Action Bar - Icons on Mobile)
+- ✅ IMP-003 documented (Zero Balance Display as Dash)
+- ✅ Task Groupings reorganized for efficient execution
+
+**Next Up (Recommended Execution Order)**:
+
+**Group A: TDS Calculation Fixes (CRITICAL - Do First)**
+1. 🔜 BUG-006: TDS not deducted in remaining balance (~1-2 hours) - **CRITICAL BUG**
+2. 🔜 BUG-003: TDS rounding as invoice preference (~4-6 hours) - Requires DB migration
+
+**Group B: All Invoices Tab Quick Fixes (Same File - Do Together)**
+3. 🔜 BUG-004: Search missing invoice name/profile (~30 min)
+4. 🔜 IMP-003: Zero balance display as dash (~15 min)
+5. 🔜 IMP-002: Responsive action bar (~1 hour)
+
+**Group C: Form Data Loading**
+6. 🔜 BUG-005: Vendor not populated on edit (~1 hour) - Needs investigation
+
+**Group D: Status UI**
+7. 🔜 BUG-002: Invoice status colors (~2 hours) - Visual differentiation
+
+**Progress Summary**:
+| Item | Status | Group | Effort |
+|------|--------|-------|--------|
+| **Completed Today (2024-12-13)** | | | |
+| BUG-006: TDS Not Deducted in Balance | ✅ COMPLETED | A | Fixed in payments.ts |
+| BUG-004: Search Missing Fields | ✅ COMPLETED | B | Backend + frontend |
+| IMP-003: Zero Balance as Dash | ✅ COMPLETED | B | Shows "-" now |
+| IMP-002: Responsive Action Bar | ✅ COMPLETED | B | Icons on mobile |
+| BUG-005: Vendor Not Populated | ✅ COMPLETED | C | Race condition fixed |
+| BUG-002: Invoice Status Colors | ✅ COMPLETED | D | Amber/Purple badges |
+| BUG-003: TDS Rounding Consistency | ✅ COMPLETED | A | Invoice-level preference |
+| **Previously Completed** | | | |
+| BUG-001: Block Payment Recording | ✅ COMPLETED | - | 2024-12-12 |
+| IMP-001: Invoice Filtering System | ✅ COMPLETED | - | 2024-12-12 |

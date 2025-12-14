@@ -36,6 +36,7 @@ import { INVOICE_STATUS_CONFIG, INVOICE_STATUS } from '@/types/invoice';
 import { VENDOR_STATUS_CONFIG } from '@/types/vendor';
 import type { PanelConfig } from '@/types/panel';
 import { PANEL_WIDTH } from '@/types/panel';
+import { calculateTds } from '@/lib/utils/tds';
 
 interface InvoiceDetailPanelV2Props {
   config: PanelConfig;
@@ -93,8 +94,9 @@ export function InvoiceDetailPanelV2({ config, onClose, invoiceId, userRole, use
 
     // Calculate remaining balance (full payable amount if no payments yet)
     // For TDS invoices, we use the payable amount (after TDS deduction)
+    // Uses invoice's tds_rounded preference for consistent calculation
     const invoicePayableAmount = invoice.tds_applicable && invoice.tds_percentage
-      ? invoice.invoice_amount - (invoice.invoice_amount * invoice.tds_percentage / 100)
+      ? calculateTds(invoice.invoice_amount, invoice.tds_percentage, invoice.tds_rounded ?? false).payableAmount
       : invoice.invoice_amount;
 
     const remainingBalance = paymentSummary
@@ -110,6 +112,7 @@ export function InvoiceDetailPanelV2({ config, onClose, invoiceId, userRole, use
         remainingBalance,
         tdsApplicable: invoice.tds_applicable,
         tdsPercentage: invoice.tds_percentage,
+        tdsRounded: invoice.tds_rounded ?? false,
       },
       { width: PANEL_WIDTH.MEDIUM }
     );

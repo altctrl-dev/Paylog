@@ -67,6 +67,7 @@ interface PendingInvoice {
   status: InvoiceStatus;
   tds_applicable: boolean;
   tds_percentage: number | null;
+  tds_rounded: boolean;
   totalPaid: number;
   remainingBalance: number;
   isOverdue: boolean;
@@ -147,10 +148,10 @@ export function ProfileInvoicesPanelV3({
       .map((inv) => {
         const paid = inv.totalPaid ?? 0;
 
-        // Calculate net payable amount after TDS
+        // Calculate net payable amount after TDS using invoice's tds_rounded preference (BUG-003)
         let payableAmount = inv.invoice_amount;
         if (inv.tds_applicable && inv.tds_percentage) {
-          const tdsResult = calculateTds(inv.invoice_amount, inv.tds_percentage);
+          const tdsResult = calculateTds(inv.invoice_amount, inv.tds_percentage, inv.tds_rounded ?? false);
           payableAmount = tdsResult.payableAmount;
         }
 
@@ -178,6 +179,7 @@ export function ProfileInvoicesPanelV3({
           status: inv.status as InvoiceStatus,
           tds_applicable: inv.tds_applicable,
           tds_percentage: inv.tds_percentage,
+          tds_rounded: inv.tds_rounded ?? false,
           totalPaid: paid,
           remainingBalance,
           isOverdue,
@@ -214,6 +216,7 @@ export function ProfileInvoicesPanelV3({
       remainingBalance: invoice.remainingBalance,
       tdsApplicable: invoice.tds_applicable,
       tdsPercentage: invoice.tds_percentage,
+      tdsRounded: invoice.tds_rounded,
     });
   };
 

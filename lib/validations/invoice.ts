@@ -60,6 +60,7 @@ export const invoiceFormSchema = z
       .min(0, 'TDS percentage cannot be negative')
       .max(100, 'TDS percentage cannot exceed 100')
       .nullable(),
+    tds_rounded: z.boolean().optional().default(false),
     description: z.string().max(1000, 'Description too long').optional().nullable(),
     notes: z.string().max(1000, 'Notes too long').optional().nullable(),
     // Invoice type fields

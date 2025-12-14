@@ -14,6 +14,7 @@ import { IndianRupee, Calendar, AlertCircle, CheckCircle } from 'lucide-react';
 import { PanelStatGroup, type StatItem } from '@/components/panels/shared';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { calculateTds } from '@/lib/utils/tds';
 
 // ============================================================================
 // Types
@@ -25,6 +26,7 @@ export interface PanelV3HeroProps {
   remainingBalance: number;
   tdsApplicable: boolean;
   tdsPercentage?: number | null;
+  tdsRounded?: boolean; // BUG-003: Invoice-level TDS rounding preference
   dueDate?: Date | string | null;
   status: string;
   currencyCode?: string;
@@ -45,15 +47,6 @@ function formatCurrency(amount: number, currency: string = 'INR'): string {
     maximumFractionDigits: 2,
   }).format(amount);
 }
-
-/**
- * Calculate TDS amount based on invoice amount and percentage
- */
-function calculateTdsAmount(invoiceAmount: number, tdsPercentage: number | null | undefined): number {
-  if (!tdsPercentage || tdsPercentage <= 0) return 0;
-  return (invoiceAmount * tdsPercentage) / 100;
-}
-
 /**
  * Parse date from various formats
  */
@@ -174,13 +167,14 @@ export function PanelV3Hero({
   remainingBalance,
   tdsApplicable,
   tdsPercentage,
+  tdsRounded = false, // BUG-003: Invoice-level TDS rounding preference
   dueDate,
   status,
   currencyCode = 'INR',
 }: PanelV3HeroProps) {
-  // Calculate TDS amount
-  const tdsAmount = tdsApplicable
-    ? calculateTdsAmount(invoiceAmount, tdsPercentage)
+  // Calculate TDS amount using invoice's tds_rounded preference (BUG-003)
+  const tdsAmount = tdsApplicable && tdsPercentage
+    ? calculateTds(invoiceAmount, tdsPercentage, tdsRounded).tdsAmount
     : 0;
 
   // Calculate payable amount (invoice minus TDS if applicable)

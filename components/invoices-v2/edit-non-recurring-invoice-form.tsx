@@ -146,6 +146,7 @@ export function EditNonRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: 
       setValue('invoice_amount', invoice.invoice_amount);
       setValue('tds_applicable', invoice.tds_applicable);
       setValue('tds_percentage', invoice.tds_percentage || null);
+      setValue('tds_rounded', invoice.tds_rounded ?? false); // BUG-003: Pre-fill TDS rounding preference
       // Note: Payment fields (is_paid, paid_date, paid_amount, etc.) are now
       // stored in the Payment table, not on Invoice. Payments are recorded separately.
     }
@@ -232,6 +233,7 @@ export function EditNonRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: 
         currency_id: validatedData.currency_id,
         tds_applicable: validatedData.tds_applicable,
         tds_percentage: validatedData.tds_percentage || null,
+        tds_rounded: validatedData.tds_rounded ?? false, // BUG-003: Include TDS rounding preference
         is_paid: validatedData.is_paid,
         paid_date: validatedData.is_paid && validatedData.paid_date ? validatedData.paid_date.toISOString() : null,
         paid_amount: validatedData.is_paid ? validatedData.paid_amount : null,
@@ -485,6 +487,9 @@ export function EditNonRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: 
         onTdsApplicableChange={(applicable) => setValue('tds_applicable', applicable)}
         tdsPercentage={watch('tds_percentage') ?? null}
         onTdsPercentageChange={(percentage) => setValue('tds_percentage', percentage)}
+        tdsRounded={watch('tds_rounded') ?? false}
+        onTdsRoundedChange={(rounded) => setValue('tds_rounded', rounded)}
+        invoiceAmount={watch('invoice_amount')}
         control={control as unknown as Control<Record<string, unknown>>}
         errors={errors}
       />

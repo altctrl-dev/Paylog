@@ -13,6 +13,7 @@ import { PanelSection } from '@/components/panels/shared';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/utils/format';
 import { VENDOR_STATUS_CONFIG, type VendorStatus } from '@/types/vendor';
+import { calculateTds } from '@/lib/utils/tds';
 import type { InvoicePanelData } from '../hooks/use-invoice-panel-v3';
 
 // ============================================================================
@@ -49,12 +50,12 @@ function DetailItem({ label, value, className = '' }: DetailItemProps) {
 export function DetailsTab({ invoice }: DetailsTabProps) {
   const currencyCode = invoice.currency?.code || 'USD';
 
-  // Calculate TDS amount and payable amount
-  const tdsAmount =
-    invoice.tds_applicable && invoice.tds_percentage
-      ? (invoice.invoice_amount * invoice.tds_percentage) / 100
-      : 0;
-  const payableAmount = invoice.invoice_amount - tdsAmount;
+  // Calculate TDS amount and payable amount using invoice's tds_rounded preference (BUG-003)
+  const tdsCalc = invoice.tds_applicable && invoice.tds_percentage
+    ? calculateTds(invoice.invoice_amount, invoice.tds_percentage, invoice.tds_rounded ?? false)
+    : { tdsAmount: 0, payableAmount: invoice.invoice_amount };
+  const tdsAmount = tdsCalc.tdsAmount;
+  const payableAmount = tdsCalc.payableAmount;
 
   // Format date helper
   const formatDateValue = (date: Date | null | undefined): string => {

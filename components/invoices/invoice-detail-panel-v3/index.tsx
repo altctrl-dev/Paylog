@@ -35,6 +35,7 @@ import { DeleteInvoiceDialog } from '@/components/invoices/delete-invoice-dialog
 import type { PanelConfig } from '@/types/panel';
 import { PANEL_WIDTH } from '@/types/panel';
 import type { InvoiceStatus } from '@/types/invoice';
+import { calculateTds } from '@/lib/utils/tds';
 
 // V3 Sub-components
 import { useInvoicePanelV3 } from './hooks/use-invoice-panel-v3';
@@ -125,10 +126,10 @@ export function InvoiceDetailPanelV3({
 
     // Calculate remaining balance (full payable amount if no payments yet)
     // For TDS invoices, we use the payable amount (after TDS deduction)
+    // Uses invoice's tds_rounded preference for consistent calculation
     const invoicePayableAmount =
       invoice.tds_applicable && invoice.tds_percentage
-        ? invoice.invoice_amount -
-          (invoice.invoice_amount * invoice.tds_percentage) / 100
+        ? calculateTds(invoice.invoice_amount, invoice.tds_percentage, invoice.tds_rounded ?? false).payableAmount
         : invoice.invoice_amount;
 
     const remainingBalance = paymentSummary
@@ -144,6 +145,7 @@ export function InvoiceDetailPanelV3({
         remainingBalance,
         tdsApplicable: invoice.tds_applicable,
         tdsPercentage: invoice.tds_percentage,
+        tdsRounded: invoice.tds_rounded ?? false,
       },
       { width: PANEL_WIDTH.MEDIUM }
     );
@@ -302,6 +304,7 @@ export function InvoiceDetailPanelV3({
                 status={invoice.status as InvoiceStatus}
                 isRecurring={invoice.is_recurring}
                 isArchived={invoice.is_archived}
+                hasPendingPayment={hasPendingPayment}
               />
             </div>
 
@@ -309,12 +312,13 @@ export function InvoiceDetailPanelV3({
             <div className="px-6 py-4 border-b bg-muted/30">
               <PanelV3Hero
                 invoiceAmount={invoice.invoice_amount}
-                totalPaid={paymentSummary?.total_paid || 0}
+                totalPaid={paymentSummary?.total_paid ?? 0}
                 remainingBalance={
-                  paymentSummary?.remaining_balance || invoice.invoice_amount
+                  paymentSummary?.remaining_balance ?? invoice.invoice_amount
                 }
                 tdsApplicable={invoice.tds_applicable}
                 tdsPercentage={invoice.tds_percentage}
+                tdsRounded={invoice.tds_rounded} // BUG-003: Pass invoice's TDS rounding preference
                 dueDate={invoice.due_date}
                 status={invoice.status}
                 currencyCode={invoice.currency?.code}

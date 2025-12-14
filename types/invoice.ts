@@ -32,11 +32,11 @@ export type InvoiceStatus =
  */
 export const INVOICE_STATUS_CONFIG: Record<
   InvoiceStatus,
-  { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' | 'success' | 'info' | 'warning' | 'muted' }
+  { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' | 'success' | 'info' | 'warning' | 'muted' | 'purple' }
 > = {
   [INVOICE_STATUS.PENDING_APPROVAL]: {
     label: 'Pending Approval',
-    variant: 'outline',
+    variant: 'warning',
   },
   [INVOICE_STATUS.ON_HOLD]: {
     label: 'On Hold',
@@ -84,6 +84,7 @@ export interface Invoice {
   due_date: Date | null;
   tds_applicable: boolean;
   tds_percentage: number | null;
+  tds_rounded: boolean;
   notes: string | null;
   description: string | null;
   invoice_name: string | null;
@@ -167,6 +168,8 @@ export interface InvoiceWithRelations extends Invoice {
   isDueSoon?: boolean;
   priorityRank?: number;
   dueStatusVariant?: 'destructive' | 'warning' | 'muted';
+  /** BUG-002: Whether invoice has a pending payment awaiting approval */
+  has_pending_payment?: boolean;
 }
 
 // ============================================================================
@@ -194,6 +197,7 @@ export interface InvoiceFormData {
   due_date: Date;
   tds_applicable: boolean;
   tds_percentage: number | null;
+  tds_rounded?: boolean;
   description?: string | null;
   notes?: string | null;
   is_recurring?: boolean;
@@ -289,6 +293,7 @@ export interface InvoiceV2WithRelations {
   period_end: Date | null;
   tds_applicable: boolean;
   tds_percentage: number | null;
+  tds_rounded: boolean;
   description: string | null;
   invoice_name: string | null;
   notes: string | null;

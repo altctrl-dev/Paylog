@@ -41,6 +41,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { calculateTds } from '@/lib/utils/tds';
 
 // ============================================================================
 // Format Helpers
@@ -69,9 +70,16 @@ function formatTdsPercentage(percentage: number | null): string {
   return `${percentage.toFixed(1)}%`;
 }
 
-function calculateTdsAmount(invoiceAmount: number, tdsPercentage: number | null): number {
+/**
+ * Calculate TDS amount using invoice's tds_rounded preference (BUG-003)
+ */
+function calculateTdsAmountWithRounding(
+  invoiceAmount: number,
+  tdsPercentage: number | null,
+  tdsRounded: boolean = false
+): number {
   if (tdsPercentage === null || tdsPercentage === undefined) return 0;
-  return (invoiceAmount * tdsPercentage) / 100;
+  return calculateTds(invoiceAmount, tdsPercentage, tdsRounded).tdsAmount;
 }
 
 // ============================================================================
@@ -136,10 +144,12 @@ export function TDSTab() {
     return true;
   });
 
-  // Calculate totals from filtered invoices
+  // Calculate totals from filtered invoices using invoice's tds_rounded preference (BUG-003)
   const totals = filteredInvoices.reduce(
     (acc, invoice) => {
-      const tdsAmount = calculateTdsAmount(invoice.invoice_amount, invoice.tds_percentage);
+      // Cast to access tds_rounded field
+      const inv = invoice as typeof invoice & { tds_rounded?: boolean };
+      const tdsAmount = calculateTdsAmountWithRounding(invoice.invoice_amount, invoice.tds_percentage, inv.tds_rounded ?? false);
       return {
         invoiceAmount: acc.invoiceAmount + invoice.invoice_amount,
         tdsAmount: acc.tdsAmount + tdsAmount,
@@ -181,9 +191,11 @@ export function TDSTab() {
       return;
     }
 
-    // Prepare data for export
+    // Prepare data for export using invoice's tds_rounded preference (BUG-003)
     const exportData = filteredInvoices.map((invoice) => {
-      const tdsAmount = calculateTdsAmount(invoice.invoice_amount, invoice.tds_percentage);
+      // Cast to access tds_rounded field
+      const inv = invoice as typeof invoice & { tds_rounded?: boolean };
+      const tdsAmount = calculateTdsAmountWithRounding(invoice.invoice_amount, invoice.tds_percentage, inv.tds_rounded ?? false);
       return {
         'Invoice Details': getInvoiceDetails(invoice),
         'Invoice Number': invoice.invoice_number || '',
@@ -377,9 +389,12 @@ export function TDSTab() {
               </TableRow>
             ) : (
               filteredInvoices.map((invoice) => {
-                const tdsAmount = calculateTdsAmount(
+                // Cast to access tds_rounded field (BUG-003)
+                const inv = invoice as typeof invoice & { tds_rounded?: boolean };
+                const tdsAmount = calculateTdsAmountWithRounding(
                   invoice.invoice_amount,
-                  invoice.tds_percentage
+                  invoice.tds_percentage,
+                  inv.tds_rounded ?? false
                 );
 
                 return (

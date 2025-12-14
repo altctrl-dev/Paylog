@@ -22,6 +22,7 @@ import { paymentFormSchema } from '@/lib/validations/payment';
 import { revalidatePath } from 'next/cache';
 import { createActivityLog } from '@/app/actions/activity-log';
 import { ACTIVITY_ACTION } from '@/docs/SPRINT7_ACTIVITY_ACTIONS';
+import { calculateTds } from '@/lib/utils/tds';
 import {
   notifyPaymentPendingApproval,
   notifyPaymentApproved,
@@ -89,12 +90,15 @@ export async function getPaymentSummary(
   try {
     await getCurrentUser();
 
-    // Get invoice
+    // Get invoice with TDS fields for correct remaining balance calculation
     const invoice = await db.invoice.findUnique({
       where: { id: invoiceId },
       select: {
         id: true,
         invoice_amount: true,
+        tds_applicable: true,
+        tds_percentage: true,
+        tds_rounded: true,
       },
     });
 
@@ -127,7 +131,14 @@ export async function getPaymentSummary(
 
     const totalPaid = paymentsSum._sum.amount_paid || 0;
     const paymentCount = paymentsSum._count;
-    const remainingBalance = invoice.invoice_amount - totalPaid;
+
+    // BUG-006 FIX: Calculate net payable amount after TDS deduction
+    // The remaining balance should be based on the net payable (invoice_amount - TDS), not gross invoice_amount
+    // BUG-003 FIX: Use invoice's tds_rounded preference for consistent TDS calculation
+    const tdsCalc = invoice.tds_applicable && invoice.tds_percentage
+      ? calculateTds(invoice.invoice_amount, invoice.tds_percentage, invoice.tds_rounded ?? false)
+      : { payableAmount: invoice.invoice_amount };
+    const remainingBalance = tdsCalc.payableAmount - totalPaid;
     const isFullyPaid = remainingBalance <= 0;
     const isPartiallyPaid = totalPaid > 0 && !isFullyPaid;
     const hasPendingPayment = pendingPaymentCount > 0;
@@ -337,7 +348,7 @@ export async function createPayment(
     // Validate input
     const validated = paymentFormSchema.parse(data);
 
-    // Get invoice to validate amount
+    // Get invoice to validate amount (include TDS fields for correct remaining balance)
     const invoice = await db.invoice.findUnique({
       where: { id: invoiceId },
       select: {
@@ -346,6 +357,9 @@ export async function createPayment(
         invoice_amount: true,
         status: true,
         is_archived: true,
+        tds_applicable: true,
+        tds_percentage: true,
+        tds_rounded: true,
       },
     });
 
@@ -469,7 +483,13 @@ export async function createPayment(
         });
 
         const totalPaid = paymentsSum._sum.amount_paid || 0;
-        const remainingBalance = invoice.invoice_amount - totalPaid;
+
+        // BUG-006 FIX: Calculate net payable amount after TDS deduction
+        // BUG-003 FIX: Use invoice's tds_rounded preference for consistent TDS calculation
+        const tdsCalc = invoice.tds_applicable && invoice.tds_percentage
+          ? calculateTds(invoice.invoice_amount, invoice.tds_percentage, invoice.tds_rounded ?? false)
+          : { payableAmount: invoice.invoice_amount };
+        const remainingBalance = tdsCalc.payableAmount - totalPaid;
 
         let newStatus: string = INVOICE_STATUS.UNPAID;
         if (remainingBalance <= 0) {
@@ -568,7 +588,7 @@ export async function approvePayment(
       };
     }
 
-    // Get the payment
+    // Get the payment (include TDS fields for correct remaining balance calculation)
     const payment = await db.payment.findUnique({
       where: { id: paymentId },
       include: {
@@ -577,6 +597,9 @@ export async function approvePayment(
             id: true,
             invoice_number: true,
             invoice_amount: true,
+            tds_applicable: true,
+            tds_percentage: true,
+            tds_rounded: true,
           },
         },
       },
@@ -621,7 +644,13 @@ export async function approvePayment(
       });
 
       const totalPaid = paymentsSum._sum.amount_paid || 0;
-      const remainingBalance = payment.invoice.invoice_amount - totalPaid;
+
+      // BUG-006 FIX: Calculate net payable amount after TDS deduction
+      // BUG-003 FIX: Use invoice's tds_rounded preference for consistent TDS calculation
+      const tdsCalc = payment.invoice.tds_applicable && payment.invoice.tds_percentage
+        ? calculateTds(payment.invoice.invoice_amount, payment.invoice.tds_percentage, payment.invoice.tds_rounded ?? false)
+        : { payableAmount: payment.invoice.invoice_amount };
+      const remainingBalance = tdsCalc.payableAmount - totalPaid;
 
       let newStatus: string = INVOICE_STATUS.UNPAID;
       if (remainingBalance <= 0) {
@@ -831,6 +860,124 @@ export async function getPendingPayments(): Promise<
       success: false,
       error:
         error instanceof Error ? error.message : 'Failed to fetch pending payments',
+    };
+  }
+}
+
+// ============================================================================
+// INVOICE STATUS RECALCULATION
+// ============================================================================
+
+/**
+ * Recalculate and update invoice status based on payments
+ *
+ * This utility function recalculates the invoice status based on the actual
+ * payment amounts and TDS settings. It's useful for fixing invoices that
+ * had their status incorrectly set before bug fixes were applied.
+ *
+ * @param invoiceId - Invoice ID to recalculate
+ * @returns Updated invoice status
+ */
+export async function recalculateInvoiceStatus(
+  invoiceId: number
+): Promise<ServerActionResult<{ invoiceId: number; oldStatus: string; newStatus: string }>> {
+  try {
+    const currentUser = await getCurrentUser();
+
+    // Only admins can recalculate invoice status
+    if (!currentUser.isAdmin) {
+      return {
+        success: false,
+        error: 'Unauthorized: Only administrators can recalculate invoice status',
+      };
+    }
+
+    // Get invoice with TDS fields
+    const invoice = await db.invoice.findUnique({
+      where: { id: invoiceId },
+      select: {
+        id: true,
+        status: true,
+        invoice_amount: true,
+        tds_applicable: true,
+        tds_percentage: true,
+        tds_rounded: true,
+      },
+    });
+
+    if (!invoice) {
+      return {
+        success: false,
+        error: 'Invoice not found',
+      };
+    }
+
+    // Sum all approved payments
+    const paymentsSum = await db.payment.aggregate({
+      where: {
+        invoice_id: invoiceId,
+        status: PAYMENT_STATUS.APPROVED,
+      },
+      _sum: {
+        amount_paid: true,
+      },
+    });
+
+    const totalPaid = paymentsSum._sum.amount_paid || 0;
+
+    // Calculate net payable amount after TDS deduction
+    const tdsCalc = invoice.tds_applicable && invoice.tds_percentage
+      ? calculateTds(invoice.invoice_amount, invoice.tds_percentage, invoice.tds_rounded ?? false)
+      : { payableAmount: invoice.invoice_amount };
+    const remainingBalance = tdsCalc.payableAmount - totalPaid;
+
+    // Determine new status
+    let newStatus: string = INVOICE_STATUS.UNPAID;
+    if (remainingBalance <= 0.01) { // Small epsilon for float comparison
+      newStatus = INVOICE_STATUS.PAID;
+    } else if (totalPaid > 0) {
+      newStatus = INVOICE_STATUS.PARTIAL;
+    }
+
+    const oldStatus = invoice.status;
+
+    // Only update if status changed
+    if (oldStatus !== newStatus) {
+      await db.invoice.update({
+        where: { id: invoiceId },
+        data: { status: newStatus },
+      });
+
+      // Log the status change
+      await createActivityLog({
+        invoice_id: invoiceId,
+        user_id: currentUser.id,
+        action: ACTIVITY_ACTION.INVOICE_UPDATED,
+        old_data: { status: oldStatus },
+        new_data: {
+          status: newStatus,
+          reason: 'Status recalculated based on payments and TDS'
+        },
+      });
+
+      // Revalidate paths
+      revalidatePath('/invoices');
+      revalidatePath(`/invoices/${invoiceId}`);
+    }
+
+    return {
+      success: true,
+      data: {
+        invoiceId,
+        oldStatus,
+        newStatus,
+      },
+    };
+  } catch (error) {
+    console.error('recalculateInvoiceStatus error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to recalculate invoice status',
     };
   }
 }

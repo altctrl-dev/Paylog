@@ -217,7 +217,7 @@ export async function createRecurringInvoice(
     const initialStatus = isAdmin ? INVOICE_STATUS.UNPAID : INVOICE_STATUS.PENDING_APPROVAL;
     console.log('[createRecurringInvoice] Initial status:', initialStatus, 'isAdmin:', isAdmin);
 
-    // 9. Create invoice in transaction
+    // 9. Create invoice in transaction (extended timeout for file uploads)
     console.log('[createRecurringInvoice] Creating invoice record...');
     const invoice = await db.$transaction(async (tx) => {
       // Create invoice record
@@ -245,6 +245,7 @@ export async function createRecurringInvoice(
           // TDS
           tds_applicable: validated.tds_applicable,
           tds_percentage: validated.tds_percentage || null,
+          tds_rounded: validated.tds_rounded ?? false,
 
           // Recurring invoice fields
           is_recurring: true,
@@ -272,6 +273,9 @@ export async function createRecurringInvoice(
       }
 
       return newInvoice;
+    }, {
+      maxWait: 10000, // 10 seconds to acquire connection
+      timeout: 30000, // 30 seconds for file upload to complete
     });
 
     console.log('[createRecurringInvoice] Transaction completed successfully');
@@ -434,7 +438,7 @@ export async function createNonRecurringInvoice(
     const initialStatus = isAdmin ? INVOICE_STATUS.UNPAID : INVOICE_STATUS.PENDING_APPROVAL;
     console.log('[createNonRecurringInvoice] Initial status:', initialStatus, 'isAdmin:', isAdmin);
 
-    // 11. Create invoice in transaction
+    // 11. Create invoice in transaction (extended timeout for file uploads)
     console.log('[createNonRecurringInvoice] Creating invoice record...');
     const invoice = await db.$transaction(async (tx) => {
       // Create invoice record
@@ -460,6 +464,7 @@ export async function createNonRecurringInvoice(
           // TDS
           tds_applicable: validated.tds_applicable,
           tds_percentage: validated.tds_percentage || null,
+          tds_rounded: validated.tds_rounded ?? false,
 
           // Non-recurring invoice fields
           is_recurring: false,
@@ -488,6 +493,9 @@ export async function createNonRecurringInvoice(
       }
 
       return newInvoice;
+    }, {
+      maxWait: 10000, // 10 seconds to acquire connection
+      timeout: 30000, // 30 seconds for file upload to complete
     });
 
     console.log('[createNonRecurringInvoice] Transaction completed successfully');
@@ -678,7 +686,7 @@ export async function updateRecurringInvoice(
       };
     }
 
-    // 10. Update invoice in transaction
+    // 10. Update invoice in transaction (extended timeout for file uploads)
     console.log('[updateRecurringInvoice] Updating invoice record...');
     await db.$transaction(async (tx) => {
       // Update invoice record
@@ -700,6 +708,7 @@ export async function updateRecurringInvoice(
           // TDS
           tds_applicable: validated.tds_applicable,
           tds_percentage: validated.tds_percentage || null,
+          tds_rounded: validated.tds_rounded ?? false,
 
           // Status (may change for standard users)
           status: newStatus,
@@ -724,6 +733,9 @@ export async function updateRecurringInvoice(
           );
         }
       }
+    }, {
+      maxWait: 10000, // 10 seconds to acquire connection
+      timeout: 30000, // 30 seconds for file upload to complete
     });
 
     console.log('[updateRecurringInvoice] Transaction completed successfully');
@@ -921,7 +933,7 @@ export async function updateNonRecurringInvoice(
       };
     }
 
-    // 13. Update invoice in transaction
+    // 13. Update invoice in transaction (extended timeout for file uploads)
     console.log('[updateNonRecurringInvoice] Updating invoice record...');
     await db.$transaction(async (tx) => {
       // Update invoice record
@@ -948,6 +960,7 @@ export async function updateNonRecurringInvoice(
           // TDS
           tds_applicable: validated.tds_applicable,
           tds_percentage: validated.tds_percentage || null,
+          tds_rounded: validated.tds_rounded ?? false,
 
           // Status (may change for standard users)
           status: newStatus,
@@ -972,6 +985,9 @@ export async function updateNonRecurringInvoice(
           );
         }
       }
+    }, {
+      maxWait: 10000, // 10 seconds to acquire connection
+      timeout: 30000, // 30 seconds for file upload to complete
     });
 
     console.log('[updateNonRecurringInvoice] Transaction completed successfully');

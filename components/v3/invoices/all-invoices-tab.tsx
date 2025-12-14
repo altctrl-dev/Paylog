@@ -71,6 +71,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { type InvoiceStatus, INVOICE_STATUS, type InvoiceFilters } from '@/types/invoice';
 import { MonthNavigator } from './month-navigator';
+import { calculateTds } from '@/lib/utils/tds';
 
 // ============================================================================
 // Sortable Table Head Component
@@ -182,7 +183,52 @@ function getFilterLabel(
 // Status Badge Component
 // ============================================================================
 
-function StatusBadge({ status }: { status: string }) {
+/**
+ * Status labels for display
+ */
+const STATUS_LABELS: Record<string, string> = {
+  [INVOICE_STATUS.PAID]: 'Paid',
+  [INVOICE_STATUS.PENDING_APPROVAL]: 'Pending Approval',
+  [INVOICE_STATUS.OVERDUE]: 'Overdue',
+  [INVOICE_STATUS.PARTIAL]: 'Partially Paid',
+  [INVOICE_STATUS.UNPAID]: 'Unpaid',
+  [INVOICE_STATUS.ON_HOLD]: 'On Hold',
+  [INVOICE_STATUS.REJECTED]: 'Rejected',
+};
+
+interface StatusBadgeProps {
+  status: string;
+  /** When true, shows "Payment Pending" badge (purple) instead of invoice status */
+  hasPendingPayment?: boolean;
+}
+
+/**
+ * Status badge for invoice table rows
+ *
+ * Color scheme:
+ * - Invoice Pending Approval: Amber/Yellow (bg-amber-500/20)
+ * - Payment Pending: Purple (bg-purple-500/20)
+ * - Paid: Green
+ * - Overdue/Rejected: Red
+ * - Partial: Blue
+ * - Unpaid: Orange
+ * - On Hold: Gray
+ */
+function StatusBadge({ status, hasPendingPayment }: StatusBadgeProps) {
+  // Payment pending takes precedence over invoice status (when invoice is approved but has pending payment)
+  if (hasPendingPayment && status !== INVOICE_STATUS.PENDING_APPROVAL) {
+    return (
+      <span
+        className={cn(
+          'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border',
+          'bg-purple-500/20 text-purple-400 border-purple-500/30'
+        )}
+      >
+        Payment Pending
+      </span>
+    );
+  }
+
   const variants: Record<string, string> = {
     [INVOICE_STATUS.PAID]: 'bg-green-500/20 text-green-400 border-green-500/30',
     [INVOICE_STATUS.PENDING_APPROVAL]: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
@@ -194,6 +240,7 @@ function StatusBadge({ status }: { status: string }) {
   };
 
   const defaultVariant = 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+  const label = STATUS_LABELS[status] || status;
 
   return (
     <span
@@ -202,7 +249,7 @@ function StatusBadge({ status }: { status: string }) {
         variants[status] || defaultVariant
       )}
     >
-      {status}
+      {label}
     </span>
   );
 }
@@ -237,9 +284,14 @@ function formatCurrencyWithDecimals(amount: number): string {
   }).format(amount);
 }
 
-function calculateTdsAmount(invoiceAmount: number, tdsPercentage: number | null): number {
+/**
+ * Calculate TDS amount using invoice's tds_rounded preference
+ * Uses calculateTds utility which supports ceiling rounding
+ */
+function calculateTdsAmount(invoiceAmount: number, tdsPercentage: number | null, tdsRounded: boolean = false): number {
   if (tdsPercentage === null || tdsPercentage === undefined) return 0;
-  return (invoiceAmount * tdsPercentage) / 100;
+  const { tdsAmount } = calculateTds(invoiceAmount, tdsPercentage, tdsRounded);
+  return tdsAmount;
 }
 
 /**
@@ -505,7 +557,9 @@ export function AllInvoicesTab() {
     const query = searchQuery.toLowerCase();
     return (
       invoice.invoice_number?.toLowerCase().includes(query) ||
-      invoice.vendor?.name?.toLowerCase().includes(query)
+      invoice.vendor?.name?.toLowerCase().includes(query) ||
+      invoice.invoice_name?.toLowerCase().includes(query) ||
+      invoice.invoice_profile?.name?.toLowerCase().includes(query)
     );
   });
 
@@ -560,8 +614,9 @@ export function AllInvoicesTab() {
     // Prepare data for export with new column structure
     const exportData = filteredInvoices.map((invoice) => {
       // Calculate TDS and pending amounts
+      // Use invoice's tds_rounded preference for consistent TDS calculation
       const tdsAmount = invoice.tds_applicable && invoice.tds_percentage
-        ? calculateTdsAmount(invoice.invoice_amount, invoice.tds_percentage)
+        ? calculateTdsAmount(invoice.invoice_amount, invoice.tds_percentage, invoice.tds_rounded ?? false)
         : 0;
       const netPayable = invoice.invoice_amount - tdsAmount;
       const totalPaid = invoice.totalPaid ?? 0;
@@ -650,9 +705,9 @@ export function AllInvoicesTab() {
 
   // Record payment handler - opens payment panel for the invoice
   const handleRecordPayment = (invoice: (typeof invoices)[0]) => {
-    // Calculate remaining balance accounting for TDS
+    // Calculate remaining balance accounting for TDS using invoice's tds_rounded preference
     const tdsAmount = invoice.tds_applicable && invoice.tds_percentage
-      ? calculateTdsAmount(invoice.invoice_amount, invoice.tds_percentage)
+      ? calculateTdsAmount(invoice.invoice_amount, invoice.tds_percentage, invoice.tds_rounded ?? false)
       : 0;
     const netPayable = invoice.invoice_amount - tdsAmount;
     const totalPaid = invoice.totalPaid ?? 0;
@@ -665,6 +720,7 @@ export function AllInvoicesTab() {
       remainingBalance,
       tdsApplicable: invoice.tds_applicable,
       tdsPercentage: invoice.tds_percentage,
+      tdsRounded: invoice.tds_rounded ?? false,
     });
   };
 
@@ -729,7 +785,7 @@ export function AllInvoicesTab() {
   // Get title based on view mode
   const getTitle = () => {
     if (filters.showArchived) return 'Archived Invoices';
-    if (filters.viewMode === 'pending') return 'Pending Actions';
+    if (filters.viewMode === 'pending') return 'Invoices Overview';
     return `All Invoices - ${titleMonth}`;
   };
 
@@ -767,7 +823,7 @@ export function AllInvoicesTab() {
                 aria-label={activeFilterCount > 0 ? `Filters (${activeFilterCount} active)` : 'Open filters'}
               >
                 <SlidersHorizontal className="h-4 w-4" />
-                Filters
+                <span className="hidden sm:inline">Filters</span>
                 {activeFilterCount > 0 && (
                   <span className="ml-1 rounded-full bg-primary-foreground/20 px-1.5 py-0.5 text-xs font-medium">
                     {activeFilterCount}
@@ -806,13 +862,14 @@ export function AllInvoicesTab() {
           )}
           <Button variant="outline" className="gap-2" onClick={handleExport}>
             <Download className="h-4 w-4" />
-            Export
+            <span className="hidden sm:inline">Export</span>
           </Button>
           <DropdownMenu open={showInvoiceTypeMenu} onOpenChange={setShowInvoiceTypeMenu}>
             <DropdownMenuTrigger asChild>
               <Button className="gap-2">
                 <Plus className="h-4 w-4" />
-                New Invoice
+                <span className="sm:hidden">New</span>
+                <span className="hidden sm:inline">New Invoice</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -920,13 +977,13 @@ export function AllInvoicesTab() {
                 currentSortBy={filters.sortBy}
                 currentSortOrder={filters.sortOrder}
                 onSort={handleColumnSort}
-                className="w-[10%]"
+                className="w-[13%]"
               >
                 Status
               </SortableTableHead>
 
               {/* Actions - not sortable */}
-              <TableHead className="w-[20%] text-xs font-medium text-muted-foreground uppercase tracking-wider text-left">
+              <TableHead className="w-[17%] text-xs font-medium text-muted-foreground uppercase tracking-wider text-left">
                 Actions
               </TableHead>
 
@@ -1003,9 +1060,9 @@ export function AllInvoicesTab() {
                   </TableRow>
                   {/* Invoices in this group */}
                   {group.invoices.map((invoice) => {
-                    // Calculate TDS and pending amounts
+                    // Calculate TDS and pending amounts using invoice's tds_rounded preference
                     const tdsAmount = invoice.tds_applicable && invoice.tds_percentage
-                      ? calculateTdsAmount(invoice.invoice_amount, invoice.tds_percentage)
+                      ? calculateTdsAmount(invoice.invoice_amount, invoice.tds_percentage, invoice.tds_rounded ?? false)
                       : 0;
                     const netPayable = invoice.invoice_amount - tdsAmount;
                     const totalPaid = invoice.totalPaid ?? 0;
@@ -1056,7 +1113,7 @@ export function AllInvoicesTab() {
                             )}
                           </div>
                         </TableCell>
-                        <TableCell><StatusBadge status={invoice.status as InvoiceStatus} /></TableCell>
+                        <TableCell><StatusBadge status={invoice.status as InvoiceStatus} hasPendingPayment={invoice.has_pending_payment} /></TableCell>
                         <TableCell className="pl-4">
                           <div className="flex items-center gap-2">
                             <button className="text-muted-foreground hover:text-foreground transition-colors" onClick={() => handleViewInvoice(invoice.id)} title="View">
@@ -1095,8 +1152,8 @@ export function AllInvoicesTab() {
                           </div>
                         </TableCell>
                         <TableCell className="pr-6">
-                          <span className={cn('font-medium text-sm', pendingAmount > 0 ? 'text-amber-500' : 'text-green-500')}>
-                            {formatCurrency(pendingAmount)}
+                          <span className={cn('font-medium text-sm', pendingAmount > 0 ? 'text-amber-500' : 'text-muted-foreground')}>
+                            {pendingAmount > 0 ? formatCurrency(pendingAmount) : '–'}
                           </span>
                         </TableCell>
                       </TableRow>
@@ -1107,9 +1164,9 @@ export function AllInvoicesTab() {
             ) : (
               // Flat view (monthly mode or archived)
               filteredInvoices.map((invoice) => {
-                // Calculate TDS and pending amounts
+                // Calculate TDS and pending amounts using invoice's tds_rounded preference
                 const tdsAmount = invoice.tds_applicable && invoice.tds_percentage
-                  ? calculateTdsAmount(invoice.invoice_amount, invoice.tds_percentage)
+                  ? calculateTdsAmount(invoice.invoice_amount, invoice.tds_percentage, invoice.tds_rounded ?? false)
                   : 0;
                 const netPayable = invoice.invoice_amount - tdsAmount;
                 const totalPaid = invoice.totalPaid ?? 0;
@@ -1183,7 +1240,7 @@ export function AllInvoicesTab() {
 
                     {/* Status */}
                     <TableCell>
-                      <StatusBadge status={invoice.status as InvoiceStatus} />
+                      <StatusBadge status={invoice.status as InvoiceStatus} hasPendingPayment={invoice.has_pending_payment} />
                     </TableCell>
 
                     {/* Actions */}
@@ -1278,9 +1335,9 @@ export function AllInvoicesTab() {
                     <TableCell className="pr-6">
                       <span className={cn(
                         'font-medium text-sm',
-                        pendingAmount > 0 ? 'text-amber-500' : 'text-green-500'
+                        pendingAmount > 0 ? 'text-amber-500' : 'text-muted-foreground'
                       )}>
-                        {formatCurrency(pendingAmount)}
+                        {pendingAmount > 0 ? formatCurrency(pendingAmount) : '–'}
                       </span>
                     </TableCell>
                   </TableRow>

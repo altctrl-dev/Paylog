@@ -172,6 +172,7 @@ export function InvoicePanelRenderer({
           remainingBalance={props.remainingBalance as number}
           tdsApplicable={props.tdsApplicable as boolean | undefined}
           tdsPercentage={props.tdsPercentage as number | undefined}
+          tdsRounded={props.tdsRounded as boolean | undefined}
         />
       );
 
