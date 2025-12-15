@@ -21,6 +21,7 @@ import {
   CheckCheck,
   Loader2,
   IndianRupee,
+  Building2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -127,6 +128,22 @@ const notificationConfig: Record<
     icon: IndianRupee,
     colorClass: 'text-red-500',
     label: 'Payment Rejected',
+  },
+  // Vendor notifications (BUG-007 FIX)
+  [NOTIFICATION_TYPE.VENDOR_PENDING_APPROVAL]: {
+    icon: Building2,
+    colorClass: 'text-amber-500',
+    label: 'Vendor Approval',
+  },
+  [NOTIFICATION_TYPE.VENDOR_APPROVED]: {
+    icon: Building2,
+    colorClass: 'text-green-500',
+    label: 'Vendor Approved',
+  },
+  [NOTIFICATION_TYPE.VENDOR_REJECTED]: {
+    icon: Building2,
+    colorClass: 'text-red-500',
+    label: 'Vendor Rejected',
   },
 };
 

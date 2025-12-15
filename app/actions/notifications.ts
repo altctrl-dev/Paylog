@@ -542,3 +542,66 @@ export async function notifyPaymentRejected(
     referenceId: paymentId,
   });
 }
+
+// ============================================================================
+// VENDOR NOTIFICATION HELPERS (BUG-007 FIX)
+// ============================================================================
+
+/**
+ * Notify admins about a new vendor pending approval
+ */
+export async function notifyVendorPendingApproval(
+  vendorId: number,
+  vendorName: string,
+  requesterName: string
+): Promise<void> {
+  await notifyAdmins({
+    type: NOTIFICATION_TYPE.VENDOR_PENDING_APPROVAL,
+    title: 'New Vendor Pending Approval',
+    message: `${requesterName} created a new vendor "${vendorName}" that requires approval`,
+    link: `/admin?tab=approvals&subtab=vendors&highlight=${vendorId}`,
+    referenceType: NOTIFICATION_REFERENCE_TYPE.VENDOR,
+    referenceId: vendorId,
+  });
+}
+
+/**
+ * Notify user about vendor approval
+ */
+export async function notifyVendorApproved(
+  userId: number,
+  vendorId: number,
+  vendorName: string
+): Promise<void> {
+  await createNotification({
+    userId,
+    type: NOTIFICATION_TYPE.VENDOR_APPROVED,
+    title: 'Vendor Approved',
+    message: `Your vendor "${vendorName}" has been approved`,
+    link: `/settings?tab=vendors&highlight=${vendorId}`,
+    referenceType: NOTIFICATION_REFERENCE_TYPE.VENDOR,
+    referenceId: vendorId,
+  });
+}
+
+/**
+ * Notify user about vendor rejection
+ */
+export async function notifyVendorRejected(
+  userId: number,
+  vendorId: number,
+  vendorName: string,
+  reason?: string
+): Promise<void> {
+  await createNotification({
+    userId,
+    type: NOTIFICATION_TYPE.VENDOR_REJECTED,
+    title: 'Vendor Rejected',
+    message: reason
+      ? `Your vendor "${vendorName}" was rejected: ${reason}`
+      : `Your vendor "${vendorName}" was rejected`,
+    link: `/settings?tab=vendors`,
+    referenceType: NOTIFICATION_REFERENCE_TYPE.VENDOR,
+    referenceId: vendorId,
+  });
+}

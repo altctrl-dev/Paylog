@@ -104,7 +104,9 @@ model Vendor {
   bank_details  String?
 
   // Vendor Approval Workflow Fields
-  status              String    @default("APPROVED") // "PENDING_APPROVAL" | "APPROVED" | "REJECTED"
+  // BUG-007 FIX: Changed default from APPROVED to PENDING_APPROVAL for safety
+  // This ensures vendors created without explicit status are pending by default
+  status              String    @default("PENDING_APPROVAL") // "PENDING_APPROVAL" | "APPROVED" | "REJECTED"
   created_by_user_id  Int?
   approved_by_user_id Int?
   approved_at         DateTime?

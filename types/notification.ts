@@ -30,6 +30,11 @@ export const NOTIFICATION_TYPE = {
   PAYMENT_PENDING_APPROVAL: 'payment_pending_approval',  // To admins: new payment needs approval
   PAYMENT_APPROVED: 'payment_approved',                  // To requester: payment was approved
   PAYMENT_REJECTED: 'payment_rejected',                  // To requester: payment was rejected
+
+  // Vendor notifications (BUG-007 FIX)
+  VENDOR_PENDING_APPROVAL: 'vendor_pending_approval',    // To admins: new vendor needs approval
+  VENDOR_APPROVED: 'vendor_approved',                    // To requester: vendor was approved
+  VENDOR_REJECTED: 'vendor_rejected',                    // To requester: vendor was rejected
 } as const;
 
 export type NotificationType = typeof NOTIFICATION_TYPE[keyof typeof NOTIFICATION_TYPE];

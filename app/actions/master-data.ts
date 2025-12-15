@@ -18,6 +18,7 @@ import {
 } from '@/lib/validations/master-data';
 import { revalidatePath } from 'next/cache';
 import { canApproveVendor, getVendorCreationStatus, canEditPendingVendor } from '@/lib/rbac-v2';
+import { notifyVendorPendingApproval } from '@/app/actions/notifications';
 
 // ============================================================================
 // TYPES
@@ -275,8 +276,20 @@ export async function createVendor(
     }
 
     // Determine vendor status based on user role (Q5)
+    // BUG-007 FIX: Added debug logging to trace user role during vendor creation
+    console.log('[createVendor] User info:', {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      roleLowerCase: user.role?.toLowerCase(),
+    });
     const vendorStatus = getVendorCreationStatus(user);
     const isAdmin = canApproveVendor(user);
+    console.log('[createVendor] Role check result:', {
+      vendorStatus,
+      isAdmin,
+      expectedForNonAdmin: 'PENDING_APPROVAL',
+    });
 
     // Create vendor
     const vendor = await db.vendor.create({
@@ -293,11 +306,19 @@ export async function createVendor(
       },
     });
 
-    // If standard user, auto-create Master Data Request
-    // Note: This will be implemented when we integrate with master data requests
+    // If standard user, send notification to admins (BUG-007 FIX)
+    // Note: Master Data Request integration can be added later if needed
     if (!isAdmin) {
-      console.log(`[createVendor] TODO: Create Master Data Request for vendor ID ${vendor.id}`);
-      // TODO: Call createMasterDataRequest('vendor', vendor.id, validated)
+      console.log(`[createVendor] Standard user created pending vendor ID ${vendor.id}, notifying admins`);
+      // Get user's full name for the notification
+      const userRecord = await db.user.findUnique({
+        where: { id: user.id },
+        select: { full_name: true },
+      });
+      const requesterName = userRecord?.full_name || user.email;
+
+      // Notify admins about the pending vendor
+      await notifyVendorPendingApproval(vendor.id, vendor.name, requesterName);
     }
 
     revalidatePath('/settings');
