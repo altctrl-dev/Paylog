@@ -332,6 +332,7 @@ function getMonthSortKey(dateString: string | Date | null): number {
 
 /**
  * Group invoices by month/year
+ * @param sortOrder - 'asc' for oldest month first, 'desc' for newest month first (used when sorting by date)
  */
 interface GroupableInvoice {
   id: number;
@@ -341,7 +342,8 @@ interface GroupableInvoice {
 
 function groupInvoicesByMonth<T extends GroupableInvoice>(
   invoices: T[],
-  currentYear: number
+  currentYear: number,
+  sortOrder: 'asc' | 'desc' = 'desc'
 ): Array<{ key: string; sortKey: number; invoices: T[] }> {
   const groups = new Map<string, { sortKey: number; invoices: T[] }>();
 
@@ -355,10 +357,11 @@ function groupInvoicesByMonth<T extends GroupableInvoice>(
     groups.get(groupKey)!.invoices.push(invoice);
   }
 
-  // Convert to array and sort by sortKey (oldest first)
+  // Convert to array and sort by sortKey
+  // 'asc' = oldest month first, 'desc' = newest month first
   return Array.from(groups.entries())
     .map(([key, value]) => ({ key, ...value }))
-    .sort((a, b) => a.sortKey - b.sortKey);
+    .sort((a, b) => sortOrder === 'asc' ? a.sortKey - b.sortKey : b.sortKey - a.sortKey);
 }
 
 // ============================================================================
@@ -917,9 +920,11 @@ export function AllInvoicesTab() {
   const titleMonth = `${monthNames[selectedMonth]} ${selectedYear}`;
 
   // Group invoices by month when in pending view mode
+  // Pass sort order so month groups are also sorted correctly when sorting by date
   const currentYear = now.getFullYear();
+  const groupSortOrder = filters.sortBy === 'invoice_date' ? filters.sortOrder : 'desc';
   const groupedInvoices = filters.viewMode === 'pending' && !filters.showArchived
-    ? groupInvoicesByMonth(filteredInvoices, currentYear)
+    ? groupInvoicesByMonth(filteredInvoices, currentYear, groupSortOrder)
     : null;
 
   // Get title based on view mode
