@@ -193,6 +193,9 @@ model Invoice {
   // Invoice Type
   is_recurring          Boolean             @default(false)
   invoice_profile_id    Int?
+  // Pending payment data (JSON) - stores payment details submitted during invoice creation
+  // Will be processed when invoice is approved (for standard users)
+  pending_payment_data  Json?
   // Relations
   activity_logs         ActivityLog[]
   attachments           InvoiceAttachment[]

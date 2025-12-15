@@ -110,6 +110,14 @@ export interface Invoice {
   created_by: number;
   created_at: Date;
   updated_at: Date;
+  // Pending payment data (stored during invoice creation, processed on approval)
+  pending_payment_data: {
+    paid_date: string;
+    paid_amount: number;
+    paid_currency: string | null;
+    payment_type_id: number;
+    payment_reference: string | null;
+  } | null;
 }
 
 /**

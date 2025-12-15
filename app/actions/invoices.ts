@@ -7,7 +7,7 @@
 
 'use server';
 
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { auth, isSuperAdmin } from '@/lib/auth';
 import { db } from '@/lib/db';
 import {
@@ -1101,13 +1101,68 @@ export async function approveInvoice(
       };
     }
 
-    // Update invoice status to unpaid (payments are handled through Payment table)
-    const invoice = await db.invoice.update({
-      where: { id },
-      data: {
-        status: INVOICE_STATUS.UNPAID,
-      },
-      include: invoiceInclude,
+    // Check for pending payment data
+    const pendingPaymentData = existing.pending_payment_data as {
+      paid_date: string;
+      paid_amount: number;
+      paid_currency: string | null;
+      payment_type_id: number;
+      payment_reference: string | null;
+    } | null;
+
+    // Use transaction for atomicity when processing payment
+    const invoice = await db.$transaction(async (tx) => {
+      let finalStatus: string = INVOICE_STATUS.UNPAID;
+
+      // If there's pending payment data, create the payment
+      if (pendingPaymentData && pendingPaymentData.paid_amount > 0) {
+        console.log('[approveInvoice] Processing pending payment data:', pendingPaymentData);
+
+        // Create the payment record (auto-approved since admin is approving)
+        await tx.payment.create({
+          data: {
+            invoice_id: id,
+            amount_paid: pendingPaymentData.paid_amount,
+            payment_date: new Date(pendingPaymentData.paid_date),
+            payment_type_id: pendingPaymentData.payment_type_id,
+            payment_reference: pendingPaymentData.payment_reference,
+            status: 'approved',
+            created_by_user_id: existing.created_by,
+            approved_by_user_id: user.id,
+            approved_at: new Date(),
+          },
+        });
+
+        // Determine new status based on payment amount
+        // Calculate net payable after TDS if applicable
+        let netPayable = existing.invoice_amount;
+        if (existing.tds_applicable && existing.tds_percentage) {
+          const tdsAmount = existing.tds_rounded
+            ? Math.ceil(existing.invoice_amount * (existing.tds_percentage / 100))
+            : existing.invoice_amount * (existing.tds_percentage / 100);
+          netPayable = existing.invoice_amount - tdsAmount;
+        }
+
+        if (pendingPaymentData.paid_amount >= netPayable) {
+          finalStatus = INVOICE_STATUS.PAID;
+        } else if (pendingPaymentData.paid_amount > 0) {
+          finalStatus = INVOICE_STATUS.PARTIAL;
+        }
+
+        console.log('[approveInvoice] Payment created, new status:', finalStatus);
+      }
+
+      // Update invoice status and clear pending payment data
+      const updatedInvoice = await tx.invoice.update({
+        where: { id },
+        data: {
+          status: finalStatus,
+          pending_payment_data: Prisma.DbNull, // Clear the pending payment data after processing
+        },
+        include: invoiceInclude,
+      });
+
+      return updatedInvoice;
     });
 
     // Log activity (non-blocking)
@@ -1119,7 +1174,8 @@ export async function approveInvoice(
         status: existing.status,
       },
       new_data: {
-        status: INVOICE_STATUS.UNPAID,
+        status: invoice.status,
+        payment_processed: !!pendingPaymentData,
       },
     });
 
@@ -1538,11 +1594,61 @@ export async function approveInvoiceAndVendor(
         },
       });
 
-      // 3. Approve invoice
+      // 3. Check for pending payment data
+      const pendingPaymentData = invoice.pending_payment_data as {
+        paid_date: string;
+        paid_amount: number;
+        paid_currency: string | null;
+        payment_type_id: number;
+        payment_reference: string | null;
+      } | null;
+
+      let finalStatus: string = INVOICE_STATUS.UNPAID;
+
+      // 4. If there's pending payment data, create the payment
+      if (pendingPaymentData && pendingPaymentData.paid_amount > 0) {
+        console.log('[approveInvoiceAndVendor] Processing pending payment data:', pendingPaymentData);
+
+        // Create the payment record (auto-approved since admin is approving)
+        await tx.payment.create({
+          data: {
+            invoice_id: invoiceId,
+            amount_paid: pendingPaymentData.paid_amount,
+            payment_date: new Date(pendingPaymentData.paid_date),
+            payment_type_id: pendingPaymentData.payment_type_id,
+            payment_reference: pendingPaymentData.payment_reference,
+            status: 'approved',
+            created_by_user_id: invoice.created_by,
+            approved_by_user_id: user.id,
+            approved_at: new Date(),
+          },
+        });
+
+        // Determine new status based on payment amount
+        // Calculate net payable after TDS if applicable
+        let netPayable = invoice.invoice_amount;
+        if (invoice.tds_applicable && invoice.tds_percentage) {
+          const tdsAmount = invoice.tds_rounded
+            ? Math.ceil(invoice.invoice_amount * (invoice.tds_percentage / 100))
+            : invoice.invoice_amount * (invoice.tds_percentage / 100);
+          netPayable = invoice.invoice_amount - tdsAmount;
+        }
+
+        if (pendingPaymentData.paid_amount >= netPayable) {
+          finalStatus = INVOICE_STATUS.PAID;
+        } else if (pendingPaymentData.paid_amount > 0) {
+          finalStatus = INVOICE_STATUS.PARTIAL;
+        }
+
+        console.log('[approveInvoiceAndVendor] Payment created, new status:', finalStatus);
+      }
+
+      // 5. Approve invoice and clear pending payment data
       const approvedInvoice = await tx.invoice.update({
         where: { id: invoiceId },
         data: {
-          status: INVOICE_STATUS.UNPAID,
+          status: finalStatus,
+          pending_payment_data: Prisma.DbNull, // Clear the pending payment data after processing
         },
         include: invoiceInclude,
       });
@@ -1553,6 +1659,7 @@ export async function approveInvoiceAndVendor(
           id: invoice.vendor_id,
           name: invoice.vendor.name,
         },
+        paymentProcessed: !!pendingPaymentData,
       };
     });
 

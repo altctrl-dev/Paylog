@@ -438,6 +438,20 @@ export async function createNonRecurringInvoice(
     const initialStatus = isAdmin ? INVOICE_STATUS.UNPAID : INVOICE_STATUS.PENDING_APPROVAL;
     console.log('[createNonRecurringInvoice] Initial status:', initialStatus, 'isAdmin:', isAdmin);
 
+    // 10. Prepare pending payment data if provided (for standard users)
+    // Payment will be created when invoice is approved
+    let pendingPaymentData: Prisma.InputJsonValue | typeof Prisma.DbNull = Prisma.DbNull;
+    if (validated.is_paid && validated.paid_date && validated.paid_amount && validated.payment_type_id) {
+      pendingPaymentData = {
+        paid_date: validated.paid_date,
+        paid_amount: validated.paid_amount,
+        paid_currency: validated.paid_currency || null,
+        payment_type_id: validated.payment_type_id,
+        payment_reference: validated.payment_reference || null,
+      };
+      console.log('[createNonRecurringInvoice] Storing pending payment data:', pendingPaymentData);
+    }
+
     // 11. Create invoice in transaction (extended timeout for file uploads)
     console.log('[createNonRecurringInvoice] Creating invoice record...');
     const invoice = await db.$transaction(async (tx) => {
@@ -472,6 +486,9 @@ export async function createNonRecurringInvoice(
           // Status and metadata
           status: initialStatus,
           created_by: user.id,
+
+          // Store pending payment data for processing on approval
+          pending_payment_data: pendingPaymentData,
         },
       });
 
