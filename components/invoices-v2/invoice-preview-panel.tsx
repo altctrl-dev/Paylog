@@ -309,12 +309,17 @@ export function InvoicePreviewPanel({
               <h4 className="text-sm font-semibold text-foreground border-b pb-2">
                 Payment Details
               </h4>
+              <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 mb-2">
+                <p className="text-sm text-amber-800 dark:text-amber-200">
+                  <strong>Note:</strong> Payment will be recorded after the invoice is approved. You can also add payments later from the invoice detail view.
+                </p>
+              </div>
               <dl className="divide-y divide-border">
                 <DisplayRow
                   label="Payment Status"
                   value={
-                    <Badge variant="default" className="bg-green-600">
-                      Paid
+                    <Badge variant="outline" className="border-amber-500 text-amber-700 dark:text-amber-300">
+                      To be recorded
                     </Badge>
                   }
                 />

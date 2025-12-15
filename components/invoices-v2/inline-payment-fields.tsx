@@ -173,7 +173,7 @@ export function InlinePaymentFields({
             Record Payment
           </Label>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Add a payment while updating this invoice
+            Add payment details for this invoice
           </p>
         </div>
         <Switch
@@ -182,6 +182,15 @@ export function InlinePaymentFields({
           onCheckedChange={onRecordPaymentChange}
         />
       </div>
+
+      {/* Info Note */}
+      {recordPayment && (
+        <div className="rounded-md bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-3">
+          <p className="text-sm text-blue-800 dark:text-blue-200">
+            <strong>Note:</strong> Payment will be recorded after the invoice is approved. For immediate payment recording, add it from the invoice detail page after creation.
+          </p>
+        </div>
+      )}
 
       {/* Conditional Payment Fields */}
       {recordPayment && (

@@ -232,6 +232,8 @@ export function NonRecurringInvoiceForm({ onSuccess, onCancel }: NonRecurringInv
       }
 
       // Build plain object (serializable)
+      // Use invoice_date as fallback for due_date if not provided
+      const dueDate = formValues.due_date || formValues.invoice_date;
       const data = {
         file: fileData,
         invoice_name: formValues.invoice_name,
@@ -241,7 +243,7 @@ export function NonRecurringInvoiceForm({ onSuccess, onCancel }: NonRecurringInv
         category_id: formValues.category_id,
         invoice_number: formValues.invoice_number,
         invoice_date: formValues.invoice_date.toISOString(),
-        due_date: formValues.due_date ? formValues.due_date.toISOString() : null,
+        due_date: dueDate.toISOString(),
         invoice_amount: formValues.invoice_amount,
         currency_id: formValues.currency_id,
         tds_applicable: formValues.tds_applicable,
