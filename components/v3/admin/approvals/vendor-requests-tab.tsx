@@ -4,27 +4,28 @@
  * Vendor Requests Tab Component (v3)
  *
  * Displays vendor approval requests for admin review with status filtering.
- * Uses master data request workflow - approving/rejecting a vendor request
- * creates or rejects the vendor entity accordingly.
+ *
+ * BUG-007 FIX: Now supports two types of vendor requests:
+ * 1. MasterDataRequest vendors - submitted through the master data request workflow
+ * 2. Direct pending vendors - created via invoice form with PENDING_APPROVAL status
  *
  * Features:
- * - Lists vendor requests from MasterDataRequest table
+ * - Lists vendor requests from both MasterDataRequest table and Vendor table
  * - Status filter (Pending/Approved/Rejected/All)
  * - Approve/reject actions with appropriate feedback
  * - Auto-refreshes approval counts after actions
  */
 
 import * as React from 'react';
-import { useFilteredVendors, type ApprovalStatusFilter } from '@/hooks/use-approvals';
+import { useFilteredVendors, type ApprovalStatusFilter, type NormalizedVendorRequest } from '@/hooks/use-approvals';
 import { useQueryClient } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Loader2, Building2, Check, X } from 'lucide-react';
 import { format } from 'date-fns';
-import { approveRequest, rejectRequest } from '@/app/actions/admin/master-data-approval';
+import { approveRequest, rejectRequest, approveVendorRequest, rejectVendorRequest } from '@/app/actions/admin/master-data-approval';
 import { toast } from 'sonner';
-import type { VendorRequestData } from '@/app/actions/master-data-requests';
 import { ApprovalStatusFilterSelect } from './approval-status-filter';
 import { RejectionReasonDialog } from './rejection-reason-dialog';
 
@@ -43,17 +44,37 @@ export function VendorRequestsTab() {
   const [rejectingVendor, setRejectingVendor] = React.useState<{
     id: number;
     name: string;
+    type: 'request' | 'direct';
+    vendorId?: number;
+    requestId?: number;
   } | null>(null);
 
-  const handleApprove = async (requestId: number) => {
-    setProcessingId(requestId);
+  /**
+   * Handle approval for both MasterDataRequest and direct vendors
+   * BUG-007 FIX: Uses different approval functions based on vendor type
+   */
+  const handleApprove = async (request: NormalizedVendorRequest) => {
+    setProcessingId(request.id);
     try {
-      const result = await approveRequest(requestId);
+      let result;
+
+      if (request.type === 'request' && request.requestId) {
+        // MasterDataRequest vendor - use existing workflow
+        result = await approveRequest(request.requestId);
+      } else if (request.type === 'direct' && request.vendorId) {
+        // Direct pending vendor - use vendor approval function
+        // BUG-007 FIX: Server action now gets adminId internally from session
+        result = await approveVendorRequest(request.vendorId);
+      } else {
+        throw new Error('Invalid vendor request type');
+      }
+
       if (result.success) {
         toast.success('Vendor approved');
         refetch();
         queryClient.invalidateQueries({ queryKey: ['approval-counts'] });
         queryClient.invalidateQueries({ queryKey: ['approvals'] });
+        queryClient.invalidateQueries({ queryKey: ['vendors'] });
       } else {
         toast.error(result.error || 'Failed to approve vendor');
       }
@@ -64,26 +85,52 @@ export function VendorRequestsTab() {
     }
   };
 
-  const handleRejectClick = (request: { id: number; request_data: unknown }) => {
-    const vendorData = request.request_data as VendorRequestData;
+  /**
+   * Handle reject click for both MasterDataRequest and direct vendors
+   * BUG-007 FIX: Stores vendor type for correct rejection handler
+   */
+  const handleRejectClick = (request: NormalizedVendorRequest) => {
     setRejectingVendor({
       id: request.id,
-      name: vendorData.name,
+      name: request.request_data.name,
+      type: request.type,
+      vendorId: request.vendorId,
+      requestId: request.requestId,
     });
     setRejectDialogOpen(true);
   };
 
+  /**
+   * Handle rejection confirmation for both types
+   * BUG-007 FIX: Uses different rejection functions based on vendor type
+   */
   const handleRejectConfirm = async (reason: string) => {
     if (!rejectingVendor) return;
 
     setProcessingId(rejectingVendor.id);
     try {
-      const result = await rejectRequest(rejectingVendor.id, reason);
+      let result;
+
+      if (rejectingVendor.type === 'request' && rejectingVendor.requestId) {
+        // MasterDataRequest vendor
+        result = await rejectRequest(rejectingVendor.requestId, reason);
+      } else if (rejectingVendor.type === 'direct' && rejectingVendor.vendorId) {
+        // Direct pending vendor - cascade rejection to invoices
+        result = await rejectVendorRequest(rejectingVendor.vendorId, reason);
+        if (result.success && result.data?.rejectedInvoicesCount > 0) {
+          toast.info(`Also rejected ${result.data.rejectedInvoicesCount} associated invoice(s)`);
+        }
+      } else {
+        throw new Error('Invalid vendor rejection type');
+      }
+
       if (result.success) {
         toast.success('Vendor rejected');
         refetch();
         queryClient.invalidateQueries({ queryKey: ['approval-counts'] });
         queryClient.invalidateQueries({ queryKey: ['approvals'] });
+        queryClient.invalidateQueries({ queryKey: ['vendors'] });
+        queryClient.invalidateQueries({ queryKey: ['invoices'] });
       } else {
         toast.error(result.error || 'Failed to reject vendor');
         throw new Error(result.error || 'Failed to reject vendor');
@@ -137,8 +184,8 @@ export function VendorRequestsTab() {
       {!isLoading && !error && vendorRequests && vendorRequests.length > 0 && (
         <div className="space-y-3">
           {vendorRequests.map((request) => {
-            // Extract vendor data from the request
-            const vendorData = request.request_data as VendorRequestData;
+            // Use normalized vendor data structure (BUG-007 FIX)
+            const vendorData = request.request_data;
 
             return (
               <Card key={request.id} className="p-4">
@@ -148,6 +195,12 @@ export function VendorRequestsTab() {
                       <Building2 className="h-4 w-4 text-muted-foreground" />
                       <span className="font-semibold">{vendorData.name}</span>
                       {getStatusBadge(request.status)}
+                      {/* Show badge for direct vendors (created via invoice form) */}
+                      {request.type === 'direct' && (
+                        <Badge variant="secondary" className="text-xs">
+                          Via Invoice
+                        </Badge>
+                      )}
                     </div>
                     {vendorData.address && (
                       <p className="text-sm text-muted-foreground mt-1 truncate">
@@ -165,7 +218,7 @@ export function VendorRequestsTab() {
                         variant="outline"
                         size="sm"
                         className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                        onClick={() => handleApprove(request.id)}
+                        onClick={() => handleApprove(request)}
                         disabled={processingId === request.id}
                       >
                         {processingId === request.id ? (

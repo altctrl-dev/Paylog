@@ -91,17 +91,27 @@ export function useApprovalCounts() {
             return 0;
           }
         })(),
-        // Pending vendors count (from master data requests)
+        // Pending vendors count (from master data requests + direct pending vendors)
+        // BUG-007 FIX: Include vendors created directly with PENDING_APPROVAL status
         (async () => {
           try {
-            const { getAdminRequests } = await import(
+            const { getAdminRequests, getPendingVendorsDirectCount } = await import(
               '@/app/actions/admin/master-data-approval'
             );
-            const result = await getAdminRequests({
-              entity_type: 'vendor',
-              status: 'pending_approval',
-            });
-            return result.success && result.data ? result.data.length : 0;
+
+            // Get both: MasterDataRequest vendors and direct pending vendors
+            const [requestsResult, directResult] = await Promise.all([
+              getAdminRequests({
+                entity_type: 'vendor',
+                status: 'pending_approval',
+              }),
+              getPendingVendorsDirectCount(),
+            ]);
+
+            const requestsCount = requestsResult.success && requestsResult.data ? requestsResult.data.length : 0;
+            const directCount = directResult.success && directResult.data ? directResult.data : 0;
+
+            return requestsCount + directCount;
           } catch {
             return 0;
           }
@@ -355,10 +365,35 @@ export function useFilteredPayments(
 // ============================================================================
 
 /**
+ * Normalized vendor data for admin approval view
+ * BUG-007 FIX: Supports both MasterDataRequest vendors and direct pending vendors
+ */
+export interface NormalizedVendorRequest {
+  id: number;
+  type: 'request' | 'direct'; // 'request' = MasterDataRequest, 'direct' = Vendor table
+  status: string;
+  created_at: Date;
+  request_data: {
+    name: string;
+    address?: string | null;
+  };
+  requester: {
+    id: number;
+    full_name: string;
+    email: string;
+  } | null;
+  // Original IDs for actions
+  requestId?: number; // For MasterDataRequest
+  vendorId?: number;  // For direct vendors
+}
+
+/**
  * Fetch vendor requests with status filter
  *
  * Returns list of vendor requests filtered by approval status.
  * Supports 'pending', 'approved', 'rejected', or 'all'.
+ *
+ * BUG-007 FIX: Now includes both MasterDataRequest vendors AND direct pending vendors
  *
  * @param statusFilter - Filter by approval status
  * @param options - Query options (enabled)
@@ -370,8 +405,8 @@ export function useFilteredVendors(
 ) {
   return useQuery({
     queryKey: approvalKeys.vendors(statusFilter),
-    queryFn: async () => {
-      const { getAdminRequests } = await import(
+    queryFn: async (): Promise<NormalizedVendorRequest[]> => {
+      const { getAdminRequests, getPendingVendorsDirect } = await import(
         '@/app/actions/admin/master-data-approval'
       );
 
@@ -385,14 +420,64 @@ export function useFilteredVendors(
 
       const status = statusMap[statusFilter];
 
-      const result = await getAdminRequests({
-        entity_type: 'vendor',
-        status: status as 'pending_approval' | 'approved' | 'rejected' | undefined,
-      });
-      if (result.success && result.data) {
-        return result.data;
+      // Fetch both MasterDataRequest vendors and direct pending vendors
+      const [requestsResult, directResult] = await Promise.all([
+        getAdminRequests({
+          entity_type: 'vendor',
+          status: status as 'pending_approval' | 'approved' | 'rejected' | undefined,
+        }),
+        getPendingVendorsDirect(statusFilter),
+      ]);
+
+      const normalized: NormalizedVendorRequest[] = [];
+
+      // Add MasterDataRequest vendors
+      if (requestsResult.success && requestsResult.data) {
+        for (const req of requestsResult.data) {
+          const reqData = req.request_data as { name: string; address?: string };
+          normalized.push({
+            id: req.id,
+            type: 'request',
+            status: req.status,
+            created_at: req.created_at,
+            request_data: {
+              name: reqData.name,
+              address: reqData.address || null,
+            },
+            requester: req.requester,
+            requestId: req.id,
+          });
+        }
       }
-      return [];
+
+      // Add direct pending vendors
+      if (directResult.success && directResult.data) {
+        for (const vendor of directResult.data) {
+          // Map vendor status to request status format
+          const mappedStatus = vendor.status === 'PENDING_APPROVAL' ? 'pending_approval'
+            : vendor.status === 'APPROVED' ? 'approved'
+            : vendor.status === 'REJECTED' ? 'rejected'
+            : 'pending_approval';
+
+          normalized.push({
+            id: vendor.id + 100000, // Offset to avoid ID collision with requests
+            type: 'direct',
+            status: mappedStatus,
+            created_at: vendor.created_at,
+            request_data: {
+              name: vendor.name,
+              address: vendor.address,
+            },
+            requester: vendor.requester,
+            vendorId: vendor.id,
+          });
+        }
+      }
+
+      // Sort by created_at descending
+      normalized.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+      return normalized;
     },
     enabled: options?.enabled !== false,
   });

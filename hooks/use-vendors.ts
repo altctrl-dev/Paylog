@@ -228,3 +228,50 @@ export function useRestoreVendor() {
     },
   });
 }
+
+// ============================================================================
+// ADMIN MUTATION HOOKS (BUG-007)
+// ============================================================================
+
+/**
+ * Approve vendor mutation (Admin only)
+ *
+ * BUG-007: Used when admin approves a vendor from the invoice approval dialog.
+ */
+export function useApproveVendor(onSuccess?: () => void) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (vendorId: number) => {
+      // BUG-007 FIX: Server action now gets adminId internally from session
+      // to avoid "headers called outside request scope" error
+      const { approveVendorRequest } = await import('@/app/actions/admin/master-data-approval');
+      const result = await approveVendorRequest(vendorId);
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      return result.data;
+    },
+    onSuccess: (data) => {
+      toast({
+        title: 'Vendor approved',
+        description: `Vendor "${data.name}" has been approved and is now active.`,
+      });
+      onSuccess?.();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Failed to approve vendor',
+        description: error.message || 'An unknown error occurred',
+        variant: 'destructive',
+      });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: vendorKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: vendorKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['invoices-v2'] });
+    },
+  });
+}

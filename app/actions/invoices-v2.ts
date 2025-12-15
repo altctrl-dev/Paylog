@@ -1549,6 +1549,108 @@ export async function approveInvoiceV2(
 }
 
 /**
+ * Check if an invoice can be approved (vendor status check)
+ *
+ * BUG-007: When admin tries to approve an invoice, check if the associated
+ * vendor is still pending approval. Returns vendor details for the warning dialog.
+ *
+ * @param invoiceId - Invoice ID to check
+ * @returns Eligibility status with vendor details if pending
+ */
+export async function checkInvoiceApprovalEligibility(
+  invoiceId: number
+): Promise<ServerActionResult<{
+  canApproveDirectly: boolean;
+  vendorPending: boolean;
+  vendor: {
+    id: number;
+    name: string;
+    address: string | null;
+    bank_details: string | null;
+    gst_exemption: boolean;
+    status: string;
+    created_by_user_id: number | null;
+  } | null;
+  invoice: {
+    id: number;
+    invoice_number: string;
+    invoice_amount: number;
+    status: string;
+  };
+}>> {
+  try {
+    const user = await getCurrentUser();
+
+    // Check admin role
+    if (user.role !== 'admin' && user.role !== 'super_admin') {
+      return {
+        success: false,
+        error: 'Unauthorized: Only admins can approve invoices',
+      };
+    }
+
+    // Fetch invoice with vendor details
+    const invoice = await db.invoice.findUnique({
+      where: { id: invoiceId },
+      select: {
+        id: true,
+        invoice_number: true,
+        invoice_amount: true,
+        status: true,
+        vendor: {
+          select: {
+            id: true,
+            name: true,
+            address: true,
+            bank_details: true,
+            gst_exemption: true,
+            status: true,
+            created_by_user_id: true,
+          },
+        },
+      },
+    });
+
+    if (!invoice) {
+      return {
+        success: false,
+        error: 'Invoice not found',
+      };
+    }
+
+    if (invoice.status !== INVOICE_STATUS.PENDING_APPROVAL) {
+      return {
+        success: false,
+        error: `Invoice is not pending approval. Current status: ${invoice.status}`,
+      };
+    }
+
+    const vendorPending = invoice.vendor.status === 'PENDING_APPROVAL';
+
+    return {
+      success: true,
+      data: {
+        canApproveDirectly: !vendorPending,
+        vendorPending,
+        vendor: invoice.vendor,
+        invoice: {
+          id: invoice.id,
+          invoice_number: invoice.invoice_number,
+          invoice_amount: invoice.invoice_amount,
+          status: invoice.status,
+        },
+      },
+    };
+  } catch (error) {
+    console.error('[checkInvoiceApprovalEligibility] Error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to check approval eligibility',
+    };
+  }
+}
+
+/**
  * Reject invoice (Admin only)
  * Changes status from 'pending_approval' to 'rejected'
  *

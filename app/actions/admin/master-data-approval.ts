@@ -21,6 +21,9 @@ import { archiveInvoice } from '../invoices';
 import {
   notifyMasterDataRequestApproved,
   notifyMasterDataRequestRejected,
+  notifyVendorApproved,
+  notifyVendorRejected,
+  notifyInvoiceRejected,
 } from '@/app/actions/notifications';
 
 interface RawMasterDataRequest {
@@ -668,25 +671,139 @@ function getEntityDisplayName(entityType: MasterDataEntityType): string {
 // ============================================================================
 
 /**
+ * Get pending vendors directly from Vendor table (not MasterDataRequest)
+ *
+ * BUG-007 FIX: When standard users create vendors via invoice form,
+ * vendors are created directly with status='PENDING_APPROVAL'.
+ * This function retrieves those pending vendors for admin review.
+ */
+export async function getPendingVendorsDirect(
+  statusFilter?: 'pending' | 'approved' | 'rejected' | 'all'
+): Promise<ServerActionResult<Array<{
+  id: number;
+  name: string;
+  address: string | null;
+  status: string;
+  created_by_user_id: number | null;
+  created_at: Date;
+  requester: { id: number; full_name: string; email: string } | null;
+}>>> {
+  try {
+    await getAdmin(); // Verify admin access
+
+    // Map filter to vendor status
+    const statusMap: Record<string, string | undefined> = {
+      pending: 'PENDING_APPROVAL',
+      approved: 'APPROVED',
+      rejected: 'REJECTED',
+      all: undefined,
+    };
+
+    const status = statusFilter ? statusMap[statusFilter] : 'PENDING_APPROVAL';
+
+    const vendors = await db.vendor.findMany({
+      where: {
+        ...(status && { status }),
+        deleted_at: null,
+        // Only include vendors that were created directly (not via MasterDataRequest)
+        // These have created_by_user_id set
+        created_by_user_id: { not: null },
+      },
+      include: {
+        created_by: {
+          select: {
+            id: true,
+            full_name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+    });
+
+    return {
+      success: true,
+      data: vendors.map((v) => ({
+        id: v.id,
+        name: v.name,
+        address: v.address,
+        status: v.status ?? 'APPROVED',
+        created_by_user_id: v.created_by_user_id,
+        created_at: v.created_at,
+        requester: v.created_by,
+      })),
+    };
+  } catch (error) {
+    console.error('getPendingVendorsDirect error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to fetch pending vendors',
+    };
+  }
+}
+
+/**
+ * Get count of pending vendors created directly (not via MasterDataRequest)
+ *
+ * BUG-007 FIX: Used by approval counts to include direct pending vendors
+ */
+export async function getPendingVendorsDirectCount(): Promise<ServerActionResult<number>> {
+  try {
+    await getAdmin();
+
+    const count = await db.vendor.count({
+      where: {
+        status: 'PENDING_APPROVAL',
+        deleted_at: null,
+        created_by_user_id: { not: null },
+      },
+    });
+
+    return {
+      success: true,
+      data: count,
+    };
+  } catch (error) {
+    console.error('getPendingVendorsDirectCount error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to get pending vendors count',
+    };
+  }
+}
+
+/**
  * Approve a vendor-specific Master Data Request
  *
  * This function approves a vendor request and updates the vendor status.
  * Part of Phase 2B: Vendor Approval Workflow
+ *
+ * BUG-007 FIX: Now gets adminId from session internally (server action context)
+ * to avoid "headers called outside request scope" error when called from client.
  */
 export async function approveVendorRequest(
-  vendorId: number,
-  adminId: number
+  vendorId: number
 ): Promise<ServerActionResult<{ id: number; name: string; status: string }>> {
   try {
+    // Get admin from session (must be done in server action context)
+    const admin = await getAdmin();
+
     // Update vendor status to APPROVED
     const vendor = await db.vendor.update({
       where: { id: vendorId },
       data: {
         status: 'APPROVED',
-        approved_by_user_id: adminId,
+        approved_by_user_id: admin.id,
         approved_at: new Date(),
       },
     });
+
+    // BUG-007 FIX: Notify the user who created the vendor
+    if (vendor.created_by_user_id) {
+      await notifyVendorApproved(vendor.created_by_user_id, vendor.id, vendor.name);
+    }
 
     // Note: Master Data Request status update will be handled by the caller
     // This function focuses on vendor approval only
@@ -712,28 +829,110 @@ export async function approveVendorRequest(
  * Reject a vendor-specific Master Data Request
  *
  * Rejects the vendor request and updates vendor status to REJECTED.
+ * Also auto-rejects all pending invoices associated with this vendor.
  * Part of Phase 2B: Vendor Approval Workflow
+ *
+ * BUG-007 Enhanced: Cascade vendor rejection to associated pending invoices
  */
 export async function rejectVendorRequest(
   vendorId: number,
   rejectionReason: string
-): Promise<ServerActionResult<{ id: number; name: string; status: string }>> {
+): Promise<ServerActionResult<{
+  id: number;
+  name: string;
+  status: string;
+  rejectedInvoicesCount: number;
+}>> {
   try {
-    // Update vendor status to REJECTED
-    const vendor = await db.vendor.update({
-      where: { id: vendorId },
-      data: {
-        status: 'REJECTED',
-        rejected_reason: rejectionReason,
-      },
+    const session = await auth();
+    if (!session?.user?.id) {
+      return { success: false, error: 'Unauthorized' };
+    }
+    const adminId = parseInt(session.user.id);
+
+    // Use transaction to ensure atomicity
+    const result = await db.$transaction(async (tx) => {
+      // 1. Update vendor status to REJECTED
+      const vendor = await tx.vendor.update({
+        where: { id: vendorId },
+        data: {
+          status: 'REJECTED',
+          rejected_reason: rejectionReason,
+        },
+      });
+
+      // 2. Find all pending invoices associated with this vendor
+      const pendingInvoices = await tx.invoice.findMany({
+        where: {
+          vendor_id: vendorId,
+          status: 'pending_approval',
+        },
+        select: {
+          id: true,
+          invoice_number: true,
+          created_by: true,
+        },
+      });
+
+      // 3. Auto-reject all pending invoices
+      const vendorRejectionReason = `Associated vendor "${vendor.name}" was rejected: ${rejectionReason}`;
+
+      if (pendingInvoices.length > 0) {
+        await tx.invoice.updateMany({
+          where: {
+            vendor_id: vendorId,
+            status: 'pending_approval',
+          },
+          data: {
+            status: 'rejected',
+            rejection_reason: vendorRejectionReason,
+            rejected_by: adminId,
+            rejected_at: new Date(),
+          },
+        });
+
+        console.log(`[rejectVendorRequest] Auto-rejected ${pendingInvoices.length} pending invoices for vendor ${vendorId}`);
+      }
+
+      return { vendor, pendingInvoices };
     });
 
+    const { vendor, pendingInvoices } = result;
+
+    // 4. Send notifications (outside transaction for non-blocking)
+    // Notify vendor creator about rejection
+    if (vendor.created_by_user_id) {
+      await notifyVendorRejected(
+        vendor.created_by_user_id,
+        vendor.id,
+        vendor.name,
+        rejectionReason
+      );
+    }
+
+    // Notify each invoice creator about their invoice being rejected
+    for (const invoice of pendingInvoices) {
+      if (invoice.created_by) {
+        await notifyInvoiceRejected(
+          invoice.created_by,
+          invoice.id,
+          invoice.invoice_number,
+          `Vendor "${vendor.name}" was rejected`
+        );
+      }
+    }
+
     revalidatePath('/admin/master-data-requests');
+    revalidatePath('/admin');
     revalidatePath('/settings');
+    revalidatePath('/invoices');
 
     return {
       success: true,
-      data: vendor,
+      data: {
+        ...vendor,
+        rejectedInvoicesCount: pendingInvoices.length,
+      },
     };
   } catch (error) {
     console.error('rejectVendorRequest error:', error);

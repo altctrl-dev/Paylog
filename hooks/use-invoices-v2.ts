@@ -41,6 +41,7 @@ export const invoiceV2Keys = {
   categories: () => [...invoiceV2Keys.all, 'categories'] as const,
   currencies: () => [...invoiceV2Keys.all, 'currencies'] as const,
   paymentTypes: () => [...invoiceV2Keys.all, 'payment-types'] as const,
+  approvalEligibility: (id: number) => [...invoiceV2Keys.all, 'approval-eligibility', id] as const,
 };
 
 // ============================================================================
@@ -639,4 +640,34 @@ export function useInvoiceFormOptions() {
       currenciesQuery.error ||
       paymentTypesQuery.error,
   };
+}
+
+// ============================================================================
+// VENDOR APPROVAL CHECK (BUG-007)
+// ============================================================================
+
+/**
+ * Check if invoice can be approved (vendor status check)
+ *
+ * BUG-007: When admin tries to approve an invoice, check if the associated
+ * vendor is still pending approval. Returns vendor details for the warning dialog.
+ *
+ * @param invoiceId - Invoice ID to check
+ * @returns Query result with eligibility status
+ */
+export function useCheckInvoiceApprovalEligibility(invoiceId: number | null) {
+  return useQuery({
+    queryKey: invoiceV2Keys.approvalEligibility(invoiceId || 0),
+    queryFn: async () => {
+      if (!invoiceId) return null;
+      const { checkInvoiceApprovalEligibility } = await import('@/app/actions/invoices-v2');
+      const result = await checkInvoiceApprovalEligibility(invoiceId);
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      return result.data;
+    },
+    enabled: !!invoiceId,
+    staleTime: 30 * 1000, // 30 seconds
+  });
 }

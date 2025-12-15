@@ -30,6 +30,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { usePanel } from '@/hooks/use-panel';
 import { useApproveInvoiceV2, useRejectInvoiceV2 } from '@/hooks/use-invoices-v2';
+import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { ArchiveInvoiceDialog } from '@/components/invoices/archive-invoice-dialog';
 import { DeleteInvoiceDialog } from '@/components/invoices/delete-invoice-dialog';
 import type { PanelConfig } from '@/types/panel';
@@ -92,12 +94,33 @@ export function InvoiceDetailPanelV3({
   const [rejectionReason, setRejectionReason] = React.useState('');
   const [isArchiveDialogOpen, setIsArchiveDialogOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
+  const [isVendorPendingDialogOpen, setIsVendorPendingDialogOpen] = React.useState(false);
+  // Two-step dialog: 'details' shows vendor info, 'confirm' shows final confirmation
+  const [vendorDialogStep, setVendorDialogStep] = React.useState<'details' | 'confirm'>('details');
+
+  // BUG-007: Check vendor status before approval
+  const vendorPendingData = React.useRef<{
+    vendor: {
+      id: number;
+      name: string;
+      address: string | null;
+      bank_details: string | null;
+      gst_exemption: boolean;
+      status: string;
+    };
+  } | null>(null);
+
+  // React Query client for cache invalidation
+  const queryClient = useQueryClient();
 
   // Mutations with close callback
   const approveInvoice = useApproveInvoiceV2(onClose);
   const rejectInvoice = useRejectInvoiceV2(onClose);
 
-  const isMutationPending = approveInvoice.isPending || rejectInvoice.isPending;
+  // BUG-007: Track vendor+invoice approval state
+  const [isApprovingVendorAndInvoice, setIsApprovingVendorAndInvoice] = React.useState(false);
+
+  const isMutationPending = approveInvoice.isPending || rejectInvoice.isPending || isApprovingVendorAndInvoice;
 
   // ============================================================================
   // ACTION HANDLERS
@@ -163,9 +186,108 @@ export function InvoiceDetailPanelV3({
     setIsDeleteDialogOpen(true);
   }, []);
 
-  const handleApprove = React.useCallback(() => {
-    approveInvoice.mutate(invoiceId);
+  // BUG-007: Check vendor status before approving invoice
+  const handleApprove = React.useCallback(async () => {
+    // First check if vendor is pending approval
+    const { checkInvoiceApprovalEligibility } = await import('@/app/actions/invoices-v2');
+    const result = await checkInvoiceApprovalEligibility(invoiceId);
+
+    if (result.success && result.data) {
+      if (result.data.vendorPending && result.data.vendor) {
+        // Vendor is pending - show warning dialog
+        vendorPendingData.current = { vendor: result.data.vendor };
+        setIsVendorPendingDialogOpen(true);
+      } else {
+        // Vendor is approved - proceed with invoice approval
+        approveInvoice.mutate(invoiceId);
+      }
+    } else {
+      // Error checking - still try to approve (will fail server-side if needed)
+      approveInvoice.mutate(invoiceId);
+    }
   }, [approveInvoice, invoiceId]);
+
+  /**
+   * Proceed to confirmation step in the two-step dialog
+   */
+  const handleProceedToConfirm = React.useCallback(() => {
+    setVendorDialogStep('confirm');
+  }, []);
+
+  /**
+   * Go back to details step in the two-step dialog
+   */
+  const handleBackToDetails = React.useCallback(() => {
+    setVendorDialogStep('details');
+  }, []);
+
+  /**
+   * Handle "Approve Vendor & Invoice" from the confirmation step
+   * Approves both vendor and invoice in sequence using direct server actions
+   * BUG-007 FIX: Uses direct async/await pattern to ensure both approvals happen reliably
+   */
+  const handleApproveVendorAndInvoice = React.useCallback(async () => {
+    if (!vendorPendingData.current?.vendor?.id) return;
+
+    const vendorName = vendorPendingData.current.vendor.name;
+    const vendorId = vendorPendingData.current.vendor.id;
+
+    setIsApprovingVendorAndInvoice(true);
+    try {
+      // Step 1: Approve the vendor using direct server action
+      const { approveVendorRequest } = await import('@/app/actions/admin/master-data-approval');
+      const vendorResult = await approveVendorRequest(vendorId);
+
+      if (!vendorResult.success) {
+        toast.error(vendorResult.error || 'Failed to approve vendor');
+        setIsApprovingVendorAndInvoice(false);
+        return;
+      }
+
+      toast.success(`Vendor "${vendorName}" has been approved`);
+
+      // Step 2: Approve the invoice using direct server action
+      const { approveInvoiceV2 } = await import('@/app/actions/invoices-v2');
+      const invoiceResult = await approveInvoiceV2(invoiceId);
+
+      if (invoiceResult.success) {
+        toast.success(`Invoice ${invoice?.invoice_number || ''} has been approved`);
+        // Invalidate caches
+        queryClient.invalidateQueries({ queryKey: ['invoices'] });
+        queryClient.invalidateQueries({ queryKey: ['invoices-v2'] });
+        queryClient.invalidateQueries({ queryKey: ['vendors'] });
+        // Close dialog and panel
+        setIsVendorPendingDialogOpen(false);
+        setVendorDialogStep('details');
+        vendorPendingData.current = null;
+        onClose();
+      } else {
+        toast.error(invoiceResult.error || 'Failed to approve invoice. Please try approving the invoice manually.');
+      }
+    } catch (error) {
+      console.error('Error in approval flow:', error);
+      toast.error('An unexpected error occurred');
+    } finally {
+      setIsApprovingVendorAndInvoice(false);
+    }
+  }, [invoiceId, invoice?.invoice_number, queryClient, onClose]);
+
+  /**
+   * Handle "Edit Invoice" from the dialog
+   * Opens the edit panel for the current invoice
+   */
+  const handleEditInvoiceFromDialog = React.useCallback(() => {
+    setIsVendorPendingDialogOpen(false);
+    setVendorDialogStep('details');
+    vendorPendingData.current = null;
+    handleEdit();
+  }, [handleEdit]);
+
+  const handleCloseVendorDialog = React.useCallback(() => {
+    setIsVendorPendingDialogOpen(false);
+    setVendorDialogStep('details');
+    vendorPendingData.current = null;
+  }, []);
 
   const handleReject = React.useCallback(() => {
     setIsRejectDialogOpen(true);
@@ -422,6 +544,114 @@ export function InvoiceDetailPanelV3({
           onSuccess={onClose}
         />
       )}
+
+      {/* BUG-007: Vendor Pending Approval Dialog - Two-Step */}
+      <AlertDialog open={isVendorPendingDialogOpen} onOpenChange={(open) => {
+        if (!open) handleCloseVendorDialog();
+      }}>
+        <AlertDialogContent>
+          {/* Step 1: Vendor Details */}
+          {vendorDialogStep === 'details' && (
+            <>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  <span className="text-amber-600">⚠️ Vendor Pending Approval</span>
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  The associated vendor is still waiting for approval and approving
+                  will add a new vendor to the list.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              {vendorPendingData.current?.vendor && (
+                <div className="bg-muted p-3 rounded-md space-y-2 text-sm my-2">
+                  <div className="font-medium text-foreground">
+                    {vendorPendingData.current.vendor.name}
+                  </div>
+                  {vendorPendingData.current.vendor.address && (
+                    <div className="text-muted-foreground">
+                      <span className="font-medium">Address:</span>{' '}
+                      {vendorPendingData.current.vendor.address}
+                    </div>
+                  )}
+                  {vendorPendingData.current.vendor.bank_details && (
+                    <div className="text-muted-foreground">
+                      <span className="font-medium">Bank Details:</span>{' '}
+                      {vendorPendingData.current.vendor.bank_details}
+                    </div>
+                  )}
+                  <div className="text-muted-foreground">
+                    <span className="font-medium">GST Exemption:</span>{' '}
+                    {vendorPendingData.current.vendor.gst_exemption ? 'Yes' : 'No'}
+                  </div>
+                </div>
+              )}
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={handleEditInvoiceFromDialog}>
+                  Edit Invoice
+                </AlertDialogCancel>
+                <Button
+                  onClick={handleProceedToConfirm}
+                  className="bg-amber-600 hover:bg-amber-700"
+                >
+                  Continue
+                </Button>
+              </AlertDialogFooter>
+            </>
+          )}
+
+          {/* Step 2: Confirmation */}
+          {vendorDialogStep === 'confirm' && vendorPendingData.current?.vendor && (
+            <>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Confirm Approval</AlertDialogTitle>
+                <AlertDialogDescription>
+                  You are about to approve both the vendor and the invoice.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <div className="space-y-3 my-4">
+                <div className="flex items-start gap-3 p-3 bg-muted rounded-md">
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-600 text-white text-sm font-medium">
+                    1
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">Approve Vendor</p>
+                    <p className="text-sm text-muted-foreground">
+                      &quot;{vendorPendingData.current.vendor.name}&quot; will be added to your vendor list
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-3 bg-muted rounded-md">
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-600 text-white text-sm font-medium">
+                    2
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">Approve Invoice</p>
+                    <p className="text-sm text-muted-foreground">
+                      Invoice {invoice?.invoice_number} will be approved and ready for payment
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <AlertDialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={handleBackToDetails}
+                  disabled={isApprovingVendorAndInvoice}
+                >
+                  Back
+                </Button>
+                <AlertDialogAction
+                  onClick={handleApproveVendorAndInvoice}
+                  disabled={isApprovingVendorAndInvoice}
+                  className="bg-amber-600 hover:bg-amber-700"
+                >
+                  {isApprovingVendorAndInvoice ? 'Approving...' : 'Approve Both'}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </>
+          )}
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
