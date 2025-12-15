@@ -16,8 +16,8 @@ export default function InvoicesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Get active tab from URL, default to 'recurring'
-  const activeTab = (searchParams.get('tab') as InvoiceTab) || 'recurring';
+  // Get active tab from URL, default to 'all' (All Invoices)
+  const activeTab = (searchParams.get('tab') as InvoiceTab) || 'all';
 
   // Handle tab change by updating URL
   const handleTabChange = (tab: InvoiceTab) => {

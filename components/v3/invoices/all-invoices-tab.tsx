@@ -69,6 +69,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import {
   InvoiceFilterPopover,
+  PENDING_ACTIONS_STATUS,
   type InvoiceFilterState,
   type FilterOptions,
 } from './invoice-filter-popover';
@@ -397,6 +398,7 @@ export function AllInvoicesTab() {
   // Unified filter state for InvoiceFilterPopover
   const [filters, setFilters] = useState<InvoiceFilterState>({
     viewMode: 'pending',
+    status: PENDING_ACTIONS_STATUS, // Default to "Pending Actions" status for pending view
     showArchived: false,
     sortOrder: 'asc',
   });
@@ -545,11 +547,16 @@ export function AllInvoicesTab() {
     INVOICE_STATUS.ON_HOLD as InvoiceStatus,
   ];
 
+  // Determine the status to send to API (undefined for composite 'pending_actions' filter)
+  // 'pending_actions' is a client-side composite filter, not a valid API status
+  const apiStatus = filters.showArchived ? undefined :
+    (filters.status === PENDING_ACTIONS_STATUS ? undefined : filters.status as InvoiceStatus | undefined);
+
   // Fetch invoices based on filter state
   const { data, isLoading } = useInvoices({
     page: 1,
     per_page: 500, // Fetch more for pending view since no date filter
-    status: filters.showArchived ? undefined : filters.status,
+    status: apiStatus,
     vendor_id: filters.vendorId,
     category_id: filters.categoryId,
     entity_id: filters.entityId,
@@ -574,9 +581,12 @@ export function AllInvoicesTab() {
     setSelectedYear(year);
   };
 
-  // Filter invoices based on view mode
+  // Filter invoices based on view mode and status
   const rawInvoices = data?.invoices ?? [];
-  const invoices = filters.viewMode === 'pending' && !filters.showArchived && !filters.status
+  // Apply pending statuses filter ONLY when 'pending_actions' is explicitly selected
+  // "All Statuses" (undefined) shows ALL invoices including paid, rejected, etc.
+  const shouldFilterPendingStatuses = filters.status === PENDING_ACTIONS_STATUS;
+  const invoices = shouldFilterPendingStatuses
     ? rawInvoices.filter(inv => pendingStatuses.includes(inv.status as InvoiceStatus))
     : rawInvoices;
 

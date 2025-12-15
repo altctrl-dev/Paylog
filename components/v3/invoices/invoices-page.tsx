@@ -263,7 +263,7 @@ function EmptyState() {
 // ============================================================================
 
 export function InvoicesPage({
-  activeTab = 'recurring',
+  activeTab = 'all',
   onTabChange,
 }: InvoicesPageProps) {
   const { openPanel } = usePanel();

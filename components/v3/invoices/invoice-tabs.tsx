@@ -39,10 +39,10 @@ interface TabConfig {
 }
 
 const TAB_CONFIG: TabConfig[] = [
-  { id: 'recurring', label: 'Recurring' },
   { id: 'all', label: 'All Invoices' },
-  { id: 'tds', label: 'TDS' },
   { id: 'ledger', label: 'Ledger' },
+  { id: 'tds', label: 'TDS' },
+  { id: 'recurring', label: 'Recurring' },
 ];
 
 // ============================================================================

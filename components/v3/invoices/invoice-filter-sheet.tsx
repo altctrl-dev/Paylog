@@ -16,9 +16,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { INVOICE_STATUS, type InvoiceStatus, type InvoiceFilters } from '@/types/invoice';
-import type { InvoiceFilterState, FilterOptions } from './invoice-filter-popover';
+import { PENDING_ACTIONS_STATUS, type InvoiceFilterState, type FilterOptions } from './invoice-filter-popover';
 
-// Re-export types from popover
+// Re-export types and constants from popover
+export { PENDING_ACTIONS_STATUS };
 export type { InvoiceFilterState, FilterOptions };
 
 // ============================================================================
@@ -100,9 +101,10 @@ const SORT_OPTIONS: Array<{ value: string; label: string; sortBy: InvoiceFilters
 
 const STATUS_OPTIONS: Array<{ value: string; label: string }> = [
   { value: '', label: 'All Statuses' },
+  { value: PENDING_ACTIONS_STATUS, label: 'Pending Actions' },
   { value: INVOICE_STATUS.PENDING_APPROVAL, label: 'Pending Approval' },
   { value: INVOICE_STATUS.UNPAID, label: 'Unpaid' },
-  { value: INVOICE_STATUS.PARTIAL, label: 'Partial' },
+  { value: INVOICE_STATUS.PARTIAL, label: 'Partially Paid' },
   { value: INVOICE_STATUS.PAID, label: 'Paid' },
   { value: INVOICE_STATUS.OVERDUE, label: 'Overdue' },
   { value: INVOICE_STATUS.ON_HOLD, label: 'On Hold' },
@@ -199,6 +201,7 @@ export function InvoiceFilterSheet({
   const handleReset = () => {
     const resetFilters: InvoiceFilterState = {
       viewMode: 'pending',
+      status: PENDING_ACTIONS_STATUS, // Default to "Pending Actions" for pending view mode
       showArchived: false,
       sortOrder: 'desc',
     };
@@ -261,26 +264,43 @@ export function InvoiceFilterSheet({
             {/* VIEW MODE Section */}
             <div className="space-y-2">
               <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                View
+                View Mode
               </Label>
               <div className="flex gap-2">
                 <Button
                   variant={localFilters.viewMode === 'pending' ? 'default' : 'outline'}
                   size="sm"
                   className="flex-1"
-                  onClick={() => updateFilter('viewMode', 'pending')}
+                  onClick={() => {
+                    setLocalFilters((prev) => ({
+                      ...prev,
+                      viewMode: 'pending',
+                      status: PENDING_ACTIONS_STATUS, // Auto-select "Pending Actions" status
+                    }));
+                  }}
                 >
-                  Pending
+                  Pending Actions
                 </Button>
                 <Button
                   variant={localFilters.viewMode === 'monthly' ? 'default' : 'outline'}
                   size="sm"
                   className="flex-1"
-                  onClick={() => updateFilter('viewMode', 'monthly')}
+                  onClick={() => {
+                    setLocalFilters((prev) => ({
+                      ...prev,
+                      viewMode: 'monthly',
+                      status: undefined, // Clear status filter for monthly view
+                    }));
+                  }}
                 >
                   Monthly
                 </Button>
               </div>
+              {localFilters.viewMode === 'pending' && (
+                <p className="text-xs text-muted-foreground">
+                  Shows unpaid, partial, overdue, on-hold & pending approval invoices
+                </p>
+              )}
             </div>
 
             {/* FILTERS Section */}
@@ -295,9 +315,16 @@ export function InvoiceFilterSheet({
                 <Label className="text-xs">Status</Label>
                 <Select
                   value={localFilters.status || ''}
-                  onChange={(e) =>
-                    updateFilter('status', e.target.value ? (e.target.value as InvoiceStatus) : undefined)
-                  }
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === PENDING_ACTIONS_STATUS) {
+                      updateFilter('status', PENDING_ACTIONS_STATUS);
+                    } else if (value) {
+                      updateFilter('status', value as InvoiceStatus);
+                    } else {
+                      updateFilter('status', undefined);
+                    }
+                  }}
                   className="h-10"
                 >
                   {STATUS_OPTIONS.map((opt) => (
