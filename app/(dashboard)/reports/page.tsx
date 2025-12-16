@@ -482,7 +482,7 @@ export default function ReportsPage() {
                   }
                 />
                 <Tooltip
-                  formatter={(value: number) => formatCurrency(value)}
+                  formatter={(value) => formatCurrency(value as number)}
                 />
                 <Legend />
                 <Bar dataKey="paid" stackId="a" fill="#10b981" name="Paid" />
