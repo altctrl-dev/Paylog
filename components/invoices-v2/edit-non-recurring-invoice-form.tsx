@@ -29,6 +29,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, X } from 'lucide-react';
 import { VendorTextAutocomplete } from './vendor-text-autocomplete';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 
 /**
  * Props interface for EditNonRecurringInvoiceForm
@@ -68,6 +69,7 @@ function parseDateFromInput(value: string): Date | null {
 export function EditNonRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: EditNonRecurringInvoiceFormProps) {
   const { toast } = useToast();
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
+  const [showDiscardDialog, setShowDiscardDialog] = React.useState(false);
 
   // Fetch existing invoice data
   const { data: invoice, isLoading: isLoadingInvoice, error: invoiceError } = useInvoiceV2(invoiceId);
@@ -160,9 +162,7 @@ export function EditNonRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: 
 
         const isDirty = Object.keys(formState.dirtyFields).length > 0;
         if (isDirty) {
-          if (confirm('You have unsaved changes. Are you sure you want to close?')) {
-            onCancel?.();
-          }
+          setShowDiscardDialog(true);
         } else {
           onCancel?.();
         }
@@ -565,6 +565,21 @@ export function EditNonRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: 
           {(isSubmitting || updateInvoice.isPending) ? 'Updating...' : 'Update Invoice'}
         </Button>
       </div>
+
+      {/* Discard Changes Confirmation Dialog */}
+      <ConfirmationDialog
+        open={showDiscardDialog}
+        onOpenChange={setShowDiscardDialog}
+        title="Discard Changes"
+        description="You have unsaved changes. Are you sure you want to close without saving?"
+        variant="warning"
+        confirmLabel="Discard"
+        cancelLabel="Keep Editing"
+        onConfirm={() => {
+          setShowDiscardDialog(false);
+          onCancel?.();
+        }}
+      />
     </form>
   );
 }

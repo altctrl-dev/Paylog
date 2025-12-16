@@ -59,14 +59,18 @@ import { checkInvoiceApprovalEligibility } from '@/app/actions/invoices-v2';
 import { approveVendorRequest } from '@/app/actions/admin/master-data-approval';
 import {
   AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  ConfirmationDialog,
+  ConfirmationContentRow,
+  CONFIRMATION_CARD_STYLES,
+  InputDialog,
+} from '@/components/ui/confirmation-dialog';
 import {
   InvoiceFilterPopover,
   PENDING_ACTIONS_STATUS,
@@ -398,6 +402,38 @@ export function AllInvoicesTab() {
   // Two-step dialog: 'details' shows vendor info, 'confirm' shows final confirmation
   const [vendorDialogStep, setVendorDialogStep] = useState<'details' | 'confirm'>('details');
 
+  // Invoice approval confirmation dialog state
+  const [approveDialogData, setApproveDialogData] = useState<{
+    invoiceId: number;
+    invoiceNumber: string;
+    vendorName: string;
+    amount: number;
+  } | null>(null);
+  const [isApproving, setIsApproving] = useState(false);
+
+  // Delete confirmation dialog state
+  const [deleteDialogData, setDeleteDialogData] = useState<{
+    invoiceId: number;
+    invoiceNumber: string;
+    reason: string;
+  } | null>(null);
+
+  // Input dialog states for deletion, archive, rejection reasons
+  const [deleteReasonDialog, setDeleteReasonDialog] = useState<{
+    invoiceId: number;
+    invoiceNumber: string;
+  } | null>(null);
+  const [archiveReasonDialog, setArchiveReasonDialog] = useState<{
+    invoiceId: number;
+    invoiceNumber: string;
+  } | null>(null);
+  const [rejectReasonDialog, setRejectReasonDialog] = useState<{
+    invoiceId: number;
+    invoiceNumber: string;
+  } | null>(null);
+  const [isRejecting, setIsRejecting] = useState(false);
+  const [isArchiving, setIsArchiving] = useState(false);
+
   // Unified filter state for InvoiceFilterPopover
   const [filters, setFilters] = useState<InvoiceFilterState>({
     viewMode: 'pending',
@@ -703,21 +739,30 @@ export function AllInvoicesTab() {
   };
 
   const handleDeleteInvoice = async (invoiceId: number, invoiceNumber: string) => {
-    const reason = prompt('Enter a reason for deletion (required):');
-    if (!reason) {
-      toast.error('Deletion reason is required');
-      return;
-    }
+    // Open input dialog to get deletion reason
+    setDeleteReasonDialog({ invoiceId, invoiceNumber });
+  };
 
-    if (!confirm(`Are you sure you want to permanently delete invoice ${invoiceNumber}? This will:\n\n• Remove the invoice from the database\n• Move all files to the Deleted folder\n• This action CANNOT be undone`)) {
-      return;
-    }
+  const handleDeleteReasonConfirm = (reason: string) => {
+    if (!deleteReasonDialog) return;
+    // Show confirmation dialog with the reason
+    setDeleteDialogData({
+      invoiceId: deleteReasonDialog.invoiceId,
+      invoiceNumber: deleteReasonDialog.invoiceNumber,
+      reason,
+    });
+    setDeleteReasonDialog(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteDialogData) return;
 
     setIsDeleting(true);
     try {
-      const result = await permanentDeleteInvoice(invoiceId, reason);
+      const result = await permanentDeleteInvoice(deleteDialogData.invoiceId, deleteDialogData.reason);
       if (result.success) {
-        toast.success(`Invoice ${invoiceNumber} has been permanently deleted`);
+        toast.success(`Invoice ${deleteDialogData.invoiceNumber} has been permanently deleted`);
+        setDeleteDialogData(null);
       } else {
         toast.error(result.error || 'Failed to delete invoice');
       }
@@ -730,18 +775,35 @@ export function AllInvoicesTab() {
   };
 
   const handleArchiveInvoice = async (id: number, invoiceNumber: string) => {
-    const reason = prompt('Enter a reason for archiving (optional):');
+    // Open input dialog to get archive reason (optional)
+    setArchiveReasonDialog({ invoiceId: id, invoiceNumber });
+  };
 
-    const result = await createInvoiceArchiveRequest(id, reason || undefined);
+  const handleArchiveReasonConfirm = async (reason: string) => {
+    if (!archiveReasonDialog) return;
 
-    if (result.success) {
-      if (result.data?.archived) {
-        toast.success(`Invoice ${invoiceNumber} has been archived`);
+    setIsArchiving(true);
+    try {
+      const result = await createInvoiceArchiveRequest(
+        archiveReasonDialog.invoiceId,
+        reason || undefined
+      );
+
+      if (result.success) {
+        if (result.data?.archived) {
+          toast.success(`Invoice ${archiveReasonDialog.invoiceNumber} has been archived`);
+        } else {
+          toast.success(`Archive request submitted for approval`);
+        }
+        setArchiveReasonDialog(null);
       } else {
-        toast.success(`Archive request submitted for approval`);
+        toast.error(result.error || 'Failed to create archive request');
       }
-    } else {
-      toast.error(result.error || 'Failed to create archive request');
+    } catch (error) {
+      console.error('Archive error:', error);
+      toast.error('An unexpected error occurred');
+    } finally {
+      setIsArchiving(false);
     }
   };
 
@@ -791,14 +853,38 @@ export function AllInvoicesTab() {
       return;
     }
 
-    // Vendor is approved, proceed with invoice approval
-    if (!confirm(`Approve invoice ${invoiceNumber}?`)) return;
+    // Vendor is approved - get invoice details for confirmation dialog
+    const invoice = filteredInvoices.find(inv => inv.id === id);
+    if (!invoice) {
+      toast.error('Invoice not found');
+      return;
+    }
 
-    const result = await approveInvoice(id);
-    if (result.success) {
-      toast.success(`Invoice ${invoiceNumber} has been approved`);
-    } else {
-      toast.error(result.error || 'Failed to approve invoice');
+    setApproveDialogData({
+      invoiceId: id,
+      invoiceNumber,
+      vendorName: invoice.vendor.name,
+      amount: invoice.invoice_amount,
+    });
+  };
+
+  const handleConfirmApprove = async () => {
+    if (!approveDialogData) return;
+
+    setIsApproving(true);
+    try {
+      const result = await approveInvoice(approveDialogData.invoiceId);
+      if (result.success) {
+        toast.success(`Invoice ${approveDialogData.invoiceNumber} has been approved`);
+        setApproveDialogData(null);
+      } else {
+        toast.error(result.error || 'Failed to approve invoice');
+      }
+    } catch (error) {
+      console.error('Approve error:', error);
+      toast.error('An unexpected error occurred');
+    } finally {
+      setIsApproving(false);
     }
   };
 
@@ -880,18 +966,28 @@ export function AllInvoicesTab() {
   };
 
   // Reject invoice handler
-  const handleRejectInvoice = async (id: number, invoiceNumber: string) => {
-    const reason = prompt('Enter rejection reason (required):');
-    if (!reason) {
-      toast.error('Rejection reason is required');
-      return;
-    }
+  const handleRejectInvoice = (id: number, invoiceNumber: string) => {
+    // Open input dialog to get rejection reason
+    setRejectReasonDialog({ invoiceId: id, invoiceNumber });
+  };
 
-    const result = await rejectInvoice(id, reason);
-    if (result.success) {
-      toast.success(`Invoice ${invoiceNumber} has been rejected`);
-    } else {
-      toast.error(result.error || 'Failed to reject invoice');
+  const handleRejectReasonConfirm = async (reason: string) => {
+    if (!rejectReasonDialog) return;
+
+    setIsRejecting(true);
+    try {
+      const result = await rejectInvoice(rejectReasonDialog.invoiceId, reason);
+      if (result.success) {
+        toast.success(`Invoice ${rejectReasonDialog.invoiceNumber} has been rejected`);
+        setRejectReasonDialog(null);
+      } else {
+        toast.error(result.error || 'Failed to reject invoice');
+      }
+    } catch (error) {
+      console.error('Reject error:', error);
+      toast.error('An unexpected error occurred');
+    } finally {
+      setIsRejecting(false);
     }
   };
 
@@ -1501,7 +1597,18 @@ export function AllInvoicesTab() {
           setVendorPendingData(null);
         }
       }}>
-        <AlertDialogContent className="relative">
+        <AlertDialogContent className="relative max-w-lg p-8 rounded-2xl">
+          {/* Step Indicator Dots */}
+          <div className="flex items-center justify-center gap-2 mb-6">
+            <div className={cn(
+              'h-3 w-3 rounded-full transition-colors',
+              vendorDialogStep === 'details' ? 'bg-foreground' : 'bg-foreground/60'
+            )} />
+            <div className={cn(
+              'h-3 w-3 rounded-full transition-colors',
+              vendorDialogStep === 'confirm' ? 'bg-foreground' : 'border-2 border-muted-foreground/40 bg-transparent'
+            )} />
+          </div>
           {/* Close button */}
           <button
             onClick={() => {
@@ -1509,49 +1616,55 @@ export function AllInvoicesTab() {
               setVendorDialogStep('details');
               setVendorPendingData(null);
             }}
-            className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
+            className="absolute right-5 top-5 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
             disabled={isApprovingVendor}
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
             <span className="sr-only">Close</span>
           </button>
           {/* Step 1: Vendor Details */}
           {vendorDialogStep === 'details' && (
             <>
-              <AlertDialogHeader>
-                <AlertDialogTitle>
-                  <span className="text-amber-600">⚠ Vendor Pending Approval</span>
+              <AlertDialogHeader className="space-y-3 mb-6">
+                <AlertDialogTitle className="text-2xl font-bold text-primary">
+                  Vendor Pending Approval
                 </AlertDialogTitle>
-                <AlertDialogDescription>
+                <AlertDialogDescription className="text-base leading-relaxed">
                   The associated vendor is still waiting for approval and approving
                   will add a new vendor to the list.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               {vendorPendingData?.vendor && (
-                <div className="rounded-md border p-3 bg-muted/50 my-2">
-                  <p className="font-semibold">{vendorPendingData.vendor.name}</p>
+                <div className={cn(CONFIRMATION_CARD_STYLES, 'mb-6')}>
+                  <p className="font-bold text-lg mb-2">{vendorPendingData.vendor.name}</p>
                   {vendorPendingData.vendor.address && (
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-base text-muted-foreground">
                       Address: {vendorPendingData.vendor.address}
                     </p>
                   )}
                   {vendorPendingData.vendor.bank_details && (
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-base text-muted-foreground">
                       Bank Details: {vendorPendingData.vendor.bank_details}
                     </p>
                   )}
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-base text-muted-foreground">
                     GST Exemption: {vendorPendingData.vendor.gst_exemption ? 'Yes' : 'No'}
                   </p>
                 </div>
               )}
-              <AlertDialogFooter>
-                <AlertDialogCancel onClick={handleEditInvoiceFromDialog}>
-                  Edit Invoice
-                </AlertDialogCancel>
+              <AlertDialogFooter className="gap-3 mt-8">
                 <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={handleEditInvoiceFromDialog}
+                  className="px-6 text-base font-medium"
+                >
+                  Edit Invoice
+                </Button>
+                <Button
+                  size="lg"
                   onClick={handleProceedToConfirm}
-                  className="bg-amber-600 hover:bg-amber-700"
+                  className="px-6 text-base font-medium"
                 >
                   Continue
                 </Button>
@@ -1562,56 +1675,172 @@ export function AllInvoicesTab() {
           {/* Step 2: Confirmation */}
           {vendorDialogStep === 'confirm' && vendorPendingData?.vendor && (
             <>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Confirm Approval</AlertDialogTitle>
-                <AlertDialogDescription>
+              <AlertDialogHeader className="space-y-3 mb-6">
+                <AlertDialogTitle className="text-2xl font-bold">Confirm Approval</AlertDialogTitle>
+                <AlertDialogDescription className="text-base leading-relaxed">
                   You are about to approve both the vendor and the invoice.
                 </AlertDialogDescription>
               </AlertDialogHeader>
-              <div className="space-y-3 my-4">
-                <div className="flex items-start gap-3 p-3 bg-muted rounded-md">
-                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-600 text-white text-sm font-medium">
+              <div className="space-y-3 mb-6">
+                <div className={cn(CONFIRMATION_CARD_STYLES, 'flex items-start gap-3 p-4')}>
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-white text-sm font-bold">
                     1
                   </div>
                   <div>
-                    <p className="font-medium text-sm">Approve Vendor</p>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="font-semibold text-base">Approve Vendor</p>
+                    <p className="text-base text-muted-foreground">
                       &quot;{vendorPendingData.vendor.name}&quot; will be added to your vendor list
                     </p>
                   </div>
                 </div>
-                <div className="flex items-start gap-3 p-3 bg-muted rounded-md">
-                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-600 text-white text-sm font-medium">
+                <div className={cn(CONFIRMATION_CARD_STYLES, 'flex items-start gap-3 p-4')}>
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-white text-sm font-bold">
                     2
                   </div>
                   <div>
-                    <p className="font-medium text-sm">Approve Invoice</p>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="font-semibold text-base">Approve Invoice</p>
+                    <p className="text-base text-muted-foreground">
                       Invoice {vendorPendingData.invoiceNumber} will be approved and ready for payment
                     </p>
                   </div>
                 </div>
               </div>
-              <AlertDialogFooter>
+              <AlertDialogFooter className="gap-3 mt-8">
                 <Button
                   variant="outline"
+                  size="lg"
                   onClick={handleBackToDetails}
                   disabled={isApprovingVendor}
+                  className="px-6 text-base font-medium"
                 >
                   Back
                 </Button>
-                <AlertDialogAction
+                <Button
+                  size="lg"
                   onClick={handleApproveVendorAndInvoice}
                   disabled={isApprovingVendor}
-                  className="bg-amber-600 hover:bg-amber-700"
+                  className="px-6 text-base font-medium"
                 >
                   {isApprovingVendor ? 'Approving...' : 'Approve Both'}
-                </AlertDialogAction>
+                </Button>
               </AlertDialogFooter>
             </>
           )}
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Invoice Approval Confirmation Dialog */}
+      <ConfirmationDialog
+        open={!!approveDialogData}
+        onOpenChange={(open) => !open && setApproveDialogData(null)}
+        title="Approve Invoice"
+        description="Are you sure you want to approve this invoice? Once approved, it will be ready for payment."
+        variant="default"
+        confirmLabel={isApproving ? 'Approving...' : 'Approve'}
+        cancelLabel="Cancel"
+        onConfirm={handleConfirmApprove}
+        isLoading={isApproving}
+      >
+        {approveDialogData && (
+          <div className="space-y-2">
+            <ConfirmationContentRow
+              label="Invoice Number"
+              value={approveDialogData.invoiceNumber}
+            />
+            <ConfirmationContentRow
+              label="Vendor"
+              value={approveDialogData.vendorName}
+            />
+            <ConfirmationContentRow
+              label="Amount"
+              value={formatCurrency(approveDialogData.amount)}
+            />
+          </div>
+        )}
+      </ConfirmationDialog>
+
+      {/* Delete Invoice Confirmation Dialog */}
+      <ConfirmationDialog
+        open={!!deleteDialogData}
+        onOpenChange={(open) => !open && setDeleteDialogData(null)}
+        title="Permanently Delete Invoice"
+        description="This action cannot be undone. The invoice will be permanently removed from the database."
+        variant="destructive"
+        confirmLabel={isDeleting ? 'Deleting...' : 'Delete Permanently'}
+        cancelLabel="Cancel"
+        onConfirm={handleConfirmDelete}
+        isLoading={isDeleting}
+      >
+        {deleteDialogData && (
+          <div className="space-y-2">
+            <ConfirmationContentRow
+              label="Invoice Number"
+              value={deleteDialogData.invoiceNumber}
+            />
+            <ConfirmationContentRow
+              label="Reason"
+              value={deleteDialogData.reason}
+            />
+            <div className="mt-3 text-xs text-muted-foreground">
+              <p>This will:</p>
+              <ul className="list-disc list-inside mt-1 space-y-1">
+                <li>Remove the invoice from the database</li>
+                <li>Move all files to the Deleted folder</li>
+              </ul>
+            </div>
+          </div>
+        )}
+      </ConfirmationDialog>
+
+      {/* Deletion Reason Input Dialog */}
+      <InputDialog
+        open={!!deleteReasonDialog}
+        onOpenChange={(open) => !open && setDeleteReasonDialog(null)}
+        title="Delete Invoice"
+        description={`Enter a reason for deleting invoice ${deleteReasonDialog?.invoiceNumber || ''}.`}
+        inputLabel="Deletion Reason"
+        inputPlaceholder="Enter reason for deletion..."
+        required
+        minLength={6}
+        maxLength={500}
+        variant="destructive"
+        confirmLabel="Continue"
+        onConfirm={handleDeleteReasonConfirm}
+      />
+
+      {/* Archive Reason Input Dialog */}
+      <InputDialog
+        open={!!archiveReasonDialog}
+        onOpenChange={(open) => !open && setArchiveReasonDialog(null)}
+        title="Archive Invoice"
+        description={`Enter a reason for archiving invoice ${archiveReasonDialog?.invoiceNumber || ''}.`}
+        inputLabel="Archive Reason"
+        inputPlaceholder="Enter reason for archiving..."
+        required
+        minLength={6}
+        maxLength={500}
+        variant="default"
+        confirmLabel="Archive"
+        onConfirm={handleArchiveReasonConfirm}
+        isLoading={isArchiving}
+      />
+
+      {/* Rejection Reason Input Dialog */}
+      <InputDialog
+        open={!!rejectReasonDialog}
+        onOpenChange={(open) => !open && setRejectReasonDialog(null)}
+        title="Reject Invoice"
+        description={`Enter a reason for rejecting invoice ${rejectReasonDialog?.invoiceNumber || ''}.`}
+        inputLabel="Rejection Reason"
+        inputPlaceholder="Enter reason for rejection..."
+        required
+        minLength={6}
+        maxLength={500}
+        variant="destructive"
+        confirmLabel="Reject"
+        onConfirm={handleRejectReasonConfirm}
+        isLoading={isRejecting}
+      />
     </div>
   );
 }

@@ -17,6 +17,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { usePanel } from '@/hooks/use-panel';
 import { PANEL_WIDTH } from '@/types/panel';
+import { ConfirmationDialog, ConfirmationContentRow } from '@/components/ui/confirmation-dialog';
 
 // ============================================================================
 // TYPES
@@ -53,6 +54,12 @@ type InvoiceProfile = {
 export default function InvoiceProfileManagement() {
   const [profiles, setProfiles] = useState<InvoiceProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteDialogData, setDeleteDialogData] = useState<{
+    id: number;
+    name: string;
+    vendor: string;
+  } | null>(null);
   const { toast } = useToast();
 
   // Panel state management - uses global panel system via PanelProvider
@@ -88,16 +95,28 @@ export default function InvoiceProfileManagement() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Delete this invoice profile? This cannot be undone.')) return;
+  const handleDelete = (id: number) => {
+    const profile = profiles.find((p) => p.id === id);
+    if (!profile) return;
+    setDeleteDialogData({
+      id,
+      name: profile.name,
+      vendor: profile.vendor.name,
+    });
+  };
 
+  const handleConfirmDelete = async () => {
+    if (!deleteDialogData) return;
+
+    setIsDeleting(true);
     try {
-      const result = await deleteInvoiceProfile(id);
+      const result = await deleteInvoiceProfile(deleteDialogData.id);
       if (result.success) {
         toast({
           title: 'Success',
           description: 'Invoice profile deleted',
         });
+        setDeleteDialogData(null);
         loadProfiles();
       } else {
         toast({
@@ -112,6 +131,8 @@ export default function InvoiceProfileManagement() {
         description: 'Failed to delete profile',
         variant: 'destructive',
       });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -192,6 +213,26 @@ export default function InvoiceProfileManagement() {
           onView={handleView}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmationDialog
+        open={!!deleteDialogData}
+        onOpenChange={(open) => !open && setDeleteDialogData(null)}
+        title="Delete Invoice Profile"
+        description="Are you sure you want to delete this invoice profile? This action cannot be undone."
+        variant="destructive"
+        confirmLabel={isDeleting ? 'Deleting...' : 'Delete'}
+        cancelLabel="Cancel"
+        onConfirm={handleConfirmDelete}
+        isLoading={isDeleting}
+      >
+        {deleteDialogData && (
+          <div className="space-y-2">
+            <ConfirmationContentRow label="Profile" value={deleteDialogData.name} />
+            <ConfirmationContentRow label="Vendor" value={deleteDialogData.vendor} />
+          </div>
+        )}
+      </ConfirmationDialog>
 
       {/* Panels are rendered globally via PanelProvider */}
     </div>

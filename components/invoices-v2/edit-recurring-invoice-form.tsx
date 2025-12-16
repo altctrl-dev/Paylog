@@ -28,6 +28,7 @@ import { useInvoiceFormOptions, useUpdateRecurringInvoice, useInvoiceV2 } from '
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, X } from 'lucide-react';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 
 /**
  * Props interface for EditRecurringInvoiceForm
@@ -211,6 +212,7 @@ const updateRecurringInvoiceSchema = z
 export function EditRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: EditRecurringInvoiceFormProps) {
   const { toast } = useToast();
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
+  const [showDiscardDialog, setShowDiscardDialog] = React.useState(false);
 
   // Fetch existing invoice data
   const { data: invoice, isLoading: isLoadingInvoice, error: invoiceError } = useInvoiceV2(invoiceId);
@@ -291,9 +293,7 @@ export function EditRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: Edi
 
         const isDirty = Object.keys(formState.dirtyFields).length > 0;
         if (isDirty) {
-          if (confirm('You have unsaved changes. Are you sure you want to close?')) {
-            onCancel?.();
-          }
+          setShowDiscardDialog(true);
         } else {
           onCancel?.();
         }
@@ -426,6 +426,7 @@ export function EditRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: Edi
 
   // Render form
   return (
+    <>
     <form
       onSubmit={(e) => {
         console.log('[EditRecurringInvoiceForm] Form onSubmit event fired');
@@ -730,5 +731,21 @@ export function EditRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: Edi
         </Button>
       </div>
     </form>
+
+    {/* Discard Changes Confirmation Dialog */}
+    <ConfirmationDialog
+      open={showDiscardDialog}
+      onOpenChange={setShowDiscardDialog}
+      title="Discard Changes"
+      description="You have unsaved changes. Are you sure you want to close without saving?"
+      variant="warning"
+      confirmLabel="Discard"
+      cancelLabel="Keep Editing"
+      onConfirm={() => {
+        setShowDiscardDialog(false);
+        onCancel?.();
+      }}
+    />
+    </>
   );
 }

@@ -7,9 +7,11 @@
 
 'use client';
 
+import { useState } from 'react';
 import { Edit2, Archive, RefreshCw } from 'lucide-react';
 import { usePaymentTypes, useArchivePaymentType, useRestorePaymentType } from '@/hooks/use-payment-types';
 import { Badge } from '@/components/ui/badge';
+import { ConfirmationDialog, ConfirmationContentRow } from '@/components/ui/confirmation-dialog';
 
 interface PaymentTypeListProps {
   onEdit: (paymentType: {
@@ -34,10 +36,21 @@ export function PaymentTypeList({ onEdit, showArchived = false }: PaymentTypeLis
   const archiveMutation = useArchivePaymentType();
   const restoreMutation = useRestorePaymentType();
 
-  const handleArchive = (id: number) => {
-    if (confirm('Archive this payment type?')) {
-      archiveMutation.mutate(id);
-    }
+  // Archive confirmation dialog state
+  const [archiveDialogData, setArchiveDialogData] = useState<{
+    id: number;
+    name: string;
+  } | null>(null);
+
+  const handleArchive = (id: number, name: string) => {
+    setArchiveDialogData({ id, name });
+  };
+
+  const handleConfirmArchive = () => {
+    if (!archiveDialogData) return;
+    archiveMutation.mutate(archiveDialogData.id, {
+      onSuccess: () => setArchiveDialogData(null),
+    });
   };
 
   const handleRestore = (id: number) => {
@@ -114,7 +127,7 @@ export function PaymentTypeList({ onEdit, showArchived = false }: PaymentTypeLis
                         <Edit2 className="h-4 w-4" />
                       </button>
                       <button
-                        onClick={() => handleArchive(paymentType.id)}
+                        onClick={() => handleArchive(paymentType.id, paymentType.name)}
                         disabled={paymentType.invoiceCount > 0}
                         className="inline-flex items-center justify-center rounded-md p-2 text-sm hover:bg-accent hover:text-accent-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                         aria-label="Archive payment type"
@@ -138,6 +151,25 @@ export function PaymentTypeList({ onEdit, showArchived = false }: PaymentTypeLis
           ))}
         </tbody>
       </table>
+
+      {/* Archive Confirmation Dialog */}
+      <ConfirmationDialog
+        open={!!archiveDialogData}
+        onOpenChange={(open) => !open && setArchiveDialogData(null)}
+        title="Archive Payment Type"
+        description="Are you sure you want to archive this payment type? It will be hidden from active lists but can be restored later."
+        variant="warning"
+        confirmLabel={archiveMutation.isPending ? 'Archiving...' : 'Archive'}
+        cancelLabel="Cancel"
+        onConfirm={handleConfirmArchive}
+        isLoading={archiveMutation.isPending}
+      >
+        {archiveDialogData && (
+          <div className="space-y-2">
+            <ConfirmationContentRow label="Payment Type" value={archiveDialogData.name} />
+          </div>
+        )}
+      </ConfirmationDialog>
     </div>
   );
 }

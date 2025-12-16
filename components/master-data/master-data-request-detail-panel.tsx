@@ -26,6 +26,7 @@ import {
   type MasterDataRequestWithDetails,
   type MasterDataEntityType,
 } from '@/app/actions/master-data-requests';
+import { ConfirmationDialog, ConfirmationContentRow } from '@/components/ui/confirmation-dialog';
 import type { PanelConfig } from '@/types/panel';
 import { PANEL_WIDTH } from '@/types/panel';
 
@@ -104,6 +105,7 @@ export function MasterDataRequestDetailPanel({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isActionInProgress, setIsActionInProgress] = React.useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = React.useState(false);
 
   // Fetch request details
   const { data: requestResult, isLoading, isError, error } = useQuery({
@@ -155,11 +157,12 @@ export function MasterDataRequestDetailPanel({
   };
 
   // Handle delete action
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!request) return;
-    if (!confirm('Are you sure you want to delete this draft request?')) {
-      return;
-    }
+    setShowDeleteDialog(true);
+  };
+
+  const handleConfirmDelete = async () => {
     setIsActionInProgress(true);
     try {
       const result = await deleteRequest(requestId);
@@ -168,6 +171,7 @@ export function MasterDataRequestDetailPanel({
           title: 'Success',
           description: 'Request deleted',
         });
+        setShowDeleteDialog(false);
         queryClient.invalidateQueries({ queryKey: ['master-data-request'] });
         closeTopPanel();
       } else {
@@ -440,6 +444,32 @@ export function MasterDataRequestDetailPanel({
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmationDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        title="Delete Draft Request"
+        description="Are you sure you want to delete this draft request? This action cannot be undone."
+        variant="destructive"
+        confirmLabel={isActionInProgress ? 'Deleting...' : 'Delete'}
+        cancelLabel="Cancel"
+        onConfirm={handleConfirmDelete}
+        isLoading={isActionInProgress}
+      >
+        {request && (
+          <div className="space-y-2">
+            <ConfirmationContentRow
+              label="Request Type"
+              value={getEntityDisplayName(request.entity_type)}
+            />
+            <ConfirmationContentRow
+              label="Status"
+              value={getStatusDisplayText(request.status)}
+            />
+          </div>
+        )}
+      </ConfirmationDialog>
     </PanelLevel>
   );
 }

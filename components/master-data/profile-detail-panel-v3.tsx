@@ -23,6 +23,7 @@ import { Edit2, Trash2, Loader2 } from 'lucide-react';
 import { getInvoiceProfiles, archiveInvoiceProfile } from '@/app/actions/master-data';
 import { useToast } from '@/hooks/use-toast';
 import { ProfileAccessManager } from '@/components/master-data/profile-access-manager';
+import { ConfirmationDialog, ConfirmationContentRow } from '@/components/ui/confirmation-dialog';
 import type { PanelConfig } from '@/types/panel';
 
 interface ProfileDetailPanelV3Props {
@@ -65,6 +66,7 @@ export function ProfileDetailPanelV3({
   const [profile, setProfile] = React.useState<Profile | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = React.useState(false);
 
   const loadProfile = React.useCallback(async () => {
     setIsLoading(true);
@@ -106,7 +108,7 @@ export function ProfileDetailPanelV3({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profileId]);
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!profile) return;
 
     if (profile.invoiceCount > 0) {
@@ -118,9 +120,11 @@ export function ProfileDetailPanelV3({
       return;
     }
 
-    if (!confirm(`Delete profile "${profile.name}"? This cannot be undone.`)) {
-      return;
-    }
+    setShowDeleteDialog(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!profile) return;
 
     setIsDeleting(true);
     try {
@@ -130,6 +134,7 @@ export function ProfileDetailPanelV3({
           title: 'Success',
           description: 'Profile deleted',
         });
+        setShowDeleteDialog(false);
         onDelete(profile.id);
         onClose();
       } else {
@@ -382,6 +387,26 @@ export function ProfileDetailPanelV3({
           />
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmationDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        title="Delete Profile"
+        description="Are you sure you want to delete this profile? This action cannot be undone."
+        variant="destructive"
+        confirmLabel={isDeleting ? 'Deleting...' : 'Delete'}
+        cancelLabel="Cancel"
+        onConfirm={handleConfirmDelete}
+        isLoading={isDeleting}
+      >
+        {profile && (
+          <div className="space-y-2">
+            <ConfirmationContentRow label="Profile" value={profile.name} />
+            <ConfirmationContentRow label="Vendor" value={profile.vendor.name} />
+          </div>
+        )}
+      </ConfirmationDialog>
     </PanelLevel>
   );
 }

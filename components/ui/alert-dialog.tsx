@@ -57,34 +57,38 @@ export function AlertDialogContent({ className, children }: AlertDialogContentPr
 
 interface AlertDialogHeaderProps {
   children: React.ReactNode;
+  className?: string;
 }
 
-export function AlertDialogHeader({ children }: AlertDialogHeaderProps) {
-  return <div className="space-y-2 mb-4">{children}</div>;
+export function AlertDialogHeader({ children, className }: AlertDialogHeaderProps) {
+  return <div className={cn('space-y-2 mb-4', className)}>{children}</div>;
 }
 
 interface AlertDialogTitleProps {
   children: React.ReactNode;
+  className?: string;
 }
 
-export function AlertDialogTitle({ children }: AlertDialogTitleProps) {
-  return <h2 className="text-lg font-semibold">{children}</h2>;
+export function AlertDialogTitle({ children, className }: AlertDialogTitleProps) {
+  return <h2 className={cn('text-lg font-semibold', className)}>{children}</h2>;
 }
 
 interface AlertDialogDescriptionProps {
   children: React.ReactNode;
+  className?: string;
 }
 
-export function AlertDialogDescription({ children }: AlertDialogDescriptionProps) {
-  return <p className="text-sm text-muted-foreground">{children}</p>;
+export function AlertDialogDescription({ children, className }: AlertDialogDescriptionProps) {
+  return <p className={cn('text-sm text-muted-foreground', className)}>{children}</p>;
 }
 
 interface AlertDialogFooterProps {
   children: React.ReactNode;
+  className?: string;
 }
 
-export function AlertDialogFooter({ children }: AlertDialogFooterProps) {
-  return <div className="flex justify-end gap-2 mt-6">{children}</div>;
+export function AlertDialogFooter({ children, className }: AlertDialogFooterProps) {
+  return <div className={cn('flex justify-end gap-2 mt-6', className)}>{children}</div>;
 }
 
 interface AlertDialogActionProps {
@@ -106,11 +110,12 @@ interface AlertDialogCancelProps {
   children: React.ReactNode;
   onClick?: () => void;
   disabled?: boolean;
+  className?: string;
 }
 
-export function AlertDialogCancel({ children, onClick, disabled }: AlertDialogCancelProps) {
+export function AlertDialogCancel({ children, onClick, disabled, className }: AlertDialogCancelProps) {
   return (
-    <Button onClick={onClick} variant="outline" disabled={disabled}>
+    <Button onClick={onClick} variant="outline" disabled={disabled} className={className}>
       {children}
     </Button>
   );

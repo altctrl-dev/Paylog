@@ -22,6 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { Edit, Trash2 } from 'lucide-react';
 import { CommentForm } from './comment-form';
 import { useUpdateComment, useDeleteComment } from '@/hooks/use-comments';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import type { InvoiceCommentWithRelations } from '@/types/comment';
 
 interface CommentCardProps {
@@ -82,6 +83,7 @@ export function CommentCard({
   currentUserRole,
 }: CommentCardProps) {
   const [isEditing, setIsEditing] = React.useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = React.useState(false);
   const updateMutation = useUpdateComment();
   const deleteMutation = useDeleteComment();
 
@@ -115,14 +117,21 @@ export function CommentCard({
   };
 
   const handleDelete = () => {
-    if (!window.confirm('Are you sure you want to delete this comment?')) {
-      return;
-    }
+    setShowDeleteDialog(true);
+  };
 
-    deleteMutation.mutate({
-      commentId: comment.id,
-      invoiceId: comment.invoice_id,
-    });
+  const handleConfirmDelete = () => {
+    deleteMutation.mutate(
+      {
+        commentId: comment.id,
+        invoiceId: comment.invoice_id,
+      },
+      {
+        onSuccess: () => {
+          setShowDeleteDialog(false);
+        },
+      }
+    );
   };
 
   return (
@@ -190,6 +199,19 @@ export function CommentCard({
           dangerouslySetInnerHTML={{ __html: renderMarkdown(comment.content) }}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmationDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        title="Delete Comment"
+        description="Are you sure you want to delete this comment? This action cannot be undone."
+        variant="destructive"
+        confirmLabel={deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+        cancelLabel="Cancel"
+        onConfirm={handleConfirmDelete}
+        isLoading={deleteMutation.isPending}
+      />
     </Card>
   );
 }

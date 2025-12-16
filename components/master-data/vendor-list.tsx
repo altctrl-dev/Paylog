@@ -6,9 +6,11 @@
 
 'use client';
 
+import { useState } from 'react';
 import { Edit2, Archive, RefreshCw } from 'lucide-react';
 import { useVendors, useArchiveVendor, useRestoreVendor } from '@/hooks/use-vendors';
 import { Badge } from '@/components/ui/badge';
+import { ConfirmationDialog, ConfirmationContentRow } from '@/components/ui/confirmation-dialog';
 
 interface VendorListProps {
   onEdit: (vendor: {
@@ -34,10 +36,21 @@ export function VendorList({ onEdit, showArchived = false }: VendorListProps) {
   const archiveMutation = useArchiveVendor();
   const restoreMutation = useRestoreVendor();
 
-  const handleArchive = (id: number) => {
-    if (confirm('Archive this vendor?')) {
-      archiveMutation.mutate(id);
-    }
+  // Archive confirmation dialog state
+  const [archiveDialogData, setArchiveDialogData] = useState<{
+    id: number;
+    name: string;
+  } | null>(null);
+
+  const handleArchive = (id: number, name: string) => {
+    setArchiveDialogData({ id, name });
+  };
+
+  const handleConfirmArchive = () => {
+    if (!archiveDialogData) return;
+    archiveMutation.mutate(archiveDialogData.id, {
+      onSuccess: () => setArchiveDialogData(null),
+    });
   };
 
   const handleRestore = (id: number) => {
@@ -103,7 +116,7 @@ export function VendorList({ onEdit, showArchived = false }: VendorListProps) {
                         <Edit2 className="h-4 w-4" />
                       </button>
                       <button
-                        onClick={() => handleArchive(vendor.id)}
+                        onClick={() => handleArchive(vendor.id, vendor.name)}
                         disabled={vendor.invoiceCount > 0}
                         className="inline-flex items-center justify-center rounded-md p-2 text-sm hover:bg-accent hover:text-accent-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                         aria-label="Archive vendor"
@@ -127,6 +140,25 @@ export function VendorList({ onEdit, showArchived = false }: VendorListProps) {
           ))}
         </tbody>
       </table>
+
+      {/* Archive Confirmation Dialog */}
+      <ConfirmationDialog
+        open={!!archiveDialogData}
+        onOpenChange={(open) => !open && setArchiveDialogData(null)}
+        title="Archive Vendor"
+        description="Are you sure you want to archive this vendor? It will be hidden from active lists but can be restored later."
+        variant="warning"
+        confirmLabel={archiveMutation.isPending ? 'Archiving...' : 'Archive'}
+        cancelLabel="Cancel"
+        onConfirm={handleConfirmArchive}
+        isLoading={archiveMutation.isPending}
+      >
+        {archiveDialogData && (
+          <div className="space-y-2">
+            <ConfirmationContentRow label="Vendor" value={archiveDialogData.name} />
+          </div>
+        )}
+      </ConfirmationDialog>
     </div>
   );
 }
