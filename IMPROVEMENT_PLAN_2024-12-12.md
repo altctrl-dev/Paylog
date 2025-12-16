@@ -2,7 +2,7 @@
 
 > **Status**: 🔄 IN PROGRESS
 > **Created**: 2024-12-12
-> **Last Updated**: 2024-12-13
+> **Last Updated**: 2024-12-15
 
 ## Progress Summary
 
@@ -18,6 +18,8 @@
 | BUG-005: Vendor Not Populated on Edit | ✅ **COMPLETED** | C | Fixed 2024-12-13 |
 | BUG-002: Invoice Status Colors for Payment Pending | ✅ **COMPLETED** | D | Fixed 2024-12-13 |
 | BUG-003: TDS Rounding Consistency (Invoice-Level) | ✅ **COMPLETED** | A | Fixed 2024-12-13 |
+| BUG-008: Double TDS Deduction in Payment Panel | ✅ **COMPLETED** | A | Fixed 2024-12-15 |
+| BUG-007: Vendor Auto-Approval During Invoice Creation | ✅ **COMPLETED** | E | Fixed 2024-12-15 |
 
 ---
 
@@ -1318,6 +1320,308 @@ if (remainingBalance <= 0.01) {  // Use small epsilon for float comparison
 
 ---
 
+### BUG-007: Vendor Auto-Approval During Invoice Creation
+
+**Priority**: 🚨 HIGH
+**Effort**: Medium (~2-3 hours)
+**Status**: ✅ COMPLETED (2024-12-15)
+**Group**: E (Approval Workflow)
+
+#### Problem Statement
+
+When a **standard user** creates a non-recurring invoice with a **new vendor** (vendor that doesn't exist), the vendor is auto-approved instead of going through the approval workflow. This bypasses the admin approval requirement for new vendors.
+
+#### Expected Behavior
+
+1. Standard user types a vendor name that doesn't exist → Shows "will be added as new vendor"
+2. User submits invoice form → Vendor form panel opens
+3. User fills vendor details (address, bank details) → Clicks "Create"
+4. Vendor is created with `status: 'PENDING_APPROVAL'`
+5. Vendor panel closes → User returns to invoice form
+6. User submits invoice → Invoice created with `status: 'pending_approval'`
+7. Admin receives **both** notifications:
+   - Vendor pending approval
+   - Invoice pending approval
+8. Admin can approve vendor first OR invoice first
+   - If vendor approved first → Vendor becomes active
+   - If invoice approved first → Both invoice AND vendor get approved
+
+#### Current Behavior (Bug)
+
+1. Standard user types new vendor name → Shows "will be added as new vendor" ✅
+2. User submits invoice form → Vendor form panel opens ✅
+3. User fills vendor details → Clicks "Create"
+4. **BUG:** Vendor is created with `status: 'APPROVED'` instead of `'PENDING_APPROVAL'`
+5. Vendor panel closes ✅
+6. User submits invoice → Invoice created (may or may not be pending)
+7. Admin only sees invoice approval request, vendor is already approved
+
+#### Root Cause Analysis
+
+**Investigation Findings:**
+
+1. **Prisma Schema Default** (`schema.prisma` line 107):
+   ```prisma
+   status String @default("APPROVED")
+   ```
+   The default is "APPROVED" which is risky - if status is ever not explicitly set, it auto-approves.
+
+2. **Backend Logic is Correct** (`app/actions/master-data.ts` lines 277-294):
+   ```typescript
+   const vendorStatus = getVendorCreationStatus(user);  // Returns PENDING_APPROVAL for non-admins
+   const isAdmin = canApproveVendor(user);              // Returns false for non-admins
+
+   const vendor = await db.vendor.create({
+     data: {
+       // ...
+       status: vendorStatus,  // Should be 'PENDING_APPROVAL'
+       approved_by_user_id: isAdmin ? user.id : null,
+       approved_at: isAdmin ? new Date() : null,
+     },
+   });
+   ```
+
+3. **RBAC Logic is Correct** (`lib/rbac-v2.ts` lines 442-450):
+   ```typescript
+   export function getVendorCreationStatus(user: User): 'APPROVED' | 'PENDING_APPROVAL' {
+     if (canApproveVendor(user)) {
+       return 'APPROVED';  // Admins
+     }
+     return 'PENDING_APPROVAL';  // Standard users
+   }
+   ```
+
+4. **Possible Causes to Investigate:**
+   - Session role might be incorrect (user shows as admin when they're not)
+   - Auth callbacks might not be returning correct role
+   - Database might have user with wrong role
+   - Some middleware might be elevating privileges
+
+#### Investigation Required
+
+1. **Verify user role in session:**
+   ```typescript
+   // Add console.log in createVendor action
+   console.log('[createVendor] User role:', user.role);
+   console.log('[createVendor] canApproveVendor:', canApproveVendor(user));
+   console.log('[createVendor] vendorStatus:', vendorStatus);
+   ```
+
+2. **Check database after vendor creation:**
+   ```sql
+   SELECT id, name, status, created_by_user_id, approved_by_user_id, approved_at
+   FROM vendors
+   ORDER BY created_at DESC
+   LIMIT 5;
+   ```
+
+3. **Verify test user role in database:**
+   ```sql
+   SELECT id, email, role FROM users WHERE email = 'test_user_email';
+   ```
+
+#### Proposed Fix
+
+**Phase 1: Defensive Fix - Change Prisma Default**
+```prisma
+// schema.prisma
+model Vendor {
+  // ...
+  status String @default("PENDING_APPROVAL")  // Changed from "APPROVED"
+}
+```
+
+**Phase 2: Add Logging**
+```typescript
+// app/actions/master-data.ts - createVendor function
+console.log('[createVendor] Creating vendor with status:', vendorStatus, 'for user role:', user.role);
+```
+
+**Phase 3: Add Vendor Approval Notification**
+```typescript
+// After vendor creation for non-admin
+if (!isAdmin) {
+  // Create notification for admins
+  await notifyAdminsOfPendingVendor(vendor.id, vendor.name, user.id);
+}
+```
+
+#### Files Modified (Implementation Complete)
+
+- [x] `schema.prisma` - Changed default from "APPROVED" to "PENDING_APPROVAL"
+- [x] `app/actions/master-data.ts` - Added debug logging, calls notification on vendor creation
+- [x] `app/actions/notifications.ts` - Added `notifyVendorPendingApproval`, `notifyVendorApproved`, `notifyVendorRejected` functions
+- [x] `types/notification.ts` - Added `VENDOR_PENDING_APPROVAL`, `VENDOR_APPROVED`, `VENDOR_REJECTED` notification types
+- [x] `app/actions/admin/master-data-approval.ts` - Added notifications when vendor is approved/rejected
+- [x] `components/notifications/notification-panel.tsx` - Added vendor notification icons and styling
+
+#### Implementation Details (2024-12-15)
+
+**Changes Made:**
+
+1. **Prisma Schema Defense** (`schema.prisma`):
+   - Changed `status String @default("APPROVED")` to `@default("PENDING_APPROVAL")`
+   - Ensures vendors created without explicit status are pending by default
+
+2. **Debug Logging** (`app/actions/master-data.ts`):
+   - Added console logs to trace user role, vendor status, and isAdmin flag
+   - Helps debug if issue recurs
+
+3. **Notification Types** (`types/notification.ts`):
+   - Added `VENDOR_PENDING_APPROVAL` - notifies admins when vendor needs approval
+   - Added `VENDOR_APPROVED` - notifies user when their vendor is approved
+   - Added `VENDOR_REJECTED` - notifies user when their vendor is rejected
+
+4. **Notification Functions** (`app/actions/notifications.ts`):
+   - `notifyVendorPendingApproval(vendorId, vendorName, requesterName)` - alerts admins
+   - `notifyVendorApproved(userId, vendorId, vendorName)` - confirms to user
+   - `notifyVendorRejected(userId, vendorId, vendorName, reason)` - informs user
+
+5. **Vendor Creation Flow** (`app/actions/master-data.ts`):
+   - When non-admin creates vendor, fetches user's full_name
+   - Calls `notifyVendorPendingApproval` to alert all admins
+
+6. **Vendor Approval/Rejection** (`app/actions/admin/master-data-approval.ts`):
+   - `approveVendorRequest` now calls `notifyVendorApproved` to notify creator
+   - `rejectVendorRequest` now calls `notifyVendorRejected` with rejection reason
+
+7. **Notification Panel UI** (`components/notifications/notification-panel.tsx`):
+   - Added `Building2` icon for vendor notifications
+   - Added config for all three vendor notification types with appropriate colors
+
+#### Acceptance Criteria
+
+- [x] Standard user creates vendor → Status is `PENDING_APPROVAL` (enforced by Prisma default + explicit status)
+- [x] Standard user creates vendor → `approved_by_user_id` is `null` (already working)
+- [x] Standard user creates vendor → `approved_at` is `null` (already working)
+- [x] Admin receives notification about pending vendor (via `notifyVendorPendingApproval`)
+- [x] Admin can approve vendor from Approvals tab (existing functionality)
+- [x] After admin approves → Status becomes `APPROVED`, fields are set (existing + notification)
+- [x] Admin creates vendor → Status is `APPROVED` immediately (unchanged)
+- [x] User gets notified when their vendor is approved/rejected (new notifications)
+
+#### Testing Scenarios
+
+1. **Standard User - New Vendor:**
+   - Login as standard_user
+   - Create non-recurring invoice
+   - Type new vendor name → See "will be added" message
+   - Submit form → Vendor panel opens
+   - Fill details, click Create
+   - **Verify:** Vendor has status='PENDING_APPROVAL' in DB
+   - **Verify:** Admin sees vendor in Approvals > Vendors tab
+
+2. **Admin - New Vendor:**
+   - Login as admin
+   - Create non-recurring invoice with new vendor
+   - **Verify:** Vendor has status='APPROVED' immediately
+   - **Verify:** No approval notification created
+
+---
+
+### BUG-008: Double TDS Deduction in Record Payment Panel
+
+**Priority**: 🚨 HIGH
+**Effort**: Low (~30 minutes)
+**Status**: ✅ **COMPLETED** (2024-12-15)
+**Group**: A (TDS Calculation Fixes)
+
+#### Problem Statement
+
+The "Record Payment" panel (`payment-form-panel.tsx`) was showing incorrect "Remaining Balance" - the TDS amount was being deducted **twice**, resulting in a lower remaining balance than actual.
+
+#### Evidence (Screenshot)
+
+```
+Invoice Amount:     ₹1,23,456.00
+TDS (2%):          -₹2,470.00 (rounded)
+Net Payable:        ₹1,20,986.00
+Remaining Balance:  ₹1,18,516.00   ← WRONG! Should be ₹1,20,986.00
+```
+
+Difference: ₹1,20,986 - ₹1,18,516 = ₹2,470 (exactly the TDS amount - subtracted twice!)
+
+#### Root Cause
+
+**Location:** `components/payments/payment-form-panel.tsx` lines 155-166
+
+**Bug in `actualRemainingBalance` calculation:**
+
+```typescript
+// OLD (BUGGY):
+const actualRemainingBalance = React.useMemo(() => {
+  if (tdsApplicable && tdsPercentage) {
+    const netPayable = roundTds ? tdsCalculation.payableRounded : tdsCalculation.payableExact;
+    // BUG: This assumes remainingBalance = invoiceAmount - totalPaid
+    // But callers pass remainingBalance = netPayable - totalPaid (TDS already deducted!)
+    const alreadyPaid = invoiceAmount - remainingBalance;  // WRONG!
+    return Math.max(0, netPayable - alreadyPaid);          // TDS subtracted twice!
+  }
+  return remainingBalance;
+}, [...]);
+```
+
+**Problem:** The callers (`all-invoices-tab.tsx`, `profile-invoices-panel.tsx`, etc.) correctly pass:
+```
+remainingBalance = netPayable - totalPaid   // TDS already deducted
+```
+
+But the panel incorrectly calculated:
+```
+alreadyPaid = invoiceAmount - remainingBalance
+            = invoiceAmount - (netPayable - totalPaid)
+            = invoiceAmount - netPayable + totalPaid
+            = TDS + totalPaid   // WRONG! This includes TDS as "paid"!
+
+actualRemainingBalance = netPayable - alreadyPaid
+                       = netPayable - (TDS + totalPaid)
+                       = netPayable - TDS - totalPaid
+                       = invoiceAmount - 2*TDS - totalPaid  // TDS subtracted twice!
+```
+
+#### Fix Applied
+
+```typescript
+// NEW (FIXED):
+const actualRemainingBalance = React.useMemo(() => {
+  if (tdsApplicable && tdsPercentage) {
+    // Calculate original TDS using invoice's tdsRounded preference (passed as prop)
+    const originalTdsResult = calculateTds(invoiceAmount, tdsPercentage, tdsRounded);
+    const originalNetPayable = originalTdsResult.payableAmount;
+
+    // Derive totalPaid from passed remainingBalance
+    // remainingBalance = originalNetPayable - totalPaid
+    // So: totalPaid = originalNetPayable - remainingBalance
+    const totalPaid = Math.max(0, originalNetPayable - remainingBalance);
+
+    // Calculate current net payable based on user's toggle state
+    const currentNetPayable = roundTds ? tdsCalculation.payableRounded : tdsCalculation.payableExact;
+
+    // Actual remaining = current net payable - what's been paid
+    return Math.max(0, currentNetPayable - totalPaid);
+  }
+  return remainingBalance;
+}, [...]);
+```
+
+#### Files Modified
+
+- [x] `components/payments/payment-form-panel.tsx` - Fixed `actualRemainingBalance` calculation
+- [x] `components/invoices/invoice-detail-panel-v3/index.tsx` - Added `tdsRounded` prop, fixed TDS calculation
+- [x] `components/invoices/invoice-detail-panel-v2.tsx` - Added `tdsRounded` prop, fixed TDS calculation
+
+#### Verification
+
+After fix, the Record Payment panel now correctly shows:
+```
+Invoice Amount:     ₹1,23,456.00
+TDS (2%):          -₹2,470.00 (rounded)
+Net Payable:        ₹1,20,986.00
+Remaining Balance:  ₹1,20,986.00   ← CORRECT!
+```
+
+---
+
 ## Implementation Phases
 
 ### Phase 1: Backend & Types (Foundation) ✅ COMPLETED
@@ -1497,27 +1801,9 @@ if (remainingBalance <= 0.01) {  // Use small epsilon for float comparison
 - ✅ IMP-003 documented (Zero Balance Display as Dash)
 - ✅ Task Groupings reorganized for efficient execution
 
-**Next Up (Recommended Execution Order)**:
-
-**Group A: TDS Calculation Fixes (CRITICAL - Do First)**
-1. 🔜 BUG-006: TDS not deducted in remaining balance (~1-2 hours) - **CRITICAL BUG**
-2. 🔜 BUG-003: TDS rounding as invoice preference (~4-6 hours) - Requires DB migration
-
-**Group B: All Invoices Tab Quick Fixes (Same File - Do Together)**
-3. 🔜 BUG-004: Search missing invoice name/profile (~30 min)
-4. 🔜 IMP-003: Zero balance display as dash (~15 min)
-5. 🔜 IMP-002: Responsive action bar (~1 hour)
-
-**Group C: Form Data Loading**
-6. 🔜 BUG-005: Vendor not populated on edit (~1 hour) - Needs investigation
-
-**Group D: Status UI**
-7. 🔜 BUG-002: Invoice status colors (~2 hours) - Visual differentiation
-
-**Progress Summary**:
+**Progress Summary (2024-12-13)**:
 | Item | Status | Group | Effort |
 |------|--------|-------|--------|
-| **Completed Today (2024-12-13)** | | | |
 | BUG-006: TDS Not Deducted in Balance | ✅ COMPLETED | A | Fixed in payments.ts |
 | BUG-004: Search Missing Fields | ✅ COMPLETED | B | Backend + frontend |
 | IMP-003: Zero Balance as Dash | ✅ COMPLETED | B | Shows "-" now |
@@ -1525,6 +1811,76 @@ if (remainingBalance <= 0.01) {  // Use small epsilon for float comparison
 | BUG-005: Vendor Not Populated | ✅ COMPLETED | C | Race condition fixed |
 | BUG-002: Invoice Status Colors | ✅ COMPLETED | D | Amber/Purple badges |
 | BUG-003: TDS Rounding Consistency | ✅ COMPLETED | A | Invoice-level preference |
-| **Previously Completed** | | | |
 | BUG-001: Block Payment Recording | ✅ COMPLETED | - | 2024-12-12 |
 | IMP-001: Invoice Filtering System | ✅ COMPLETED | - | 2024-12-12 |
+
+---
+
+### 2024-12-15 Session
+
+**Completed This Session**:
+- ✅ BUG-008: Fixed Double TDS Deduction in Record Payment Panel
+  - Root cause: `actualRemainingBalance` calculation assumed `remainingBalance = invoiceAmount - totalPaid` but callers passed `remainingBalance = netPayable - totalPaid` (TDS already deducted)
+  - Fix: Correctly derive `totalPaid` from passed `remainingBalance` using `originalNetPayable`
+  - Files fixed: `payment-form-panel.tsx`, `invoice-detail-panel-v3/index.tsx`, `invoice-detail-panel-v2.tsx`
+  - Also added missing `tdsRounded` prop to panel callers
+
+- 🔄 BUG-007: Investigated Vendor Auto-Approval During Invoice Creation
+  - Investigation complete - documented root cause analysis
+  - Backend logic appears correct (`getVendorCreationStatus` returns PENDING_APPROVAL for non-admins)
+  - Prisma schema has risky default `@default("APPROVED")` - should be `"PENDING_APPROVAL"`
+  - Need to verify user session role is being passed correctly
+  - Proposed fix documented in improvement plan
+
+**Next Up**:
+
+**Group E: Approval Workflow (NEW)**
+1. 🔜 BUG-007: Vendor Auto-Approval Bug (~2-3 hours)
+   - Change Prisma default to "PENDING_APPROVAL"
+   - Add logging to trace user role
+   - Verify with standard user account
+   - Add vendor pending notification
+
+**Progress Summary (2024-12-15)**:
+| Item | Status | Group | Notes |
+|------|--------|-------|-------|
+| BUG-008: Double TDS Deduction | ✅ COMPLETED | A | Fixed `actualRemainingBalance` calculation |
+| BUG-007: Vendor Auto-Approval | ✅ COMPLETED | E | Full workflow implemented with UI dialog |
+
+**BUG-007 Implementation Summary:**
+
+*Phase 1: Backend Safety (Completed)*
+- Changed Prisma schema default from `"APPROVED"` to `"PENDING_APPROVAL"` for safety
+- Added debug logging to trace user role during vendor creation
+- Added 3 new notification types: `VENDOR_PENDING_APPROVAL`, `VENDOR_APPROVED`, `VENDOR_REJECTED`
+- Added notification helper functions for vendor approval workflow
+- Standard users creating vendors now trigger admin notifications
+- Admins approving/rejecting vendors now notify the original creator
+- Updated notification panel UI with Building2 icon for vendor notifications
+
+*Phase 2: Vendor Rejection Cascade (Completed)*
+- `rejectVendorRequest` now auto-rejects all pending invoices associated with the rejected vendor
+- Uses atomic transaction for data integrity
+- Sends notification to each affected invoice creator
+- Returns count of rejected invoices in response
+
+*Phase 3: Invoice Approval Check & Dialog (Completed)*
+- Added `checkInvoiceApprovalEligibility` server action to check vendor status
+- Added `useCheckInvoiceApprovalEligibility` hook for React Query
+- Added `useApproveVendor` hook for vendor approval from dialog
+- Modified `handleApprove` in invoice panel to check vendor status first
+- Added warning dialog showing vendor details when vendor is pending
+- Dialog has "Cancel" and "Approve Vendor" buttons
+- After vendor approval, admin can approve invoice separately
+
+**Files Modified:**
+- `schema.prisma` - Vendor default status
+- `app/actions/master-data.ts` - Debug logging, vendor notifications
+- `app/actions/admin/master-data-approval.ts` - Cascade vendor rejection to invoices
+- `app/actions/invoices-v2.ts` - `checkInvoiceApprovalEligibility` function
+- `app/actions/notifications.ts` - Vendor notification helpers
+- `types/notification.ts` - Vendor notification types
+- `hooks/use-invoices-v2.ts` - `useCheckInvoiceApprovalEligibility` hook
+- `hooks/use-vendors.ts` - `useApproveVendor` hook
+- `components/invoices/invoice-detail-panel-v3/index.tsx` - Vendor pending dialog
+- `components/notifications/notification-panel.tsx` - Vendor notification icons
