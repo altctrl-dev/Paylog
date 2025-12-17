@@ -73,6 +73,8 @@ PayLog is a **comprehensive expense and invoice management system** designed for
 - ✅ Invoice Detail Panel Redesign (responsive mobile, action bar in footer)
 - ✅ useMediaQuery hook for responsive breakpoints
 - ✅ Tab overflow menu for mobile screens
+- ✅ Native mobile dropdowns (replacing Radix UI for touch compatibility)
+- ✅ Panel responsive width (maxWidth instead of fixed width)
 
 ---
 
@@ -1212,6 +1214,99 @@ export function useCreateInvoice() {
     },
   });
 }
+```
+
+### 8. Mobile Responsive Pattern
+
+**Use native dropdowns for mobile instead of Radix UI**:
+
+```typescript
+// ❌ WRONG - Radix UI has touch event issues on mobile
+import { DropdownMenu, DropdownMenuContent } from '@/components/ui/dropdown-menu';
+
+<DropdownMenu>
+  <DropdownMenuTrigger>...</DropdownMenuTrigger>
+  <DropdownMenuContent>...</DropdownMenuContent>
+</DropdownMenu>
+
+// ✅ CORRECT - Native dropdown with state for mobile
+const [isOpen, setIsOpen] = useState(false);
+const menuRef = useRef<HTMLDivElement>(null);
+const triggerRef = useRef<HTMLButtonElement>(null);
+
+// Click outside detection
+useEffect(() => {
+  if (!isOpen) return;
+  const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+    if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+      setIsOpen(false);
+    }
+  };
+  document.addEventListener('mousedown', handleClickOutside);
+  document.addEventListener('touchstart', handleClickOutside);  // Important for mobile!
+  return () => {
+    document.removeEventListener('mousedown', handleClickOutside);
+    document.removeEventListener('touchstart', handleClickOutside);
+  };
+}, [isOpen]);
+
+// Render
+<div className="relative">
+  <button ref={triggerRef} onClick={() => setIsOpen(!isOpen)} className="touch-manipulation">
+    <MoreVertical />
+  </button>
+  {isOpen && (
+    <div ref={menuRef} className="absolute ... z-[9999]">
+      {items.map(item => <button key={item.id} onClick={() => handleSelect(item)} />)}
+    </div>
+  )}
+</div>
+```
+
+**Key CSS classes for mobile**:
+- `touch-manipulation` - Removes 300ms touch delay
+- `select-none` - Prevents text selection on tap
+- `z-[9999]` - Ensures menu appears above panel containers
+
+### 9. Panel Width Pattern
+
+**Use maxWidth for responsive panel sizing**:
+
+```typescript
+// ❌ WRONG - Fixed width breaks mobile
+style={{
+  width: config.width,  // 800px - overrides CSS classes!
+}}
+
+// ✅ CORRECT - maxWidth allows shrinking
+style={{
+  maxWidth: config.width,  // Caps at 800px, allows 100% on mobile
+}}
+className="w-full"  // 100% on all screens, capped by maxWidth
+```
+
+### 10. Tab Overflow Pattern
+
+**For mobile tab overflow with swap behavior**:
+
+```typescript
+const computeTabSets = useMemo(() => {
+  if (!isMobile) return { visible: tabs, overflow: [] };
+
+  const baseVisible = tabs.slice(0, mobileMaxTabs);
+  const baseOverflow = tabs.slice(mobileMaxTabs);
+  const activeOverflowTab = baseOverflow.find(t => t.id === activeTab);
+
+  if (activeOverflowTab) {
+    // SWAP: active overflow tab replaces last visible tab
+    const lastVisible = baseVisible[baseVisible.length - 1];
+    return {
+      visible: [...baseVisible.slice(0, -1), activeOverflowTab],
+      overflow: [...baseOverflow.filter(t => t.id !== activeTab), lastVisible],
+    };
+  }
+  return { visible: baseVisible, overflow: baseOverflow };
+}, [tabs, activeTab, isMobile, mobileMaxTabs]);
 ```
 
 ---

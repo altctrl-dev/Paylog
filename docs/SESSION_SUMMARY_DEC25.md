@@ -798,3 +798,231 @@ All checks passed:
 **All Items**: 13/13 (100%)
 **Overall Progress**: ~99% complete toward v1.0.0
 **Next Steps**: Final testing, documentation review, v1.0.0 release prep
+
+---
+
+## December 18, 2025 Session #3 - Mobile Bug Fixes
+
+### Issues Reported by User
+
+The user reported three critical mobile bugs in the Invoice Detail Panel:
+
+1. **Dropdown Menus Not Working**: Both 3-dot overflow menus (tabs and footer actions) didn't respond to clicks/taps on mobile
+2. **Panel Content Clipped on Left Edge**: Content was being cut off on the left side (e.g., "Invoice Date" appeared as "nvoice Date")
+3. **Tab Overflow Logic Bug**: When selecting a tab from the overflow menu (e.g., Activity), the replaced tab (Attachments) disappeared completely
+
+---
+
+### Root Cause Analysis
+
+#### Bug 1: Dropdown Menus Not Working on Mobile
+
+**Root Cause**: Radix UI's `DropdownMenu` and `Popover` components have known issues with touch events on mobile Safari and Chrome. The `modal` behavior interferes with focus management on touch devices.
+
+**Investigation Path**:
+1. Initially tried adding `modal={false}` to DropdownMenu - didn't work
+2. Tried switching to Popover with portal - still didn't work
+3. Finally realized the issue was fundamental to Radix UI touch handling
+
+#### Bug 2: Panel Content Clipped on Left Edge
+
+**Root Cause**: The inline `width: config.width` (800px) in `panel-level.tsx` overrode the CSS class `w-full`. Since inline styles have higher specificity than class styles, the panel was forced to 800px even on mobile devices, causing it to extend beyond the left edge of the viewport.
+
+**Code Location**: `components/panels/panel-level.tsx:98-101`
+```typescript
+// BEFORE - The bug
+style={{
+  zIndex: config.zIndex,
+  width: config.width,  // 800px - overrides w-full class!
+}}
+```
+
+#### Bug 3: Tab Overflow Logic Bug
+
+**Root Cause**: The original logic replaced the last visible tab with the active overflow tab, but didn't add the replaced tab to the overflow menu. This caused the replaced tab to "disappear" from both locations.
+
+**Example of the bug**:
+- Original: `visibleTabs = [Details, Payments, Attachments]`, `overflowTabs = [Activity]`
+- User selects Activity
+- Bug result: `visibleTabs = [Details, Payments, Activity]`, `overflowTabs = [Activity]` - Attachments gone!
+
+---
+
+### Solutions Implemented
+
+#### Fix 1: Native Dropdowns for Mobile
+**Files**: `components/panels/shared/panel-tabs.tsx`, `components/invoices/invoice-detail-panel-v3/index.tsx`
+
+Replaced Radix UI components with native dropdown implementation:
+
+```typescript
+// New approach using useState and native buttons
+const [isOverflowOpen, setIsOverflowOpen] = useState(false);
+const menuRef = useRef<HTMLDivElement>(null);
+const triggerRef = useRef<HTMLButtonElement>(null);
+
+// Click outside detection
+useEffect(() => {
+  if (!isOverflowOpen) return;
+  const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+    if (
+      menuRef.current && !menuRef.current.contains(event.target as Node) &&
+      triggerRef.current && !triggerRef.current.contains(event.target as Node)
+    ) {
+      setIsOverflowOpen(false);
+    }
+  };
+  document.addEventListener('mousedown', handleClickOutside);
+  document.addEventListener('touchstart', handleClickOutside);
+  return () => {
+    document.removeEventListener('mousedown', handleClickOutside);
+    document.removeEventListener('touchstart', handleClickOutside);
+  };
+}, [isOverflowOpen]);
+
+// Native dropdown menu
+{isOverflowOpen && (
+  <div ref={menuRef} className="absolute ... z-[9999]">
+    {items.map(item => (
+      <button onClick={() => handleSelect(item)}>...</button>
+    ))}
+  </div>
+)}
+```
+
+**Key Changes**:
+- Native `<button>` elements instead of Radix triggers
+- `touch-manipulation` CSS for removing touch delay
+- `z-[9999]` for proper layering above panels
+- Both `mousedown` and `touchstart` event listeners
+- `select-none` to prevent text selection on tap
+
+#### Fix 2: maxWidth Instead of width
+**File**: `components/panels/panel-level.tsx`
+
+```typescript
+// BEFORE
+style={{
+  zIndex: config.zIndex,
+  width: config.width,  // Forces 800px even on mobile
+}}
+
+// AFTER
+style={{
+  zIndex: config.zIndex,
+  maxWidth: config.width,  // Allows shrinking on mobile
+}}
+
+// Also simplified getWidthClass()
+const getWidthClass = () => 'w-full';  // Always 100%, maxWidth caps it
+```
+
+This allows the panel to be 100% width on mobile (via `w-full` class) while capping at the configured width on larger screens.
+
+#### Fix 3: Proper Tab Swap Logic
+**File**: `components/panels/shared/panel-tabs.tsx`
+
+```typescript
+// New computeTabSets with useMemo
+const computeTabSets = React.useMemo(() => {
+  if (!isMobile) {
+    return { visible: tabs, overflow: [] as TabItem[] };
+  }
+
+  const baseVisible = tabs.slice(0, mobileMaxTabs);
+  const baseOverflow = tabs.slice(mobileMaxTabs);
+
+  // Check if active tab is in the overflow set
+  const activeOverflowTab = baseOverflow.find((tab) => tab.id === activeTab);
+
+  if (activeOverflowTab) {
+    // Swap: replace last visible tab with active overflow tab
+    const lastVisibleTab = baseVisible[baseVisible.length - 1];
+    const newVisible = [...baseVisible.slice(0, -1), activeOverflowTab];
+    // Put the replaced tab into overflow, remove the active one
+    const newOverflow = [
+      ...baseOverflow.filter((tab) => tab.id !== activeTab),
+      lastVisibleTab,
+    ];
+    return { visible: newVisible, overflow: newOverflow };
+  }
+
+  return { visible: baseVisible, overflow: baseOverflow };
+}, [tabs, activeTab, isMobile, mobileMaxTabs]);
+```
+
+**Result**:
+- Default: `visible = [Details, Payments, Attachments]`, `overflow = [Activity]`
+- User selects Activity: `visible = [Details, Payments, Activity]`, `overflow = [Attachments]` ✓
+
+---
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `components/panels/shared/panel-tabs.tsx` | Native dropdown, proper tab swap logic |
+| `components/panels/panel-level.tsx` | `maxWidth` instead of `width` |
+| `components/invoices/invoice-detail-panel-v3/index.tsx` | Native dropdown for footer actions |
+
+---
+
+### Commits
+
+```
+0caae6a fix(tabs): properly swap overflow tab with last visible tab on mobile
+039a4c4 fix(panel): use maxWidth for responsive panel sizing on mobile
+3af4605 fix(mobile): replace Radix UI popover with native dropdown for mobile menus
+```
+
+---
+
+### Lessons Learned
+
+1. **Radix UI Touch Issues**: Radix UI's DropdownMenu and Popover have fundamental issues with touch events on mobile. For critical mobile UX, prefer native implementations.
+
+2. **Inline Style Specificity**: Inline `style={{ width }}` overrides CSS classes. Use `maxWidth` or ensure responsive classes aren't needed.
+
+3. **Tab Swap Logic**: When implementing "swap" behavior, ensure items move to BOTH locations - don't just replace one without updating the other.
+
+4. **Mobile Testing is Critical**: Always test on actual mobile devices, not just responsive mode in desktop browsers.
+
+---
+
+### Testing Checklist
+
+After these fixes, verify:
+- [x] Tab overflow menu opens on mobile tap
+- [x] Footer actions menu opens on mobile tap
+- [x] Panel content is not clipped on left edge
+- [x] Selecting Activity from overflow moves Attachments to overflow
+- [x] Selecting Attachments from overflow moves Activity to overflow
+- [x] All tabs remain accessible
+- [x] Close button works on mobile
+- [x] Panel fills viewport width on mobile
+
+---
+
+### Quality Gates
+
+All checks passed:
+- ✅ `pnpm lint` - 0 errors
+- ✅ `pnpm typecheck` - 0 errors
+- ✅ `pnpm build` - Successful
+
+---
+
+## Summary of All December 18, 2025 Sessions
+
+| Session | Focus | Key Deliverables |
+|---------|-------|------------------|
+| #1 | Sprint 14 Completion | AmountInput, Payment Types CRUD, Activities Tab, Settings Restructure |
+| #2 | Invoice Panel Redesign | Human-readable title, header redesign, due date in details, responsive tabs, mobile footer |
+| #3 | Mobile Bug Fixes | Native dropdowns, maxWidth fix, proper tab swap logic |
+
+---
+
+**Final Session Status**: ALL MOBILE BUGS FIXED
+**Sprint 14**: COMPLETE (13/13 items)
+**Overall Progress**: ~99% complete toward v1.0.0
+**Next Steps**: v1.0.0 release preparation
