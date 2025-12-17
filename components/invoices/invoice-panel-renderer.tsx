@@ -168,11 +168,15 @@ export function InvoicePanelRenderer({
           onClose={onClose}
           invoiceId={props.invoiceId as number}
           invoiceNumber={props.invoiceNumber as string}
+          invoiceName={props.invoiceName as string | undefined}
+          invoiceStatus={props.invoiceStatus as import('@/types/invoice').InvoiceStatus | undefined}
           invoiceAmount={props.invoiceAmount as number}
           remainingBalance={props.remainingBalance as number}
           tdsApplicable={props.tdsApplicable as boolean | undefined}
           tdsPercentage={props.tdsPercentage as number | undefined}
           tdsRounded={props.tdsRounded as boolean | undefined}
+          vendorName={props.vendorName as string | undefined}
+          currencyCode={props.currencyCode as string | undefined}
         />
       );
 

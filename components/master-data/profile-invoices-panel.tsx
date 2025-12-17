@@ -40,6 +40,7 @@ type Profile = {
   name: string;
   description: string | null;
   vendor: { name: string };
+  currency: { code: string };
   billing_frequency: string | null;
   tds_applicable: boolean;
   tds_percentage: number | null;
@@ -193,11 +194,15 @@ export function ProfileInvoicesPanel({
     openPanel('payment-record', {
       invoiceId: invoice.id,
       invoiceNumber: invoice.invoice_number,
+      invoiceName: profile?.name,
+      invoiceStatus: invoice.status,
       invoiceAmount: invoice.invoice_amount,
       remainingBalance: invoice.remainingBalance,
       tdsApplicable: invoice.tds_applicable,
       tdsPercentage: invoice.tds_percentage,
       tdsRounded: invoice.tds_rounded,
+      vendorName: profile?.vendor?.name,
+      currencyCode: profile?.currency?.code,
     });
   };
 

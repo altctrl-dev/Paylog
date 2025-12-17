@@ -164,11 +164,17 @@ export function InvoiceDetailPanelV3({
       {
         invoiceId,
         invoiceNumber: invoice.invoice_number,
+        invoiceName: invoice.is_recurring
+          ? invoice.invoice_profile?.name
+          : invoice.invoice_name || invoice.description,
+        invoiceStatus: invoice.status,
         invoiceAmount: invoice.invoice_amount,
         remainingBalance,
         tdsApplicable: invoice.tds_applicable,
         tdsPercentage: invoice.tds_percentage,
         tdsRounded: invoice.tds_rounded ?? false,
+        vendorName: invoice.vendor?.name,
+        currencyCode: invoice.currency?.code,
       },
       { width: PANEL_WIDTH.MEDIUM }
     );

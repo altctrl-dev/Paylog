@@ -4,12 +4,7 @@
  * Records full or partial payments against an invoice.
  * Uses React Hook Form + Zod for type-safe form handling.
  *
- * Field Order:
- * 1. Payment Date
- * 2. Amount Paid
- * 3. Payment Method
- * 4. Transaction Reference (optional)
- * 5. TDS Rounding Toggle (if TDS applicable)
+ * Redesigned with shared panel components for consistency with V3 panels.
  */
 
 'use client';
@@ -17,7 +12,7 @@
 import * as React from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ArrowUp } from 'lucide-react';
+import { CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,13 +20,22 @@ import { Select } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Card } from '@/components/ui/card';
 import { PanelLevel } from '@/components/panels/panel-level';
+import {
+  PanelSummaryHeader,
+  PanelStatGroup,
+  PanelSection,
+  type StatItem,
+} from '@/components/panels/shared';
 import { usePanel } from '@/hooks/use-panel';
 import { useCreatePayment } from '@/hooks/use-payments';
 import { usePaymentTypes } from '@/hooks/use-invoices-v2';
 import { type PaymentFormData } from '@/types/payment';
 import { paymentFormSchema } from '@/lib/validations/payment';
 import { AmountInput } from '@/components/invoices-v2/amount-input';
+import { InvoiceStatusBadge } from '@/components/invoices/invoice-status-badge';
 import { calculateTds } from '@/lib/utils/tds';
+import type { InvoiceStatus } from '@/types/invoice';
+import { cn } from '@/lib/utils';
 import type { PanelConfig } from '@/types/panel';
 
 interface PaymentFormPanelProps {
@@ -39,6 +43,10 @@ interface PaymentFormPanelProps {
   onClose: () => void;
   invoiceId: number;
   invoiceNumber: string;
+  /** Invoice name (profile name for recurring, invoice_name for non-recurring) */
+  invoiceName?: string;
+  /** Invoice status for display badge */
+  invoiceStatus?: InvoiceStatus;
   invoiceAmount: number;
   remainingBalance: number;
   /** Whether TDS is applicable for this invoice */
@@ -47,6 +55,10 @@ interface PaymentFormPanelProps {
   tdsPercentage?: number;
   /** Whether TDS should be rounded (ceiling) - from invoice preference (BUG-003) */
   tdsRounded?: boolean;
+  /** Vendor name for display in header */
+  vendorName?: string;
+  /** Currency code for display (e.g., 'INR', 'USD') */
+  currencyCode?: string;
 }
 
 /**
@@ -72,13 +84,47 @@ function parseDateFromInput(value: string): Date {
 /**
  * Format currency for display
  */
-function formatCurrency(amount: number): string {
+function formatCurrency(amount: number, currencyCode: string = 'INR'): string {
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
-    currency: 'INR',
+    currency: currencyCode,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(amount);
+}
+
+/**
+ * Progress bar component for payment progress visualization
+ */
+function PaymentProgressBar({
+  percentage,
+  label = 'Payment Progress',
+}: {
+  percentage: number;
+  label?: string;
+}) {
+  const clampedPercentage = Math.min(Math.max(percentage, 0), 100);
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-muted-foreground">{label}</span>
+        <span className="font-medium">{clampedPercentage.toFixed(0)}%</span>
+      </div>
+      <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+        <div
+          className={cn(
+            'h-full rounded-full transition-all duration-500',
+            clampedPercentage >= 100
+              ? 'bg-green-500 dark:bg-green-400'
+              : clampedPercentage >= 50
+                ? 'bg-primary'
+                : 'bg-amber-500 dark:bg-amber-400'
+          )}
+          style={{ width: `${clampedPercentage}%` }}
+        />
+      </div>
+    </div>
+  );
 }
 
 export function PaymentFormPanel({
@@ -86,11 +132,15 @@ export function PaymentFormPanel({
   onClose,
   invoiceId,
   invoiceNumber,
+  invoiceName,
+  invoiceStatus,
   invoiceAmount,
   remainingBalance,
   tdsApplicable = false,
   tdsPercentage = 0,
   tdsRounded = false,
+  vendorName,
+  currencyCode = 'INR',
 }: PaymentFormPanelProps) {
   const { closeAllPanels } = usePanel();
   const createPaymentMutation = useCreatePayment();
@@ -111,7 +161,7 @@ export function PaymentFormPanel({
     setError,
   } = useForm<PaymentFormData>({
     resolver: zodResolver(paymentFormSchema),
-    mode: 'onChange',
+    mode: 'onBlur', // Changed from onChange to prevent premature validation errors
     defaultValues: {
       amount_paid: 0,
       payment_date: new Date(),
@@ -131,6 +181,7 @@ export function PaymentFormPanel({
 
   // Watch amount to validate against remaining balance
   const watchedAmount = watch('amount_paid');
+  const watchedPaymentTypeId = watch('payment_type_id');
 
   // Calculate TDS amounts (exact and rounded)
   const tdsCalculation = React.useMemo(() => {
@@ -149,6 +200,14 @@ export function PaymentFormPanel({
       payableRounded: roundedResult.payableAmount,
     };
   }, [invoiceAmount, tdsApplicable, tdsPercentage, roundTds]);
+
+  // Calculate the net payable amount (after TDS)
+  const payableAmount = React.useMemo(() => {
+    if (tdsApplicable && tdsPercentage) {
+      return roundTds ? tdsCalculation.payableRounded : tdsCalculation.payableExact;
+    }
+    return invoiceAmount;
+  }, [invoiceAmount, tdsApplicable, tdsPercentage, roundTds, tdsCalculation]);
 
   // Calculate the actual remaining balance (accounting for TDS)
   // The passed remainingBalance is already: originalNetPayable - totalPaid (TDS already deducted by caller)
@@ -173,6 +232,16 @@ export function PaymentFormPanel({
     return remainingBalance;
   }, [remainingBalance, invoiceAmount, tdsApplicable, tdsPercentage, tdsRounded, roundTds, tdsCalculation]);
 
+  // Calculate total paid so far
+  const totalPaid = React.useMemo(() => {
+    if (tdsApplicable && tdsPercentage) {
+      const originalTdsResult = calculateTds(invoiceAmount, tdsPercentage, tdsRounded);
+      const originalNetPayable = originalTdsResult.payableAmount;
+      return Math.max(0, originalNetPayable - remainingBalance);
+    }
+    return invoiceAmount - remainingBalance;
+  }, [invoiceAmount, remainingBalance, tdsApplicable, tdsPercentage, tdsRounded]);
+
   // Calculate remaining balance after this payment
   const remainingAfterPayment = React.useMemo(() => {
     const amount = watchedAmount || 0;
@@ -187,12 +256,18 @@ export function PaymentFormPanel({
     }
   }, [tdsApplicable, tdsPercentage, roundTds, tdsCalculation.activeTds, setValue]);
 
+  // Check if selected payment type requires reference
+  const requiresReference = React.useMemo(() => {
+    const selectedType = paymentTypes.find((pt) => pt.id === watchedPaymentTypeId);
+    return selectedType?.requires_reference ?? false;
+  }, [paymentTypes, watchedPaymentTypeId]);
+
   const onSubmit = async (data: PaymentFormData) => {
     try {
       // Validate amount doesn't exceed remaining balance (after TDS)
       if (data.amount_paid > actualRemainingBalance) {
         setError('amount_paid', {
-          message: `Amount cannot exceed remaining balance of ${formatCurrency(actualRemainingBalance)}`,
+          message: `Amount cannot exceed remaining balance of ${formatCurrency(actualRemainingBalance, currencyCode)}`,
         });
         return;
       }
@@ -209,10 +284,45 @@ export function PaymentFormPanel({
     }
   };
 
+  // Calculate payment progress percentage
+  const currentProgressPercentage = payableAmount > 0 ? (totalPaid / payableAmount) * 100 : 0;
+
+  // Build hero stats array (2x2 grid layout)
+  const heroStats: StatItem[] = [
+    {
+      label: 'Invoice Amount',
+      value: formatCurrency(invoiceAmount, currencyCode),
+      variant: 'default',
+    },
+  ];
+
+  if (tdsApplicable && tdsPercentage > 0) {
+    heroStats.push({
+      label: 'TDS Deducted',
+      value: `-${formatCurrency(tdsCalculation.activeTds, currencyCode)}`,
+      subtitle: roundTds ? `${tdsPercentage}% · Rounded` : `${tdsPercentage}%`,
+      variant: 'warning',
+    });
+  }
+
+  // Add "Already Paid" card with percentage
+  heroStats.push({
+    label: 'Already Paid',
+    value: formatCurrency(totalPaid, currencyCode),
+    subtitle: totalPaid > 0 ? `${currentProgressPercentage.toFixed(0)}%` : undefined,
+    variant: 'success',
+  });
+
+  heroStats.push({
+    label: 'Remaining',
+    value: formatCurrency(actualRemainingBalance, currencyCode),
+    variant: actualRemainingBalance > 0 ? 'danger' : 'success',
+  });
+
   return (
     <PanelLevel
       config={config}
-      title={`Record Payment - ${invoiceNumber}`}
+      title={`Record Payment - ${invoiceName || invoiceNumber}`}
       onClose={onClose}
       footer={
         <>
@@ -228,250 +338,224 @@ export function PaymentFormPanel({
         </>
       }
     >
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        {/* Invoice Summary Card */}
-        <Card className="border-secondary p-4">
-          <h3 className="mb-2 font-semibold text-secondary">Invoice Summary</h3>
-          <div className="space-y-1 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Invoice Amount:</span>
-              <span className="font-medium">{formatCurrency(invoiceAmount)}</span>
-            </div>
-            {tdsApplicable && tdsPercentage > 0 && (
-              <>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">TDS ({tdsPercentage}%):</span>
-                  <span className="font-medium text-amber-600">
-                    -{formatCurrency(tdsCalculation.activeTds)}
-                    {roundTds && tdsCalculation.exactTds !== tdsCalculation.roundedTds && (
-                      <span className="ml-1 text-xs">(rounded)</span>
-                    )}
-                  </span>
+      <div className="space-y-6">
+        {/* Header Section */}
+        <div className="border-b pb-4">
+          <div className="flex items-start justify-between gap-4">
+            <PanelSummaryHeader
+              title={invoiceNumber}
+              subtitle={vendorName ? `from ${vendorName}` : undefined}
+            />
+            {/* Right side: Status badge + TDS toggle */}
+            <div className="flex flex-col items-end gap-2 shrink-0">
+              {/* Status Badge - using same component as invoice list */}
+              {invoiceStatus && (
+                <InvoiceStatusBadge status={invoiceStatus} />
+              )}
+              {/* TDS Round Toggle - Only show when TDS amounts differ */}
+              {tdsApplicable && tdsPercentage > 0 && tdsCalculation.exactTds !== tdsCalculation.roundedTds && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">TDS Round off</span>
+                  <Switch
+                    id="round_tds_header"
+                    checked={roundTds}
+                    onCheckedChange={setRoundTds}
+                  />
                 </div>
-                <div className="flex justify-between border-t pt-1">
-                  <span className="text-muted-foreground">Net Payable:</span>
-                  <span className="font-semibold">
-                    {formatCurrency(roundTds ? tdsCalculation.payableRounded : tdsCalculation.payableExact)}
-                  </span>
-                </div>
-              </>
-            )}
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Remaining Balance:</span>
-              <span className="font-semibold text-destructive">
-                {formatCurrency(actualRemainingBalance)}
-              </span>
+              )}
             </div>
-            {watchedAmount > 0 && (
-              <div className="flex justify-between border-t pt-1">
-                <span className="text-muted-foreground">After This Payment:</span>
-                <span className="font-semibold text-primary">
-                  {formatCurrency(remainingAfterPayment)}
-                </span>
-              </div>
-            )}
           </div>
-        </Card>
-
-        {/* Payment Date */}
-        <div className="space-y-2">
-          <Label htmlFor="payment_date">
-            Payment Date <span className="text-destructive">*</span>
-          </Label>
-          <Controller
-            name="payment_date"
-            control={control}
-            render={({ field }) => (
-              <Input
-                id="payment_date"
-                type="date"
-                value={formatDateForInput(field.value)}
-                onChange={(e) => field.onChange(parseDateFromInput(e.target.value))}
-                max={formatDateForInput(new Date())}
-                className={errors.payment_date ? 'border-destructive' : ''}
-              />
-            )}
-          />
-          {errors.payment_date && (
-            <p className="text-xs text-destructive">
-              {errors.payment_date.message}
-            </p>
-          )}
-          <p className="text-xs text-muted-foreground">
-            Date when payment was received
-          </p>
         </div>
 
-        {/* Amount Paid */}
-        <div className="space-y-2">
-          <Label htmlFor="amount_paid">
-            Amount Paid <span className="text-destructive">*</span>
-          </Label>
-          <Controller
-            name="amount_paid"
-            control={control}
-            render={({ field }) => (
-              <AmountInput
-                id="amount_paid"
-                value={field.value}
-                onChange={field.onChange}
-                placeholder="0.00"
-                hasError={!!errors.amount_paid}
-              />
-            )}
-          />
-          {errors.amount_paid && (
-            <p className="text-xs text-destructive">
-              {errors.amount_paid.message}
-            </p>
-          )}
-          <p className="text-xs text-muted-foreground">
-            Maximum: {formatCurrency(actualRemainingBalance)}
-          </p>
-        </div>
+        {/* Hero Stats - 3 cards = single row, 4 cards = 2x2 grid */}
+        <PanelStatGroup
+          stats={heroStats}
+          columns={heroStats.length === 3 ? 3 : 2}
+        />
 
-        {/* Payment Type */}
-        <div className="space-y-2">
-          <Label htmlFor="payment_type_id">
-            Payment Type <span className="text-destructive">*</span>
-          </Label>
-          <Controller
-            name="payment_type_id"
-            control={control}
-            render={({ field }) => (
-              <Select
-                id="payment_type_id"
-                value={field.value?.toString() || ''}
-                onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value, 10) : 0)}
-                className={errors.payment_type_id ? 'border-destructive' : ''}
-                disabled={isLoadingPaymentTypes}
-              >
-                {isLoadingPaymentTypes ? (
-                  <option value="">Loading...</option>
-                ) : paymentTypes.length === 0 ? (
-                  <option value="">No payment types available</option>
-                ) : (
-                  <>
-                    <option value="">-- Select Payment Type --</option>
-                    {paymentTypes.map((type) => (
-                      <option key={type.id} value={type.id}>
-                        {type.name}
-                      </option>
-                    ))}
-                  </>
-                )}
-              </Select>
-            )}
+        {/* Current Payment Progress */}
+        {totalPaid > 0 && (
+          <PaymentProgressBar
+            percentage={currentProgressPercentage}
+            label="Current Progress"
           />
-          {errors.payment_type_id && (
-            <p className="text-xs text-destructive">
-              {errors.payment_type_id.message}
-            </p>
-          )}
-        </div>
+        )}
 
-        {/* Transaction Reference (Conditional based on payment type) */}
-        <div className="space-y-2">
-          <Label htmlFor="payment_reference">
-            Transaction Reference{' '}
-            {paymentTypes.find(pt => pt.id === watch('payment_type_id'))?.requires_reference ? (
-              <span className="text-destructive">*</span>
-            ) : (
-              <span className="text-muted-foreground text-xs">(Optional)</span>
-            )}
-          </Label>
-          <Controller
-            name="payment_reference"
-            control={control}
-            render={({ field }) => (
-              <Input
-                id="payment_reference"
-                type="text"
-                placeholder="e.g., TXN123456789"
-                value={field.value || ''}
-                onChange={(e) => field.onChange(e.target.value || null)}
-                className={errors.payment_reference ? 'border-destructive' : ''}
-              />
-            )}
-          />
-          {errors.payment_reference && (
-            <p className="text-xs text-destructive">
-              {errors.payment_reference.message}
-            </p>
-          )}
-          <p className="text-xs text-muted-foreground">
-            Bank transaction number or check number
-          </p>
-        </div>
-
-        {/* TDS Rounding Toggle - Only show when TDS amount is a decimal */}
-        {tdsApplicable && tdsPercentage > 0 && tdsCalculation.exactTds !== tdsCalculation.roundedTds && (
-          <Card className="border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20 p-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <Label htmlFor="round_tds" className="text-base font-semibold flex items-center gap-2">
-                  <ArrowUp className="h-4 w-4 text-amber-600" />
-                  Round Off TDS
+        {/* Form */}
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          {/* Payment Details Section */}
+          <PanelSection title="Payment Details">
+            {/* Row 1: Amount (with currency prefix) + Date */}
+            <div className="grid grid-cols-2 gap-4">
+              {/* Amount Paid with Currency Prefix */}
+              <div className="space-y-2">
+                <Label htmlFor="amount_paid">
+                  Amount <span className="text-destructive">*</span>
                 </Label>
+                <div className="flex">
+                  {/* Currency Prefix */}
+                  <div className="flex items-center justify-center px-3 border border-r-0 rounded-l-md bg-muted text-muted-foreground text-sm font-medium min-w-[70px]">
+                    {currencyCode} {currencyCode === 'INR' ? '₹' : currencyCode === 'USD' ? '$' : ''}
+                  </div>
+                  {/* Amount Input */}
+                  <Controller
+                    name="amount_paid"
+                    control={control}
+                    render={({ field }) => (
+                      <AmountInput
+                        id="amount_paid"
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="0.00"
+                        hasError={!!errors.amount_paid}
+                        className="rounded-l-none flex-1"
+                      />
+                    )}
+                  />
+                </div>
+                {errors.amount_paid && (
+                  <p className="text-xs text-destructive">
+                    {errors.amount_paid.message}
+                  </p>
+                )}
                 <p className="text-xs text-muted-foreground">
-                  Round up TDS to the next integer (ceiling)
+                  Max: {formatCurrency(actualRemainingBalance, currencyCode)}
                 </p>
               </div>
-              <Switch
-                id="round_tds"
-                checked={roundTds}
-                onCheckedChange={setRoundTds}
+
+              {/* Payment Date */}
+              <div className="space-y-2">
+                <Label htmlFor="payment_date">
+                  Date <span className="text-destructive">*</span>
+                </Label>
+                <Controller
+                  name="payment_date"
+                  control={control}
+                  render={({ field }) => (
+                    <Input
+                      id="payment_date"
+                      type="date"
+                      value={formatDateForInput(field.value)}
+                      onChange={(e) => field.onChange(parseDateFromInput(e.target.value))}
+                      max={formatDateForInput(new Date())}
+                      className={errors.payment_date ? 'border-destructive' : ''}
+                    />
+                  )}
+                />
+                {errors.payment_date && (
+                  <p className="text-xs text-destructive">
+                    {errors.payment_date.message}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mt-4">
+              {/* Payment Type - Left */}
+              <div className="space-y-2">
+                <Label htmlFor="payment_type_id">
+                  Payment Type <span className="text-destructive">*</span>
+                </Label>
+                <Controller
+                  name="payment_type_id"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      id="payment_type_id"
+                      value={field.value?.toString() || ''}
+                      onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value, 10) : 0)}
+                      className={errors.payment_type_id ? 'border-destructive' : ''}
+                      disabled={isLoadingPaymentTypes}
+                    >
+                      {isLoadingPaymentTypes ? (
+                        <option value="">Loading...</option>
+                      ) : paymentTypes.length === 0 ? (
+                        <option value="">No payment types available</option>
+                      ) : (
+                        <>
+                          <option value="">-- Select --</option>
+                          {paymentTypes.map((type) => (
+                            <option key={type.id} value={type.id}>
+                              {type.name}
+                            </option>
+                          ))}
+                        </>
+                      )}
+                    </Select>
+                  )}
+                />
+                {errors.payment_type_id && (
+                  <p className="text-xs text-destructive">
+                    {errors.payment_type_id.message}
+                  </p>
+                )}
+              </div>
+
+              {/* Reference - Right */}
+              <div className="space-y-2">
+                <Label htmlFor="payment_reference">
+                  Reference{' '}
+                  {requiresReference ? (
+                    <span className="text-destructive">*</span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">(Optional)</span>
+                  )}
+                </Label>
+                <Controller
+                  name="payment_reference"
+                  control={control}
+                  render={({ field }) => (
+                    <Input
+                      id="payment_reference"
+                      type="text"
+                      placeholder="TXN123456789"
+                      value={field.value || ''}
+                      onChange={(e) => field.onChange(e.target.value || null)}
+                      className={errors.payment_reference ? 'border-destructive' : ''}
+                    />
+                  )}
+                />
+                {errors.payment_reference && (
+                  <p className="text-xs text-destructive">
+                    {errors.payment_reference.message}
+                  </p>
+                )}
+              </div>
+            </div>
+          </PanelSection>
+
+          {/* After This Payment Preview */}
+          {watchedAmount > 0 && (
+            <PanelSection title="After This Payment">
+              <PaymentProgressBar
+                percentage={((totalPaid + watchedAmount) / payableAmount) * 100}
+                label="Projected Progress"
               />
-            </div>
-            <div className="mt-3 pt-3 border-t border-amber-200 dark:border-amber-800 text-sm">
-              <div className="flex justify-between text-muted-foreground">
-                <span>Exact TDS:</span>
-                <span>{formatCurrency(tdsCalculation.exactTds)}</span>
-              </div>
-              <div className="flex justify-between font-medium">
-                <span>Rounded TDS:</span>
-                <span>{formatCurrency(tdsCalculation.roundedTds)}</span>
-              </div>
-              <div className="flex justify-between mt-2 pt-2 border-t border-amber-200 dark:border-amber-800 font-semibold">
-                <span>Applied TDS:</span>
-                <span className={roundTds ? 'text-amber-600' : ''}>
-                  {formatCurrency(tdsCalculation.activeTds)}
-                  {roundTds && <span className="ml-1 text-xs">(rounded)</span>}
-                </span>
-              </div>
-            </div>
-          </Card>
-        )}
 
-        {/* Help Text */}
-        <div className="rounded-md border border-border bg-muted p-3 text-xs">
-          <p className="mb-1 font-semibold">Payment Tips:</p>
-          <ul className="space-y-1 text-muted-foreground">
-            <li>• Payment date cannot be in the future</li>
-            <li>• Amount must not exceed remaining balance</li>
-            <li>• Invoice status will update automatically</li>
-            <li>• All panels will close after recording payment</li>
-          </ul>
-        </div>
-
-        {/* Payment Status Preview */}
-        {watchedAmount > 0 && (
-          <Card className="bg-primary/5 p-4">
-            <h4 className="mb-2 text-sm font-semibold">After Recording:</h4>
-            <div className="space-y-1 text-xs">
-              {remainingAfterPayment === 0 ? (
-                <p className="font-medium text-primary">
-                  ✓ Invoice will be marked as PAID
-                </p>
-              ) : remainingAfterPayment < remainingBalance ? (
-                <p className="font-medium text-secondary">
-                  ⚠ Invoice will be marked as PARTIALLY PAID
-                </p>
-              ) : null}
-            </div>
-          </Card>
-        )}
-      </form>
+              <Card
+                className={cn(
+                  'p-4 mt-4',
+                  remainingAfterPayment === 0
+                    ? 'border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20'
+                    : 'border-border'
+                )}
+              >
+                {remainingAfterPayment === 0 ? (
+                  <div className="flex items-center gap-2 text-green-700 dark:text-green-300">
+                    <CheckCircle className="h-4 w-4" />
+                    <span className="font-medium">Invoice will be marked as PAID</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Remaining after payment:</span>
+                    <span className="font-semibold">{formatCurrency(remainingAfterPayment, currencyCode)}</span>
+                  </div>
+                )}
+              </Card>
+            </PanelSection>
+          )}
+        </form>
+      </div>
     </PanelLevel>
   );
 }
