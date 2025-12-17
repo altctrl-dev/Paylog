@@ -85,46 +85,51 @@ export function PanelTabs({
   const activeTabContent = tabs.find((tab) => tab.id === activeTab)?.content;
 
   // Determine visible and overflow tabs on mobile
-  const visibleTabs = isMobile ? tabs.slice(0, mobileMaxTabs) : tabs;
-  const overflowTabs = isMobile ? tabs.slice(mobileMaxTabs) : [];
+  // When an overflow tab is active, swap it with the last visible tab
+  const computeTabSets = React.useMemo(() => {
+    if (!isMobile) {
+      return { visible: tabs, overflow: [] as TabItem[] };
+    }
 
-  // Check if active tab is in overflow - if so, we need to show it in the visible tabs
-  const activeInOverflow = overflowTabs.some((tab) => tab.id === activeTab);
-  const activeOverflowTab = activeInOverflow
-    ? tabs.find((tab) => tab.id === activeTab)
-    : null;
+    const baseVisible = tabs.slice(0, mobileMaxTabs);
+    const baseOverflow = tabs.slice(mobileMaxTabs);
+
+    // Check if active tab is in the overflow set
+    const activeOverflowTab = baseOverflow.find((tab) => tab.id === activeTab);
+
+    if (activeOverflowTab) {
+      // Swap: replace last visible tab with active overflow tab
+      const lastVisibleTab = baseVisible[baseVisible.length - 1];
+      const newVisible = [
+        ...baseVisible.slice(0, -1),
+        activeOverflowTab,
+      ];
+      // Put the replaced tab into overflow, remove the active one
+      const newOverflow = [
+        ...baseOverflow.filter((tab) => tab.id !== activeTab),
+        lastVisibleTab,
+      ];
+      return { visible: newVisible, overflow: newOverflow };
+    }
+
+    return { visible: baseVisible, overflow: baseOverflow };
+  }, [tabs, activeTab, isMobile, mobileMaxTabs]);
+
+  const visibleTabs = computeTabSets.visible;
+  const overflowTabs = computeTabSets.overflow;
 
   return (
     <div className={cn('flex flex-col', className)}>
       {/* Tab Bar */}
       <div className="relative flex items-end border-b border-border">
-        {visibleTabs.map((tab) => {
-          // On mobile, if active tab is in overflow, replace the last visible tab with active tab
-          if (
-            isMobile &&
-            activeInOverflow &&
-            tab.id === visibleTabs[visibleTabs.length - 1]?.id
-          ) {
-            // Show active overflow tab instead
-            return (
-              <TabButton
-                key={activeOverflowTab!.id}
-                tab={activeOverflowTab!}
-                isActive={true}
-                onClick={() => handleTabChange(activeOverflowTab!.id)}
-              />
-            );
-          }
-
-          return (
-            <TabButton
-              key={tab.id}
-              tab={tab}
-              isActive={activeTab === tab.id}
-              onClick={() => handleTabChange(tab.id)}
-            />
-          );
-        })}
+        {visibleTabs.map((tab) => (
+          <TabButton
+            key={tab.id}
+            tab={tab}
+            isActive={activeTab === tab.id}
+            onClick={() => handleTabChange(tab.id)}
+          />
+        ))}
 
         {/* Overflow Menu - Native dropdown for better mobile support */}
         {isMobile && overflowTabs.length > 0 && (
@@ -133,11 +138,7 @@ export function PanelTabs({
               ref={triggerRef}
               type="button"
               onClick={() => setIsOverflowOpen(!isOverflowOpen)}
-              className={cn(
-                'px-3 py-2 text-muted-foreground hover:text-foreground',
-                'touch-manipulation select-none',
-                activeInOverflow && 'text-foreground'
-              )}
+              className="px-3 py-2 text-muted-foreground hover:text-foreground touch-manipulation select-none"
               aria-label="More tabs"
               aria-expanded={isOverflowOpen}
               aria-haspopup="true"
