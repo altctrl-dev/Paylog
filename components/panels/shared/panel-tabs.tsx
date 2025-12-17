@@ -11,13 +11,11 @@
 import * as React from 'react';
 import { MoreVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { useIsMobile } from '@/hooks/use-media-query';
 
 export interface TabItem {
@@ -54,11 +52,13 @@ export function PanelTabs({
   const [activeTab, setActiveTab] = React.useState<string>(
     defaultTab || tabs[0]?.id || ''
   );
+  const [isOverflowOpen, setIsOverflowOpen] = React.useState(false);
   const isMobile = useIsMobile();
 
   const handleTabChange = (tabId: string) => {
     setActiveTab(tabId);
     onTabChange?.(tabId);
+    setIsOverflowOpen(false);
   };
 
   const activeTabContent = tabs.find((tab) => tab.id === activeTab)?.content;
@@ -105,44 +105,51 @@ export function PanelTabs({
           );
         })}
 
-        {/* Overflow Menu */}
+        {/* Overflow Menu - Using Popover for better mobile support */}
         {isMobile && overflowTabs.length > 0 && (
-          <DropdownMenu modal={false}>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
+          <Popover open={isOverflowOpen} onOpenChange={setIsOverflowOpen}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
                 className={cn(
-                  'h-auto px-3 py-2 text-muted-foreground hover:text-foreground',
-                  // Highlight if active tab is in overflow
+                  'px-3 py-2 text-muted-foreground hover:text-foreground touch-manipulation',
                   activeInOverflow && 'text-foreground'
                 )}
+                aria-label="More tabs"
               >
                 <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-[160px] z-[100]">
-              {overflowTabs.map((tab) => (
-                <DropdownMenuItem
-                  key={tab.id}
-                  onSelect={() => handleTabChange(tab.id)}
-                  className={cn(
-                    'cursor-pointer',
-                    activeTab === tab.id && 'bg-accent'
-                  )}
-                >
-                  <span className="flex items-center gap-2">
+              </button>
+            </PopoverTrigger>
+            <PopoverContent
+              align="end"
+              side="bottom"
+              className="w-48 p-1"
+              sideOffset={4}
+            >
+              <div className="flex flex-col">
+                {overflowTabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => handleTabChange(tab.id)}
+                    className={cn(
+                      'flex items-center gap-2 rounded-sm px-2 py-2 text-sm text-left',
+                      'hover:bg-accent hover:text-accent-foreground',
+                      'touch-manipulation',
+                      activeTab === tab.id && 'bg-accent'
+                    )}
+                  >
                     {tab.label}
                     {tab.badge !== undefined && tab.badge > 0 && (
                       <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-muted px-1.5 text-xs font-medium text-muted-foreground">
                         {tab.badge}
                       </span>
                     )}
-                  </span>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                  </button>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
         )}
       </div>
 
@@ -164,7 +171,7 @@ function TabButton({ tab, isActive, onClick }: TabButtonProps) {
       type="button"
       onClick={onClick}
       className={cn(
-        'relative px-4 py-2 text-sm font-medium transition-colors',
+        'relative px-4 py-2 text-sm font-medium transition-colors touch-manipulation',
         isActive
           ? 'text-foreground'
           : 'text-muted-foreground hover:text-foreground'

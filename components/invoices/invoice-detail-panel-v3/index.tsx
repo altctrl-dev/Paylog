@@ -48,11 +48,10 @@ import {
   MoreVertical,
 } from 'lucide-react';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import {
   Tooltip,
   TooltipContent,
@@ -538,33 +537,40 @@ export function InvoiceDetailPanelV3({
 
                   {/* Secondary Actions Overflow Menu */}
                   {(permissions.canArchive || permissions.canDelete) && (
-                    <DropdownMenu modal={false}>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-9 w-9"
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          className="h-9 w-9 inline-flex items-center justify-center rounded-md hover:bg-accent touch-manipulation"
                           disabled={isMutationPending}
+                          aria-label="More actions"
                         >
                           <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start" side="top" className="z-[100]">
-                        {permissions.canArchive && (
-                          <DropdownMenuItem onSelect={handleArchive}>
-                            Archive
-                          </DropdownMenuItem>
-                        )}
-                        {permissions.canDelete && (
-                          <DropdownMenuItem
-                            onSelect={handleDelete}
-                            className="text-destructive focus:text-destructive"
-                          >
-                            Delete
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="start" side="top" className="w-36 p-1">
+                        <div className="flex flex-col">
+                          {permissions.canArchive && (
+                            <button
+                              type="button"
+                              onClick={handleArchive}
+                              className="flex items-center rounded-sm px-2 py-2 text-sm hover:bg-accent touch-manipulation"
+                            >
+                              Archive
+                            </button>
+                          )}
+                          {permissions.canDelete && (
+                            <button
+                              type="button"
+                              onClick={handleDelete}
+                              className="flex items-center rounded-sm px-2 py-2 text-sm text-destructive hover:bg-accent touch-manipulation"
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                   )}
                 </div>
               </TooltipProvider>
