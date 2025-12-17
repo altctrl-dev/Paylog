@@ -69,19 +69,9 @@ export function PanelLevel({
     };
   }, [onClose]);
 
-  // Responsive width classes
-  const getWidthClass = () => {
-    switch (config.level) {
-      case 1:
-        return 'w-full sm:w-[350px]';
-      case 2:
-        return 'w-full sm:w-[700px]';
-      case 3:
-        return 'w-full sm:w-[500px]';
-      default:
-        return 'w-full sm:w-[350px]';
-    }
-  };
+  // Width class - w-full ensures panel fills viewport on mobile
+  // maxWidth in style prop caps it at config.width on larger screens
+  const getWidthClass = () => 'w-full';
 
   return (
     <motion.div
@@ -97,7 +87,9 @@ export function PanelLevel({
       }}
       style={{
         zIndex: config.zIndex,
-        width: config.width,
+        // Use maxWidth instead of width so panel can shrink on mobile
+        // The w-full class will make it 100% on small screens
+        maxWidth: config.width,
       }}
       className={cn(
         'panel-level fixed right-0 top-0 h-full',
