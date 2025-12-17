@@ -538,7 +538,7 @@ export function InvoiceDetailPanelV3({
 
                   {/* Secondary Actions Overflow Menu */}
                   {(permissions.canArchive || permissions.canDelete) && (
-                    <DropdownMenu>
+                    <DropdownMenu modal={false}>
                       <DropdownMenuTrigger asChild>
                         <Button
                           variant="ghost"
@@ -549,15 +549,15 @@ export function InvoiceDetailPanelV3({
                           <MoreVertical className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start">
+                      <DropdownMenuContent align="start" side="top" className="z-[100]">
                         {permissions.canArchive && (
-                          <DropdownMenuItem onClick={handleArchive}>
+                          <DropdownMenuItem onSelect={handleArchive}>
                             Archive
                           </DropdownMenuItem>
                         )}
                         {permissions.canDelete && (
                           <DropdownMenuItem
-                            onClick={handleDelete}
+                            onSelect={handleDelete}
                             className="text-destructive focus:text-destructive"
                           >
                             Delete

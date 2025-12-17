@@ -76,7 +76,7 @@ export function PanelTabs({
   return (
     <div className={cn('flex flex-col', className)}>
       {/* Tab Bar */}
-      <div className="flex border-b border-border">
+      <div className="flex items-end border-b border-border">
         {visibleTabs.map((tab) => {
           // On mobile, if active tab is in overflow, replace the last visible tab with active tab
           if (
@@ -107,7 +107,7 @@ export function PanelTabs({
 
         {/* Overflow Menu */}
         {isMobile && overflowTabs.length > 0 && (
-          <DropdownMenu>
+          <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
@@ -121,11 +121,11 @@ export function PanelTabs({
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-[160px]">
+            <DropdownMenuContent align="end" className="min-w-[160px] z-[100]">
               {overflowTabs.map((tab) => (
                 <DropdownMenuItem
                   key={tab.id}
-                  onClick={() => handleTabChange(tab.id)}
+                  onSelect={() => handleTabChange(tab.id)}
                   className={cn(
                     'cursor-pointer',
                     activeTab === tab.id && 'bg-accent'
@@ -164,9 +164,9 @@ function TabButton({ tab, isActive, onClick }: TabButtonProps) {
       type="button"
       onClick={onClick}
       className={cn(
-        'px-4 py-2 text-sm font-medium transition-colors',
+        'relative px-4 py-2 text-sm font-medium transition-colors',
         isActive
-          ? 'border-b-2 border-primary text-foreground'
+          ? 'text-foreground'
           : 'text-muted-foreground hover:text-foreground'
       )}
     >
@@ -178,6 +178,10 @@ function TabButton({ tab, isActive, onClick }: TabButtonProps) {
           </span>
         )}
       </span>
+      {/* Active indicator - positioned to overlap border */}
+      {isActive && (
+        <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+      )}
     </button>
   );
 }
