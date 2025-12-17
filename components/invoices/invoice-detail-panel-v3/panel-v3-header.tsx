@@ -6,20 +6,24 @@ import { INVOICE_STATUS_CONFIG, INVOICE_STATUS, type InvoiceStatus } from '@/typ
 import { cn } from '@/lib/utils';
 
 export interface PanelV3HeaderProps {
+  /** Invoice number to display (e.g., "INV-2025-001") */
   invoiceNumber: string;
-  invoiceName?: string | null;
+  /** Vendor name (e.g., "IOE Access") */
   vendorName: string;
+  /** Invoice status */
   status: InvoiceStatus;
+  /** Whether the invoice is recurring */
   isRecurring: boolean;
+  /** Whether the invoice is archived */
   isArchived: boolean;
   /** Whether the invoice has a pending payment awaiting approval */
   hasPendingPayment?: boolean;
+  /** Additional CSS classes */
   className?: string;
 }
 
 export function PanelV3Header({
   invoiceNumber,
-  invoiceName,
   vendorName,
   status,
   isRecurring,
@@ -36,23 +40,23 @@ export function PanelV3Header({
   const showPaymentPendingBadge = hasPendingPayment && status !== INVOICE_STATUS.PENDING_APPROVAL;
 
   return (
-    <div className={cn('space-y-1', className)}>
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <h3 className="text-lg font-semibold">{invoiceNumber}</h3>
-        <div className="flex flex-wrap items-center gap-2">
-          {showPaymentPendingBadge ? (
-            <Badge variant="purple">Payment Pending</Badge>
-          ) : (
-            <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
-          )}
-          {isRecurring && <Badge variant="secondary">Recurring</Badge>}
-          {isArchived && <Badge variant="muted">Archived</Badge>}
-        </div>
+    <div className={cn('flex items-start justify-between gap-3', className)}>
+      {/* Left side: Invoice number and vendor */}
+      <div className="space-y-0.5 min-w-0">
+        <p className="text-sm font-medium text-foreground">{invoiceNumber}</p>
+        <p className="text-sm text-muted-foreground">{vendorName}</p>
       </div>
-      {invoiceName && (
-        <p className="text-sm text-muted-foreground">{invoiceName}</p>
-      )}
-      <p className="text-sm text-muted-foreground">from {vendorName}</p>
+
+      {/* Right side: Badges stacked vertically */}
+      <div className="flex flex-col items-end gap-1.5 shrink-0">
+        {showPaymentPendingBadge ? (
+          <Badge variant="purple">Payment Pending</Badge>
+        ) : (
+          <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
+        )}
+        {isRecurring && <Badge variant="outline">Recurring</Badge>}
+        {isArchived && <Badge variant="muted">Archived</Badge>}
+      </div>
     </div>
   );
 }

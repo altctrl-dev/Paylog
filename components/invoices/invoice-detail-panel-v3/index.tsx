@@ -18,6 +18,7 @@ import { PanelTabs, type TabItem } from '@/components/panels/shared';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { useIsMobile } from '@/hooks/use-media-query';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,6 +39,26 @@ import type { PanelConfig } from '@/types/panel';
 import { PANEL_WIDTH } from '@/types/panel';
 import type { InvoiceStatus } from '@/types/invoice';
 import { calculateTds } from '@/lib/utils/tds';
+import {
+  Pencil,
+  IndianRupee,
+  Pause,
+  Check,
+  X,
+  MoreVertical,
+} from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 // V3 Sub-components
 import { useInvoicePanelV3 } from './hooks/use-invoice-panel-v3';
@@ -75,6 +96,7 @@ export function InvoiceDetailPanelV3({
   userId,
 }: InvoiceDetailPanelV3Props) {
   const { openPanel } = usePanel();
+  const isMobile = useIsMobile();
 
   // Data and permissions from custom hook
   const {
@@ -402,14 +424,155 @@ export function InvoiceDetailPanelV3({
   // RENDER
   // ============================================================================
 
+  // Derive the display name for the panel title
+  const invoiceDisplayName = invoice.is_recurring
+    ? invoice.invoice_profile?.name
+    : invoice.invoice_name || invoice.description || invoice.invoice_number;
+
+  // Get tooltip for blocked payment actions
+  const getRecordPaymentTooltip = (): string | undefined => {
+    switch (recordPaymentBlockedReason) {
+      case 'pending_payment':
+        return 'Payment pending approval';
+      case 'pending_approval':
+        return 'Invoice pending approval';
+      case 'already_paid':
+        return 'Invoice is fully paid';
+      case 'rejected':
+        return 'Invoice is rejected';
+      default:
+        return undefined;
+    }
+  };
+
+  // Mobile footer action button component
+  const MobileActionButton = ({
+    icon,
+    label,
+    onClick,
+    disabled,
+    destructive,
+    tooltip,
+  }: {
+    icon: React.ReactNode;
+    label: string;
+    onClick: () => void;
+    disabled?: boolean;
+    destructive?: boolean;
+    tooltip?: string;
+  }) => (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onClick}
+          disabled={disabled}
+          aria-label={label}
+          className={`h-9 w-9 ${destructive ? 'text-destructive hover:text-destructive' : ''}`}
+        >
+          <span className="h-5 w-5 [&>svg]:h-5 [&>svg]:w-5">{icon}</span>
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-xs">
+        {tooltip || label}
+      </TooltipContent>
+    </Tooltip>
+  );
+
   return (
     <>
       <PanelLevel
         config={config}
-        title={`Invoice ${invoice.invoice_number}`}
+        title={`Invoice - ${invoiceDisplayName}`}
         onClose={onClose}
         footer={
-          <div className="flex items-center justify-end w-full">
+          <div className="flex items-center justify-between w-full gap-2">
+            {/* Mobile Action Bar */}
+            {isMobile && (
+              <TooltipProvider delayDuration={300}>
+                <div className="flex items-center gap-1">
+                  {/* Primary Actions */}
+                  {permissions.canEdit && (
+                    <MobileActionButton
+                      icon={<Pencil className="h-4 w-4" />}
+                      label="Edit"
+                      onClick={handleEdit}
+                      disabled={isMutationPending}
+                    />
+                  )}
+                  {hasRemainingBalance && (
+                    <MobileActionButton
+                      icon={<IndianRupee className="h-4 w-4" />}
+                      label="Record Payment"
+                      onClick={handleRecordPayment}
+                      disabled={isMutationPending || !permissions.canRecordPayment}
+                      tooltip={getRecordPaymentTooltip()}
+                    />
+                  )}
+                  {permissions.canPutOnHold && (
+                    <MobileActionButton
+                      icon={<Pause className="h-4 w-4" />}
+                      label="Put On Hold"
+                      onClick={handlePutOnHold}
+                      disabled={isMutationPending}
+                    />
+                  )}
+                  {permissions.canApprove && (
+                    <MobileActionButton
+                      icon={<Check className="h-4 w-4 text-green-600" />}
+                      label="Approve"
+                      onClick={handleApprove}
+                      disabled={isMutationPending}
+                    />
+                  )}
+                  {permissions.canReject && (
+                    <MobileActionButton
+                      icon={<X className="h-4 w-4" />}
+                      label="Reject"
+                      onClick={handleReject}
+                      disabled={isMutationPending}
+                      destructive
+                    />
+                  )}
+
+                  {/* Secondary Actions Overflow Menu */}
+                  {(permissions.canArchive || permissions.canDelete) && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9"
+                          disabled={isMutationPending}
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        {permissions.canArchive && (
+                          <DropdownMenuItem onClick={handleArchive}>
+                            Archive
+                          </DropdownMenuItem>
+                        )}
+                        {permissions.canDelete && (
+                          <DropdownMenuItem
+                            onClick={handleDelete}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            Delete
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </div>
+              </TooltipProvider>
+            )}
+
+            {/* Spacer for desktop (to push Close to right) */}
+            {!isMobile && <div />}
+
             <Button variant="outline" onClick={onClose}>
               Close
             </Button>
@@ -420,14 +583,9 @@ export function InvoiceDetailPanelV3({
           {/* Main content area */}
           <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
             {/* Header */}
-            <div className="px-6 py-4 border-b">
+            <div className="px-6 py-2 border-b">
               <PanelV3Header
                 invoiceNumber={invoice.invoice_number}
-                invoiceName={
-                  invoice.is_recurring
-                    ? invoice.invoice_profile?.name
-                    : invoice.invoice_name || invoice.description
-                }
                 vendorName={invoice.vendor.name}
                 status={invoice.status as InvoiceStatus}
                 isRecurring={invoice.is_recurring}
@@ -447,8 +605,6 @@ export function InvoiceDetailPanelV3({
                 tdsApplicable={invoice.tds_applicable}
                 tdsPercentage={invoice.tds_percentage}
                 tdsRounded={invoice.tds_rounded} // BUG-003: Pass invoice's TDS rounding preference
-                dueDate={invoice.due_date}
-                status={invoice.status}
                 currencyCode={invoice.currency?.code}
               />
             </div>
@@ -459,23 +615,25 @@ export function InvoiceDetailPanelV3({
             </div>
           </div>
 
-          {/* Action Bar (right side) */}
-          <div className="border-l">
-            <PanelV3ActionBar
-              permissions={permissions}
-              hasRemainingBalance={hasRemainingBalance}
-              hasPendingPayment={hasPendingPayment}
-              recordPaymentBlockedReason={recordPaymentBlockedReason}
-              onEdit={handleEdit}
-              onRecordPayment={handleRecordPayment}
-              onPutOnHold={handlePutOnHold}
-              onArchive={handleArchive}
-              onDelete={handleDelete}
-              onApprove={handleApprove}
-              onReject={handleReject}
-              isProcessing={isMutationPending}
-            />
-          </div>
+          {/* Action Bar (right side) - hidden on mobile */}
+          {!isMobile && (
+            <div className="border-l">
+              <PanelV3ActionBar
+                permissions={permissions}
+                hasRemainingBalance={hasRemainingBalance}
+                hasPendingPayment={hasPendingPayment}
+                recordPaymentBlockedReason={recordPaymentBlockedReason}
+                onEdit={handleEdit}
+                onRecordPayment={handleRecordPayment}
+                onPutOnHold={handlePutOnHold}
+                onArchive={handleArchive}
+                onDelete={handleDelete}
+                onApprove={handleApprove}
+                onReject={handleReject}
+                isProcessing={isMutationPending}
+              />
+            </div>
+          )}
         </div>
       </PanelLevel>
 

@@ -6,13 +6,11 @@
  * Displays key invoice stats and payment progress:
  * - 4 stat cards (Invoice Amount, TDS, Total Paid, Remaining)
  * - Progress bar showing payment completion
- * - Due date with overdue/due-soon indicators
  */
 
 import * as React from 'react';
-import { IndianRupee, Calendar, AlertCircle, CheckCircle } from 'lucide-react';
+import { IndianRupee, AlertCircle, CheckCircle } from 'lucide-react';
 import { PanelStatGroup, type StatItem } from '@/components/panels/shared';
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { calculateTds } from '@/lib/utils/tds';
 
@@ -27,8 +25,6 @@ export interface PanelV3HeroProps {
   tdsApplicable: boolean;
   tdsPercentage?: number | null;
   tdsRounded?: boolean; // BUG-003: Invoice-level TDS rounding preference
-  dueDate?: Date | string | null;
-  status: string;
   currencyCode?: string;
 }
 
@@ -47,84 +43,10 @@ function formatCurrency(amount: number, currency: string = 'INR'): string {
     maximumFractionDigits: 2,
   }).format(amount);
 }
-/**
- * Parse date from various formats
- */
-function parseDate(date: Date | string | null | undefined): Date | null {
-  if (!date) return null;
-  if (date instanceof Date) return date;
-  const parsed = new Date(date);
-  return isNaN(parsed.getTime()) ? null : parsed;
-}
-
-/**
- * Format date for display
- */
-function formatDate(date: Date): string {
-  return new Intl.DateTimeFormat('en-IN', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  }).format(date);
-}
-
-/**
- * Calculate days until/since due date
- */
-function getDaysFromDue(dueDate: Date): number {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const due = new Date(dueDate);
-  due.setHours(0, 0, 0, 0);
-  const diffTime = due.getTime() - today.getTime();
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-}
 
 // ============================================================================
 // Sub-Components
 // ============================================================================
-
-interface DueDateDisplayProps {
-  dueDate: Date;
-  isPaid: boolean;
-}
-
-function DueDateDisplay({ dueDate, isPaid }: DueDateDisplayProps) {
-  const daysFromDue = getDaysFromDue(dueDate);
-  const isOverdue = daysFromDue < 0 && !isPaid;
-  const isDueSoon = daysFromDue >= 0 && daysFromDue <= 7 && !isPaid;
-
-  return (
-    <div className="flex items-center gap-2 text-sm">
-      <Calendar className="h-4 w-4 text-muted-foreground" />
-      <span
-        className={cn(
-          'font-medium',
-          isOverdue && 'text-red-600 dark:text-red-400',
-          isDueSoon && !isOverdue && 'text-amber-600 dark:text-amber-400',
-          !isOverdue && !isDueSoon && 'text-muted-foreground'
-        )}
-      >
-        Due {formatDate(dueDate)}
-      </span>
-      {isOverdue && (
-        <Badge variant="destructive" className="text-xs">
-          Overdue by {Math.abs(daysFromDue)} day{Math.abs(daysFromDue) !== 1 ? 's' : ''}
-        </Badge>
-      )}
-      {isDueSoon && !isOverdue && (
-        <Badge variant="warning" className="text-xs">
-          Due in {daysFromDue} day{daysFromDue !== 1 ? 's' : ''}
-        </Badge>
-      )}
-      {isPaid && (
-        <Badge variant="success" className="text-xs">
-          Paid
-        </Badge>
-      )}
-    </div>
-  );
-}
 
 interface ProgressBarProps {
   percentage: number;
@@ -168,8 +90,6 @@ export function PanelV3Hero({
   tdsApplicable,
   tdsPercentage,
   tdsRounded = false, // BUG-003: Invoice-level TDS rounding preference
-  dueDate,
-  status,
   currencyCode = 'INR',
 }: PanelV3HeroProps) {
   // Calculate TDS amount using invoice's tds_rounded preference (BUG-003)
@@ -183,12 +103,6 @@ export function PanelV3Hero({
   // Calculate payment progress percentage
   const progressPercentage =
     payableAmount > 0 ? (totalPaid / payableAmount) * 100 : 0;
-
-  // Determine if invoice is fully paid
-  const isPaid = remainingBalance <= 0 || status.toLowerCase() === 'paid';
-
-  // Parse due date
-  const parsedDueDate = parseDate(dueDate);
 
   // Build stat items
   const stats: StatItem[] = [
@@ -237,11 +151,6 @@ export function PanelV3Hero({
 
       {/* Progress Bar */}
       <ProgressBar percentage={progressPercentage} />
-
-      {/* Due Date */}
-      {parsedDueDate && (
-        <DueDateDisplay dueDate={parsedDueDate} isPaid={isPaid} />
-      )}
     </div>
   );
 }
