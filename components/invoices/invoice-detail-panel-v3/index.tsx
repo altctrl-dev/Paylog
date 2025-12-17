@@ -47,11 +47,7 @@ import {
   X,
   MoreVertical,
 } from 'lucide-react';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+// Popover import removed - using native dropdown for mobile
 import {
   Tooltip,
   TooltipContent,
@@ -116,6 +112,9 @@ export function InvoiceDetailPanelV3({
   const [isArchiveDialogOpen, setIsArchiveDialogOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [isVendorPendingDialogOpen, setIsVendorPendingDialogOpen] = React.useState(false);
+  const [isMobileActionsOpen, setIsMobileActionsOpen] = React.useState(false);
+  const mobileActionsMenuRef = React.useRef<HTMLDivElement>(null);
+  const mobileActionsTriggerRef = React.useRef<HTMLButtonElement>(null);
   // Two-step dialog: 'details' shows vendor info, 'confirm' shows final confirmation
   const [vendorDialogStep, setVendorDialogStep] = React.useState<'details' | 'confirm'>('details');
 
@@ -142,6 +141,30 @@ export function InvoiceDetailPanelV3({
   const [isApprovingVendorAndInvoice, setIsApprovingVendorAndInvoice] = React.useState(false);
 
   const isMutationPending = approveInvoice.isPending || rejectInvoice.isPending || isApprovingVendorAndInvoice;
+
+  // Close mobile actions menu when clicking outside
+  React.useEffect(() => {
+    if (!isMobileActionsOpen) return;
+
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (
+        mobileActionsMenuRef.current &&
+        !mobileActionsMenuRef.current.contains(event.target as Node) &&
+        mobileActionsTriggerRef.current &&
+        !mobileActionsTriggerRef.current.contains(event.target as Node)
+      ) {
+        setIsMobileActionsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [isMobileActionsOpen]);
 
   // ============================================================================
   // ACTION HANDLERS
@@ -535,26 +558,36 @@ export function InvoiceDetailPanelV3({
                     />
                   )}
 
-                  {/* Secondary Actions Overflow Menu */}
+                  {/* Secondary Actions Overflow Menu - Native dropdown for mobile */}
                   {(permissions.canArchive || permissions.canDelete) && (
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <button
-                          type="button"
-                          className="h-9 w-9 inline-flex items-center justify-center rounded-md hover:bg-accent touch-manipulation"
-                          disabled={isMutationPending}
-                          aria-label="More actions"
+                    <div className="relative">
+                      <button
+                        ref={mobileActionsTriggerRef}
+                        type="button"
+                        onClick={() => setIsMobileActionsOpen(!isMobileActionsOpen)}
+                        className="h-9 w-9 inline-flex items-center justify-center rounded-md hover:bg-accent touch-manipulation select-none"
+                        disabled={isMutationPending}
+                        aria-label="More actions"
+                        aria-expanded={isMobileActionsOpen}
+                        aria-haspopup="true"
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                      </button>
+
+                      {/* Dropdown Menu */}
+                      {isMobileActionsOpen && (
+                        <div
+                          ref={mobileActionsMenuRef}
+                          className="absolute left-0 bottom-full mb-1 min-w-[120px] rounded-md border bg-popover p-1 shadow-md z-[9999] animate-in fade-in-0 zoom-in-95"
                         >
-                          <MoreVertical className="h-4 w-4" />
-                        </button>
-                      </PopoverTrigger>
-                      <PopoverContent align="start" side="top" className="w-36 p-1">
-                        <div className="flex flex-col">
                           {permissions.canArchive && (
                             <button
                               type="button"
-                              onClick={handleArchive}
-                              className="flex items-center rounded-sm px-2 py-2 text-sm hover:bg-accent touch-manipulation"
+                              onClick={() => {
+                                setIsMobileActionsOpen(false);
+                                handleArchive();
+                              }}
+                              className="flex w-full items-center rounded-sm px-2 py-2 text-sm hover:bg-accent touch-manipulation"
                             >
                               Archive
                             </button>
@@ -562,15 +595,18 @@ export function InvoiceDetailPanelV3({
                           {permissions.canDelete && (
                             <button
                               type="button"
-                              onClick={handleDelete}
-                              className="flex items-center rounded-sm px-2 py-2 text-sm text-destructive hover:bg-accent touch-manipulation"
+                              onClick={() => {
+                                setIsMobileActionsOpen(false);
+                                handleDelete();
+                              }}
+                              className="flex w-full items-center rounded-sm px-2 py-2 text-sm text-destructive hover:bg-accent touch-manipulation"
                             >
                               Delete
                             </button>
                           )}
                         </div>
-                      </PopoverContent>
-                    </Popover>
+                      )}
+                    </div>
                   )}
                 </div>
               </TooltipProvider>

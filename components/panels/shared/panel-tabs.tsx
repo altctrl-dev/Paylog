@@ -11,11 +11,6 @@
 import * as React from 'react';
 import { MoreVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
 import { useIsMobile } from '@/hooks/use-media-query';
 
 export interface TabItem {
@@ -53,6 +48,8 @@ export function PanelTabs({
     defaultTab || tabs[0]?.id || ''
   );
   const [isOverflowOpen, setIsOverflowOpen] = React.useState(false);
+  const menuRef = React.useRef<HTMLDivElement>(null);
+  const triggerRef = React.useRef<HTMLButtonElement>(null);
   const isMobile = useIsMobile();
 
   const handleTabChange = (tabId: string) => {
@@ -60,6 +57,30 @@ export function PanelTabs({
     onTabChange?.(tabId);
     setIsOverflowOpen(false);
   };
+
+  // Close menu when clicking outside
+  React.useEffect(() => {
+    if (!isOverflowOpen) return;
+
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(event.target as Node) &&
+        triggerRef.current &&
+        !triggerRef.current.contains(event.target as Node)
+      ) {
+        setIsOverflowOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [isOverflowOpen]);
 
   const activeTabContent = tabs.find((tab) => tab.id === activeTab)?.content;
 
@@ -76,7 +97,7 @@ export function PanelTabs({
   return (
     <div className={cn('flex flex-col', className)}>
       {/* Tab Bar */}
-      <div className="flex items-end border-b border-border">
+      <div className="relative flex items-end border-b border-border">
         {visibleTabs.map((tab) => {
           // On mobile, if active tab is in overflow, replace the last visible tab with active tab
           if (
@@ -105,35 +126,43 @@ export function PanelTabs({
           );
         })}
 
-        {/* Overflow Menu - Using Popover for better mobile support */}
+        {/* Overflow Menu - Native dropdown for better mobile support */}
         {isMobile && overflowTabs.length > 0 && (
-          <Popover open={isOverflowOpen} onOpenChange={setIsOverflowOpen}>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                className={cn(
-                  'px-3 py-2 text-muted-foreground hover:text-foreground touch-manipulation',
-                  activeInOverflow && 'text-foreground'
-                )}
-                aria-label="More tabs"
-              >
-                <MoreVertical className="h-4 w-4" />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent
-              align="end"
-              side="bottom"
-              className="w-48 p-1"
-              sideOffset={4}
+          <div className="relative">
+            <button
+              ref={triggerRef}
+              type="button"
+              onClick={() => setIsOverflowOpen(!isOverflowOpen)}
+              className={cn(
+                'px-3 py-2 text-muted-foreground hover:text-foreground',
+                'touch-manipulation select-none',
+                activeInOverflow && 'text-foreground'
+              )}
+              aria-label="More tabs"
+              aria-expanded={isOverflowOpen}
+              aria-haspopup="true"
             >
-              <div className="flex flex-col">
+              <MoreVertical className="h-4 w-4" />
+            </button>
+
+            {/* Dropdown Menu */}
+            {isOverflowOpen && (
+              <div
+                ref={menuRef}
+                className={cn(
+                  'absolute right-0 top-full mt-1',
+                  'min-w-[160px] rounded-md border bg-popover p-1 shadow-md',
+                  'z-[9999]',
+                  'animate-in fade-in-0 zoom-in-95'
+                )}
+              >
                 {overflowTabs.map((tab) => (
                   <button
                     key={tab.id}
                     type="button"
                     onClick={() => handleTabChange(tab.id)}
                     className={cn(
-                      'flex items-center gap-2 rounded-sm px-2 py-2 text-sm text-left',
+                      'flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm text-left',
                       'hover:bg-accent hover:text-accent-foreground',
                       'touch-manipulation',
                       activeTab === tab.id && 'bg-accent'
@@ -148,8 +177,8 @@ export function PanelTabs({
                   </button>
                 ))}
               </div>
-            </PopoverContent>
-          </Popover>
+            )}
+          </div>
         )}
       </div>
 
@@ -171,7 +200,7 @@ function TabButton({ tab, isActive, onClick }: TabButtonProps) {
       type="button"
       onClick={onClick}
       className={cn(
-        'relative px-4 py-2 text-sm font-medium transition-colors touch-manipulation',
+        'relative px-4 py-2 text-sm font-medium transition-colors touch-manipulation select-none',
         isActive
           ? 'text-foreground'
           : 'text-muted-foreground hover:text-foreground'
