@@ -237,13 +237,14 @@ Clicks "Approve Invoice" button
     ↓
 Invoice approved
     ↓
+Toast: "Invoice approved successfully." (always shown)
+    ↓
 IF pending payment data existed:
-    → Toast: "Invoice approved. Payment pending review."
-    → Auto-navigates to Payments tab
-    → Admin can review and approve/reject payment
+    → Popup dialog: "Payment Pending Review"
+    → [Close] → Closes dialog and panel
+    → [Review Payment] → Closes dialog, navigates to Payments tab
 ELSE:
-    → Toast: "Invoice approved. Status updated to Unpaid."
-    → Panel closes
+    → Panel closes automatically
 ```
 
 ### Header Changes
@@ -266,10 +267,13 @@ ELSE:
 **File**: `components/invoices/invoice-detail-panel-v3/index.tsx`
 
 - Added controlled tab navigation state (`activeTab`, `setActiveTab`)
-- Updated `useApproveInvoiceV2` callback to capture `hasPaymentPending`
+- Added payment review dialog state (`isPaymentReviewDialogOpen`)
+- Updated `useApproveInvoiceV2` callback to show dialog when `hasPaymentPending` is true
 - Passes approve props to `PanelV3Header`
-- Auto-navigates to Payments tab when `hasPaymentPending` is true
-- Updated vendor+invoice approval flow to also handle `hasPaymentPending`
+- Added "Payment Pending Review" AlertDialog with blue styling
+- "Review Payment" button navigates to Payments tab
+- "Close" button dismisses dialog and closes panel
+- Updated vendor+invoice approval flow to also show the dialog
 
 **File**: `components/panels/shared/panel-tabs.tsx`
 

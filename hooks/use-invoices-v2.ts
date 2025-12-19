@@ -511,18 +511,13 @@ export function useApproveInvoiceV2(onSuccess?: (hasPaymentPending: boolean) => 
 
       const hasPaymentPending = data?.hasPaymentPending ?? false;
 
-      // Show appropriate toast based on payment status
-      if (hasPaymentPending) {
-        toast({
-          title: 'Invoice approved',
-          description: 'Payment record pending approval. Please review and approve/reject.',
-        });
-      } else {
-        toast({
-          title: 'Invoice approved',
-          description: 'The invoice status has been updated to Unpaid.',
-        });
-      }
+      // Show success toast (payment review dialog handled separately)
+      toast({
+        title: 'Invoice approved',
+        description: hasPaymentPending
+          ? 'Invoice approved successfully.'
+          : 'The invoice status has been updated to Unpaid.',
+      });
 
       // Call optional success callback with hasPaymentPending flag
       onSuccess?.(hasPaymentPending);

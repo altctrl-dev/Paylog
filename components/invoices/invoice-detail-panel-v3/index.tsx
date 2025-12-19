@@ -121,6 +121,9 @@ export function InvoiceDetailPanelV3({
   // Controlled tab navigation state
   const [activeTab, setActiveTab] = React.useState<string>('details');
 
+  // Payment review dialog state (shown after approval if pending payment exists)
+  const [isPaymentReviewDialogOpen, setIsPaymentReviewDialogOpen] = React.useState(false);
+
   // BUG-007: Check vendor status before approval
   const vendorPendingData = React.useRef<{
     vendor: {
@@ -137,13 +140,12 @@ export function InvoiceDetailPanelV3({
   const queryClient = useQueryClient();
 
   // Mutations with callbacks
-  // Handle approval success - navigate to Payments tab if pending payment exists
+  // Handle approval success - show payment review dialog if pending payment exists
   const handleApprovalSuccess = React.useCallback(
     (hasPaymentPending: boolean) => {
       if (hasPaymentPending) {
-        // Navigate to Payments tab so admin can review the pending payment
-        setActiveTab('payments');
-        // Don't close panel - let admin review the payment
+        // Show payment review dialog
+        setIsPaymentReviewDialogOpen(true);
       } else {
         // No pending payment - close panel
         onClose();
@@ -338,9 +340,9 @@ export function InvoiceDetailPanelV3({
         setVendorDialogStep('details');
         vendorPendingData.current = null;
 
-        // Navigate to payments tab if payment pending, otherwise close panel
+        // Show payment review dialog if payment pending, otherwise close panel
         if (hasPaymentPending) {
-          setActiveTab('payments');
+          setIsPaymentReviewDialogOpen(true);
         } else {
           onClose();
         }
@@ -389,6 +391,24 @@ export function InvoiceDetailPanelV3({
     setIsRejectDialogOpen(false);
     setRejectionReason('');
   }, []);
+
+  /**
+   * Handle "Review Payment" button in payment review dialog
+   * Navigates to Payments tab and closes the dialog
+   */
+  const handlePaymentReview = React.useCallback(() => {
+    setIsPaymentReviewDialogOpen(false);
+    setActiveTab('payments');
+  }, []);
+
+  /**
+   * Handle "Close" or dismiss on payment review dialog
+   * Closes both the dialog and the panel
+   */
+  const handlePaymentReviewDismiss = React.useCallback(() => {
+    setIsPaymentReviewDialogOpen(false);
+    onClose();
+  }, [onClose]);
 
   // ============================================================================
   // LOADING STATE
@@ -900,6 +920,36 @@ export function InvoiceDetailPanelV3({
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Payment Review Dialog - shown after approval if pending payment exists */}
+      <AlertDialog open={isPaymentReviewDialogOpen} onOpenChange={setIsPaymentReviewDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              <span className="text-blue-600">Payment Pending Review</span>
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This invoice has a payment record that requires approval.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-4 rounded-md my-2">
+            <p className="text-sm text-blue-800 dark:text-blue-200">
+              The payment was recorded during invoice creation and is now pending approval.
+              Would you like to review it now?
+            </p>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handlePaymentReviewDismiss}>
+              Close
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handlePaymentReview}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              Review Payment
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
