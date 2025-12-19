@@ -29,6 +29,7 @@ import {
   FileText,
   Database,
   ChevronRight,
+  RefreshCw,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -51,6 +52,8 @@ import { PANEL_WIDTH } from '@/types/panel';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { NotificationPanel } from '@/components/notifications/notification-panel';
+import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 // ============================================================================
 // Types
@@ -222,6 +225,46 @@ function QuickActionsMenu({ invoiceCreationMode = 'page' }: QuickActionsMenuProp
   );
 }
 
+/**
+ * Sync button to manually refresh all data
+ * Invalidates all React Query caches and refetches
+ */
+function SyncButton() {
+  const queryClient = useQueryClient();
+  const [isSyncing, setIsSyncing] = React.useState(false);
+
+  const handleSync = async () => {
+    setIsSyncing(true);
+    try {
+      // Invalidate all queries to force refetch
+      await queryClient.invalidateQueries();
+      toast.success('Data synced', {
+        description: 'All data has been refreshed',
+        duration: 2000,
+      });
+    } catch {
+      toast.error('Sync failed', {
+        description: 'Please try again',
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  return (
+    <Button
+      variant="subtle"
+      size="icon"
+      onClick={handleSync}
+      disabled={isSyncing}
+      className="h-9 w-9"
+      aria-label="Sync data"
+    >
+      <RefreshCw className={cn('h-5 w-5', isSyncing && 'animate-spin')} />
+    </Button>
+  );
+}
+
 interface ThemeToggleProps {
   className?: string;
 }
@@ -370,6 +413,7 @@ export function Navbar({ user, onOpenCommandPalette }: NavbarProps) {
 
       {/* Right Side Actions */}
       <div className="flex items-center gap-2">
+        <SyncButton />
         <QuickActionsMenu invoiceCreationMode={invoiceCreationMode} />
         <ThemeToggle />
         <NotificationPanel />

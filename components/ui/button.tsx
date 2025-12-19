@@ -10,6 +10,10 @@ const buttonVariants = cva(
       variant: {
         default:
           'bg-primary text-white font-bold hover:bg-primary/93 hover:shadow-[0_0_10px_rgba(249,115,22,0.4)] dark:text-gray-900 dark:hover:shadow-[0_0_7px_rgba(249,115,22,0.5)]',
+        success:
+          'bg-green-600 text-white font-bold hover:bg-green-600/93 hover:shadow-[0_0_10px_rgba(22,163,74,0.4)] dark:bg-green-600 dark:text-white dark:hover:bg-green-600/93 dark:hover:shadow-[0_0_7px_rgba(22,163,74,0.5)]',
+        successOutline:
+          'border border-green-600 bg-background text-green-600 hover:border-green-700 hover:text-green-700 hover:bg-green-50 dark:border-green-500 dark:bg-background dark:text-green-500 dark:hover:border-green-400 dark:hover:text-green-400 dark:hover:bg-green-950/20',
         destructive:
           'bg-destructive text-destructive-foreground hover:bg-destructive/90',
         outline:

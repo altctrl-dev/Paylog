@@ -46,6 +46,7 @@ import {
   Check,
   X,
   MoreVertical,
+  RefreshCw,
 } from 'lucide-react';
 // Popover import removed - using native dropdown for mobile
 import {
@@ -113,6 +114,7 @@ export function InvoiceDetailPanelV3({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [isVendorPendingDialogOpen, setIsVendorPendingDialogOpen] = React.useState(false);
   const [isMobileActionsOpen, setIsMobileActionsOpen] = React.useState(false);
+  const [isSyncing, setIsSyncing] = React.useState(false);
   const mobileActionsMenuRef = React.useRef<HTMLDivElement>(null);
   const mobileActionsTriggerRef = React.useRef<HTMLButtonElement>(null);
   // Two-step dialog: 'details' shows vendor info, 'confirm' shows final confirmation
@@ -410,6 +412,26 @@ export function InvoiceDetailPanelV3({
     onClose();
   }, [onClose]);
 
+  /**
+   * Handle sync button click - invalidates all queries to refresh data
+   */
+  const handleSync = React.useCallback(async () => {
+    setIsSyncing(true);
+    try {
+      await queryClient.invalidateQueries();
+      toast.success('Data synced', {
+        description: 'All data has been refreshed',
+        duration: 2000,
+      });
+    } catch {
+      toast.error('Sync failed', {
+        description: 'Please try again',
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [queryClient]);
+
   // ============================================================================
   // LOADING STATE
   // ============================================================================
@@ -567,6 +589,13 @@ export function InvoiceDetailPanelV3({
             {isMobile && (
               <TooltipProvider delayDuration={300}>
                 <div className="flex items-center gap-1">
+                  {/* Sync Button */}
+                  <MobileActionButton
+                    icon={<RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />}
+                    label="Sync Data"
+                    onClick={handleSync}
+                    disabled={isSyncing}
+                  />
                   {/* Primary Actions */}
                   {permissions.canEdit && (
                     <MobileActionButton

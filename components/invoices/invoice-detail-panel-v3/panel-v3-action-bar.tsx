@@ -16,7 +16,11 @@ import {
   Trash2,
   Check,
   X,
+  RefreshCw,
 } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 import {
   PanelActionBar,
   type ActionBarAction,
@@ -78,6 +82,27 @@ export function PanelV3ActionBar({
   onReject,
   isProcessing = false,
 }: PanelV3ActionBarProps) {
+  const queryClient = useQueryClient();
+  const [isSyncing, setIsSyncing] = React.useState(false);
+
+  // Sync button handler - invalidates all queries to refresh data
+  const handleSync = React.useCallback(async () => {
+    setIsSyncing(true);
+    try {
+      await queryClient.invalidateQueries();
+      toast.success('Data synced', {
+        description: 'All data has been refreshed',
+        duration: 2000,
+      });
+    } catch {
+      toast.error('Sync failed', {
+        description: 'Please try again',
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [queryClient]);
+
   // Determine if record payment should be shown but disabled (for tooltip)
   // Show the button if there's remaining balance, but disable if there's a blocking reason
   const showRecordPaymentButton = hasRemainingBalance;
@@ -86,6 +111,13 @@ export function PanelV3ActionBar({
     : undefined;
 
   const primaryActions: ActionBarAction[] = [
+    {
+      id: 'sync',
+      icon: <RefreshCw className={cn(isSyncing && 'animate-spin')} />,
+      label: 'Sync Data',
+      onClick: handleSync,
+      disabled: isSyncing,
+    },
     {
       id: 'edit',
       icon: <Pencil />,

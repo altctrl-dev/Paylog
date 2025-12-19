@@ -65,11 +65,10 @@ export function PanelV3Header({
       <div className="flex flex-col items-end gap-1.5 shrink-0">
         {showApproveButton ? (
           <Button
-            variant="default"
+            variant="success"
             size="sm"
             onClick={onApprove}
             disabled={isApproving}
-            className="bg-green-600 hover:bg-green-700 text-white"
           >
             <CheckCircle className="h-4 w-4 mr-1.5" />
             {isMobile ? 'Approve' : 'Approve Invoice'}
