@@ -199,6 +199,7 @@ export async function searchVendors(
       deleted_at: null, // Exclude soft-deleted vendors
       name: {
         contains: query,
+        mode: 'insensitive', // Case-insensitive search
       },
     };
 

@@ -149,6 +149,27 @@ export function VendorTextAutocomplete({
   };
 
   /**
+   * Handle chevron click - toggle browse mode
+   * IMP-005: Clickable chevron with touch support
+   */
+  const handleChevronClick = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (open && isBrowseMode) {
+      // If already open in browse mode, close it
+      setOpen(false);
+      setIsBrowseMode(false);
+    } else {
+      // Open in browse mode (show all vendors)
+      setIsBrowseMode(true);
+      setOpen(true);
+      // Focus the input so user can start typing
+      inputRef.current?.focus();
+    }
+  };
+
+  /**
    * Get display value for input
    */
   const getDisplayValue = () => {
@@ -175,13 +196,28 @@ export function VendorTextAutocomplete({
           )}
           autoComplete="off"
         />
-        {/* IMP-004: Chevron indicator to hint arrow-down feature */}
-        <ChevronDown
+        {/* IMP-004/IMP-005: Clickable chevron button with touch-friendly target (32x32px) */}
+        <button
+          type="button"
+          onClick={handleChevronClick}
+          onTouchEnd={handleChevronClick}
+          disabled={disabled}
+          tabIndex={-1}
+          aria-label={open ? 'Close vendor list' : 'Browse all vendors'}
           className={cn(
-            'absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none transition-transform duration-200',
-            open && 'rotate-180'
+            'absolute right-0 top-1/2 -translate-y-1/2 h-8 w-8 flex items-center justify-center',
+            'text-muted-foreground hover:text-foreground transition-colors',
+            'focus:outline-none',
+            disabled && 'opacity-50 cursor-not-allowed'
           )}
-        />
+        >
+          <ChevronDown
+            className={cn(
+              'h-4 w-4 transition-transform duration-200',
+              open && 'rotate-180'
+            )}
+          />
+        </button>
       </div>
 
       {/* Autocomplete Dropdown */}
@@ -220,13 +256,10 @@ export function VendorTextAutocomplete({
                       }}
                       className="cursor-pointer"
                     >
-                      <Check
-                        className={cn(
-                          'mr-2 h-4 w-4',
-                          selectedVendorName === vendor.name ? 'opacity-100' : 'opacity-0'
-                        )}
-                      />
                       {vendor.name}
+                      {selectedVendorName === vendor.name && (
+                        <Check className="ml-2 h-4 w-4 inline-block" />
+                      )}
                     </CommandItem>
                   ))}
                 </CommandGroup>
