@@ -217,6 +217,20 @@ export async function createRecurringInvoice(
     const initialStatus = isAdmin ? INVOICE_STATUS.UNPAID : INVOICE_STATUS.PENDING_APPROVAL;
     console.log('[createRecurringInvoice] Initial status:', initialStatus, 'isAdmin:', isAdmin);
 
+    // 8. Prepare pending payment data if provided (for standard users)
+    // Payment will be created when invoice is approved
+    let pendingPaymentData: Prisma.InputJsonValue | typeof Prisma.DbNull = Prisma.DbNull;
+    if (validated.is_paid && validated.paid_date && validated.paid_amount && validated.payment_type_id) {
+      pendingPaymentData = {
+        paid_date: validated.paid_date,
+        paid_amount: validated.paid_amount,
+        paid_currency: validated.paid_currency || null,
+        payment_type_id: validated.payment_type_id,
+        payment_reference: validated.payment_reference || null,
+      };
+      console.log('[createRecurringInvoice] Storing pending payment data:', pendingPaymentData);
+    }
+
     // 9. Create invoice in transaction (extended timeout for file uploads)
     console.log('[createRecurringInvoice] Creating invoice record...');
     const invoice = await db.$transaction(async (tx) => {
@@ -254,6 +268,9 @@ export async function createRecurringInvoice(
           // Status and metadata
           status: initialStatus,
           created_by: user.id,
+
+          // Store pending payment data for processing on approval
+          pending_payment_data: pendingPaymentData,
         },
       });
 
@@ -1467,7 +1484,7 @@ export async function getPaymentTypes(): Promise<
  */
 export async function approveInvoiceV2(
   invoiceId: number
-): Promise<ServerActionResult<{ invoiceId: number }>> {
+): Promise<ServerActionResult<{ invoiceId: number; hasPaymentPending: boolean }>> {
   console.log('[approveInvoiceV2] Server Action called for invoice:', invoiceId);
   try {
     // 1. Authenticate user
@@ -1482,7 +1499,7 @@ export async function approveInvoiceV2(
       };
     }
 
-    // 3. Fetch invoice to validate status
+    // 3. Fetch invoice to validate status (include pending_payment_data for inline payment processing)
     const invoice = await db.invoice.findUnique({
       where: { id: invoiceId },
       select: {
@@ -1492,6 +1509,7 @@ export async function approveInvoiceV2(
         vendor_id: true,
         invoice_amount: true,
         created_by: true, // For notification to creator
+        pending_payment_data: true, // For inline payment processing
       },
     });
 
@@ -1510,15 +1528,61 @@ export async function approveInvoiceV2(
       };
     }
 
-    // 5. Update invoice status to unpaid (payments are now handled separately)
+    // 5. Update invoice status and process pending payment (if any) in a transaction
     const newStatus = INVOICE_STATUS.UNPAID;
     console.log('[approveInvoiceV2] Updating invoice status to:', newStatus);
-    await db.invoice.update({
-      where: { id: invoiceId },
-      data: {
-        status: newStatus,
-        updated_at: new Date(),
-      },
+
+    // Track if payment was created from pending_payment_data
+    const hadPendingPaymentData = !!invoice.pending_payment_data;
+
+    // Use transaction to ensure atomicity when processing inline payment data
+    await db.$transaction(async (tx) => {
+      // 5a. Update invoice status to unpaid
+      await tx.invoice.update({
+        where: { id: invoiceId },
+        data: {
+          status: newStatus,
+          updated_at: new Date(),
+        },
+      });
+
+      // 5b. Process pending_payment_data if exists (inline payment from invoice creation)
+      // This creates a Payment record with status='pending' for admin to approve separately
+      if (invoice.pending_payment_data) {
+        const paymentData = invoice.pending_payment_data as {
+          paid_date: string;
+          paid_amount: number;
+          paid_currency: string | null;
+          payment_type_id: number;
+          payment_reference: string | null;
+        };
+
+        console.log('[approveInvoiceV2] Processing pending payment data:', paymentData);
+
+        // Create Payment record with status='pending' (requires separate admin approval)
+        await tx.payment.create({
+          data: {
+            invoice_id: invoiceId,
+            amount_paid: paymentData.paid_amount,
+            payment_date: new Date(paymentData.paid_date),
+            payment_type_id: paymentData.payment_type_id,
+            payment_reference: paymentData.payment_reference || null,
+            status: 'pending', // Admin must approve payment separately in two-step workflow
+            created_by_user_id: invoice.created_by,
+            // TDS fields will be calculated during payment approval
+          },
+        });
+
+        // Clear pending_payment_data (now converted to Payment record)
+        await tx.invoice.update({
+          where: { id: invoiceId },
+          data: {
+            pending_payment_data: Prisma.DbNull,
+          },
+        });
+
+        console.log('[approveInvoiceV2] Created pending payment record for invoice:', invoiceId);
+      }
     });
 
     // 6. Log activity (non-blocking)
@@ -1551,10 +1615,10 @@ export async function approveInvoiceV2(
     revalidatePath('/invoices');
     revalidatePath(`/invoices/${invoiceId}`);
 
-    console.log('[approveInvoiceV2] Success! Invoice approved:', invoiceId);
+    console.log('[approveInvoiceV2] Success! Invoice approved:', invoiceId, 'hasPaymentPending:', hadPendingPaymentData);
     return {
       success: true,
-      data: { invoiceId },
+      data: { invoiceId, hasPaymentPending: hadPendingPaymentData },
     };
   } catch (error) {
     console.error('[approveInvoiceV2] Error:', error);

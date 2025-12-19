@@ -491,7 +491,7 @@ export function useUpdateNonRecurringInvoice(invoiceId: number, onSuccess?: () =
  * };
  * ```
  */
-export function useApproveInvoiceV2(onSuccess?: () => void) {
+export function useApproveInvoiceV2(onSuccess?: (hasPaymentPending: boolean) => void) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -504,19 +504,28 @@ export function useApproveInvoiceV2(onSuccess?: () => void) {
       }
       return result.data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       // Invalidate invoice caches
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
       queryClient.invalidateQueries({ queryKey: invoiceV2Keys.all });
 
-      // Show success toast
-      toast({
-        title: 'Invoice approved',
-        description: 'The invoice status has been updated to Unpaid.',
-      });
+      const hasPaymentPending = data?.hasPaymentPending ?? false;
 
-      // Call optional success callback (e.g., close panel)
-      onSuccess?.();
+      // Show appropriate toast based on payment status
+      if (hasPaymentPending) {
+        toast({
+          title: 'Invoice approved',
+          description: 'Payment record pending approval. Please review and approve/reject.',
+        });
+      } else {
+        toast({
+          title: 'Invoice approved',
+          description: 'The invoice status has been updated to Unpaid.',
+        });
+      }
+
+      // Call optional success callback with hasPaymentPending flag
+      onSuccess?.(hasPaymentPending);
     },
     onError: (error: Error) => {
       // Show error toast

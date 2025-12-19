@@ -17,7 +17,7 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { TDSSection } from './tds-section';
-import { InlinePaymentFields } from './inline-payment-fields';
+// InlinePaymentFields removed - payment recording now done via Payments tab
 import { AmountInput } from './amount-input';
 import {
   type RecurringInvoiceFormData,
@@ -145,19 +145,7 @@ const updateRecurringInvoiceSchema = z
       .nullable()
       .optional(),
     tds_rounded: z.boolean().optional().default(false), // BUG-003: TDS rounding preference
-
-    // Inline payment fields (optional)
-    is_paid: z.boolean().default(false),
-    paid_date: z
-      .date({
-        invalid_type_error: 'Invalid date format',
-      })
-      .nullable()
-      .optional(),
-    paid_amount: z.number().positive('Paid amount must be greater than 0').nullable().optional(),
-    paid_currency: z.string().max(3, 'Currency code too long').nullable().optional(),
-    payment_type_id: z.number().int().positive('Payment type is required').nullable().optional(),
-    payment_reference: z.string().max(100, 'Reference too long').nullable().optional(),
+    // Note: Payment fields removed - payments managed via Payments tab after invoice creation
   })
   .refine(
     (data) => {
@@ -191,19 +179,6 @@ const updateRecurringInvoiceSchema = z
       message: 'TDS percentage is required when TDS is applicable',
       path: ['tds_percentage'],
     }
-  )
-  .refine(
-    (data) => {
-      // Validation: if is_paid = true, payment fields are required
-      if (data.is_paid) {
-        return !!(data.paid_date && data.paid_amount && data.paid_currency && data.payment_type_id);
-      }
-      return true;
-    },
-    {
-      message: 'Payment details are required when invoice is marked as paid',
-      path: ['is_paid'],
-    }
   );
 
 /**
@@ -220,7 +195,7 @@ export function EditRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: Edi
   // Fetch form options from API
   const {
     currencies,
-    paymentTypes,
+    // paymentTypes removed - payment recording now done via Payments tab
     isLoading: isLoadingOptions,
     isError: isOptionsError,
     error: optionsError,
@@ -246,8 +221,7 @@ export function EditRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: Edi
 
   // Watch values
   const watchedTdsApplicable = watch('tds_applicable');
-  const watchedRecordPayment = watch('is_paid'); // Repurposed: now means "record a new payment"
-  const watchedCurrencyId = watch('currency_id');
+  // Note: Payment recording removed from edit forms - managed via Payments tab
 
   // Pre-fill form with existing invoice data
   React.useEffect(() => {
@@ -363,12 +337,7 @@ export function EditRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: Edi
         tds_applicable: validatedData.tds_applicable,
         tds_percentage: validatedData.tds_percentage || null,
         tds_rounded: validatedData.tds_rounded ?? false, // BUG-003: Include TDS rounding preference
-        is_paid: validatedData.is_paid,
-        paid_date: validatedData.is_paid && validatedData.paid_date ? validatedData.paid_date.toISOString() : null,
-        paid_amount: validatedData.is_paid ? validatedData.paid_amount : null,
-        paid_currency: validatedData.is_paid ? validatedData.paid_currency : null,
-        payment_type_id: validatedData.is_paid ? validatedData.payment_type_id : null,
-        payment_reference: validatedData.is_paid ? validatedData.payment_reference : null,
+        // Note: Payment fields removed - payments are managed via Payments tab after invoice creation
       };
 
       // Force JSON serialization
@@ -632,27 +601,8 @@ export function EditRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: Edi
         errors={errors}
       />
 
-      {/* Record Payment Section (Optional) */}
-      <InlinePaymentFields
-        recordPayment={watchedRecordPayment}
-        onRecordPaymentChange={(record) => setValue('is_paid', record)}
-        paidDate={watch('paid_date') ?? null}
-        paidAmount={watch('paid_amount') ?? null}
-        paidCurrency={watch('paid_currency') ?? null}
-        paymentTypeId={watch('payment_type_id') ?? null}
-        paymentReference={watch('payment_reference') ?? null}
-        onFieldChange={(field, value) => setValue(field as keyof RecurringInvoiceFormData, value)}
-        invoiceCurrency={currencies.find((c) => c.id === watchedCurrencyId)?.code}
-        currencies={currencies}
-        paymentTypes={paymentTypes}
-        control={control as unknown as Control<Record<string, unknown>>}
-        errors={errors}
-        tdsApplicable={watchedTdsApplicable}
-        tdsPercentage={watch('tds_percentage') ?? 0}
-        invoiceAmount={watch('invoice_amount')}
-        tdsRounded={watch('tds_rounded') ?? false}
-        onTdsRoundedChange={(rounded) => setValue('tds_rounded', rounded)}
-      />
+      {/* Note: Payment recording is now done separately via the Payments tab after invoice creation.
+          This keeps edit forms focused on invoice details only. */}
 
       {/* File Upload (Optional) */}
       <div className="space-y-2">

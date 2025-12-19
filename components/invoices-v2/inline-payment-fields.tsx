@@ -22,6 +22,25 @@ import { AmountInput } from './amount-input';
 import { calculateTds } from '@/lib/utils/tds';
 
 /**
+ * Get currency symbol from code
+ */
+function getCurrencySymbol(code: string): string {
+  const symbols: Record<string, string> = {
+    INR: '₹',
+    USD: '$',
+    EUR: '€',
+    GBP: '£',
+    JPY: '¥',
+    AUD: 'A$',
+    CAD: 'C$',
+    CHF: 'Fr',
+    CNY: '¥',
+    SGD: 'S$',
+  };
+  return symbols[code] || code;
+}
+
+/**
  * Props interface for InlinePaymentFields
  */
 interface InlinePaymentFieldsProps {
@@ -41,9 +60,9 @@ interface InlinePaymentFieldsProps {
   paymentReference: string | null;
   /** Callback when any field changes */
   onFieldChange: (field: string, value: boolean | number | string | Date | null) => void;
-  /** Invoice currency to auto-fill paid currency */
+  /** Invoice currency code (e.g., 'INR', 'USD') - used for display prefix */
   invoiceCurrency?: string;
-  /** Available currencies for dropdown */
+  /** Available currencies for dropdown (legacy - no longer used) */
   currencies?: Array<{ id: number; code: string; symbol: string }>;
   /** Available payment types for dropdown */
   paymentTypes?: Array<{ id: number; name: string; requires_reference: boolean }>;
@@ -55,7 +74,7 @@ interface InlinePaymentFieldsProps {
   tdsApplicable?: boolean;
   /** TDS percentage (e.g., 10 for 10%) */
   tdsPercentage?: number;
-  /** Invoice amount for TDS calculation */
+  /** Invoice amount for TDS calculation and context stats */
   invoiceAmount?: number;
   /** Whether TDS rounding is enabled */
   tdsRounded?: boolean;
@@ -112,7 +131,7 @@ export function InlinePaymentFields({
   paymentReference,
   onFieldChange,
   invoiceCurrency,
-  currencies = [],
+  // currencies prop deprecated - currency now derived from invoice's currency
   paymentTypes = [],
   errors = {},
   control,
@@ -195,61 +214,137 @@ export function InlinePaymentFields({
       {/* Conditional Payment Fields */}
       {recordPayment && (
         <div className="space-y-4 pt-2 border-t border-border">
-          {/* Payment Date */}
-          <div className="space-y-2">
-            <Label htmlFor="paid_date">
-              Payment Date <span className="text-destructive">*</span>
-            </Label>
-            {control ? (
-              <Controller
-                name="paid_date"
-                control={control}
-                render={({ field }) => (
-                  <Input
-                    id="paid_date"
-                    type="date"
-                    value={formatDateForInput(field.value as Date | null)}
-                    onChange={(e) => field.onChange(parseDateFromInput(e.target.value))}
-                    className={errors.paid_date ? 'border-destructive' : ''}
-                  />
-                )}
-              />
-            ) : (
-              <Input
-                id="paid_date"
-                type="date"
-                value={formatDateForInput(paidDate)}
-                onChange={(e) => onFieldChange('paid_date', parseDateFromInput(e.target.value))}
-                className={errors.paid_date ? 'border-destructive' : ''}
-              />
-            )}
-            {errors.paid_date && (
-              <p className="text-xs text-destructive">{errors.paid_date.message}</p>
-            )}
-          </div>
+          {/* Context Stats - Only show when invoice amount is available */}
+          {invoiceAmount > 0 && (
+            <div className="grid grid-cols-3 gap-2">
+              {/* Invoice Amount */}
+              <div className="rounded-lg border bg-card p-3">
+                <p className="text-xs text-muted-foreground">Invoice Amount</p>
+                <p className="text-sm font-semibold mt-0.5">
+                  {formatCurrency(invoiceAmount)}
+                </p>
+              </div>
+              {/* TDS Deducted - Only show if TDS applicable */}
+              {tdsApplicable && tdsPercentage > 0 && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20 p-3">
+                  <p className="text-xs text-muted-foreground">TDS Deducted</p>
+                  <p className="text-sm font-semibold text-amber-600 dark:text-amber-400 mt-0.5">
+                    -{formatCurrency(tdsCalculation.activeTds)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {tdsPercentage}%{tdsRounded ? ' · Rounded' : ''}
+                  </p>
+                </div>
+              )}
+              {/* Net Payable */}
+              <div className="rounded-lg border border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20 p-3">
+                <p className="text-xs text-muted-foreground">Net Payable</p>
+                <p className="text-sm font-semibold text-green-600 dark:text-green-400 mt-0.5">
+                  {formatCurrency(
+                    tdsApplicable && tdsPercentage > 0
+                      ? invoiceAmount - tdsCalculation.activeTds
+                      : invoiceAmount
+                  )}
+                </p>
+              </div>
+            </div>
+          )}
 
-          {/* Currency & Amount Paid */}
-          <div className="space-y-2">
-            <Label htmlFor="paid_amount">
-              Amount Paid <span className="text-destructive">*</span>
-            </Label>
-            <div className="grid grid-cols-[140px_1fr] gap-2">
-              {/* Currency Dropdown */}
+          {/* Row 1: Amount + Date */}
+          <div className="grid grid-cols-2 gap-4">
+            {/* Amount with Currency Prefix */}
+            <div className="space-y-2">
+              <Label htmlFor="paid_amount">
+                Amount <span className="text-destructive">*</span>
+              </Label>
+              <div className="flex">
+                {/* Currency Prefix */}
+                <div className="flex items-center justify-center px-3 border border-r-0 rounded-l-md bg-muted text-muted-foreground text-sm font-medium min-w-[70px]">
+                  {invoiceCurrency || 'INR'} {getCurrencySymbol(invoiceCurrency || 'INR')}
+                </div>
+                {/* Amount Input */}
+                <AmountInput
+                  id="paid_amount"
+                  placeholder="0.00"
+                  value={paidAmount}
+                  onChange={(value) => onFieldChange('paid_amount', value)}
+                  hasError={!!errors.paid_amount}
+                  className="rounded-l-none flex-1"
+                />
+              </div>
+              {errors.paid_amount && (
+                <p className="text-xs text-destructive">{errors.paid_amount.message}</p>
+              )}
+              {/* Max hint */}
+              {invoiceAmount > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Max: {formatCurrency(
+                    tdsApplicable && tdsPercentage > 0
+                      ? invoiceAmount - tdsCalculation.activeTds
+                      : invoiceAmount
+                  )}
+                </p>
+              )}
+            </div>
+
+            {/* Date */}
+            <div className="space-y-2">
+              <Label htmlFor="paid_date">
+                Date <span className="text-destructive">*</span>
+              </Label>
               {control ? (
                 <Controller
-                  name="paid_currency"
+                  name="paid_date"
+                  control={control}
+                  render={({ field }) => (
+                    <Input
+                      id="paid_date"
+                      type="date"
+                      value={formatDateForInput(field.value as Date | null)}
+                      onChange={(e) => field.onChange(parseDateFromInput(e.target.value))}
+                      className={errors.paid_date ? 'border-destructive' : ''}
+                    />
+                  )}
+                />
+              ) : (
+                <Input
+                  id="paid_date"
+                  type="date"
+                  value={formatDateForInput(paidDate)}
+                  onChange={(e) => onFieldChange('paid_date', parseDateFromInput(e.target.value))}
+                  className={errors.paid_date ? 'border-destructive' : ''}
+                />
+              )}
+              {errors.paid_date && (
+                <p className="text-xs text-destructive">{errors.paid_date.message}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Row 2: Payment Type + Reference */}
+          <div className="grid grid-cols-2 gap-4">
+            {/* Payment Type */}
+            <div className="space-y-2">
+              <Label htmlFor="payment_type_id">
+                Payment Type <span className="text-destructive">*</span>
+              </Label>
+              {control ? (
+                <Controller
+                  name="payment_type_id"
                   control={control}
                   render={({ field }) => (
                     <Select
-                      id="paid_currency"
-                      value={(field.value as string) || ''}
-                      onChange={(e) => field.onChange(e.target.value)}
-                      className={errors.paid_currency ? 'border-destructive' : ''}
+                      id="payment_type_id"
+                      value={field.value?.toString() || ''}
+                      onChange={(e) =>
+                        field.onChange(e.target.value ? parseInt(e.target.value, 10) : null)
+                      }
+                      className={errors.payment_type_id ? 'border-destructive' : ''}
                     >
-                      <option value="">--</option>
-                      {currencies.map((currency) => (
-                        <option key={currency.id} value={currency.code}>
-                          {currency.code} {currency.symbol}
+                      <option value="">-- Select --</option>
+                      {paymentTypes.map((type) => (
+                        <option key={type.id} value={type.id}>
+                          {type.name}
                         </option>
                       ))}
                     </Select>
@@ -257,107 +352,52 @@ export function InlinePaymentFields({
                 />
               ) : (
                 <Select
-                  id="paid_currency"
-                  value={paidCurrency || ''}
-                  onChange={(e) => onFieldChange('paid_currency', e.target.value)}
-                  className={errors.paid_currency ? 'border-destructive' : ''}
+                  id="payment_type_id"
+                  value={paymentTypeId?.toString() || ''}
+                  onChange={(e) =>
+                    onFieldChange(
+                      'payment_type_id',
+                      e.target.value ? parseInt(e.target.value, 10) : null
+                    )
+                  }
+                  className={errors.payment_type_id ? 'border-destructive' : ''}
                 >
-                  <option value="">--</option>
-                  {currencies.map((currency) => (
-                    <option key={currency.id} value={currency.code}>
-                      {currency.code} {currency.symbol}
+                  <option value="">-- Select --</option>
+                  {paymentTypes.map((type) => (
+                    <option key={type.id} value={type.id}>
+                      {type.name}
                     </option>
                   ))}
                 </Select>
               )}
-
-              {/* Amount Input */}
-              <AmountInput
-                id="paid_amount"
-                placeholder="0.00"
-                value={paidAmount}
-                onChange={(value) => onFieldChange('paid_amount', value)}
-                hasError={!!errors.paid_amount}
-              />
+              {errors.payment_type_id && (
+                <p className="text-xs text-destructive">{errors.payment_type_id.message}</p>
+              )}
             </div>
-            {(errors.paid_amount || errors.paid_currency) && (
-              <p className="text-xs text-destructive">
-                {errors.paid_amount?.message || errors.paid_currency?.message}
-              </p>
-            )}
-          </div>
 
-          {/* Payment Type */}
-          <div className="space-y-2">
-            <Label htmlFor="payment_type_id">
-              Payment Type <span className="text-destructive">*</span>
-            </Label>
-            {control ? (
-              <Controller
-                name="payment_type_id"
-                control={control}
-                render={({ field }) => (
-                  <Select
-                    id="payment_type_id"
-                    value={field.value?.toString() || ''}
-                    onChange={(e) =>
-                      field.onChange(e.target.value ? parseInt(e.target.value, 10) : null)
-                    }
-                    className={errors.payment_type_id ? 'border-destructive' : ''}
-                  >
-                    <option value="">-- Select Payment Type --</option>
-                    {paymentTypes.map((type) => (
-                      <option key={type.id} value={type.id}>
-                        {type.name}
-                      </option>
-                    ))}
-                  </Select>
-                )}
-              />
-            ) : (
-              <Select
-                id="payment_type_id"
-                value={paymentTypeId?.toString() || ''}
-                onChange={(e) =>
-                  onFieldChange(
-                    'payment_type_id',
-                    e.target.value ? parseInt(e.target.value, 10) : null
-                  )
-                }
-                className={errors.payment_type_id ? 'border-destructive' : ''}
-              >
-                <option value="">-- Select Payment Type --</option>
-                {paymentTypes.map((type) => (
-                  <option key={type.id} value={type.id}>
-                    {type.name}
-                  </option>
-                ))}
-              </Select>
-            )}
-            {errors.payment_type_id && (
-              <p className="text-xs text-destructive">{errors.payment_type_id.message}</p>
-            )}
-          </div>
-
-          {/* Reference Number (Conditional) */}
-          {requiresReference && (
+            {/* Reference Number (Conditional based on payment type) */}
             <div className="space-y-2">
               <Label htmlFor="payment_reference">
-                Reference Number <span className="text-destructive">*</span>
+                Reference {requiresReference && <span className="text-destructive">*</span>}
               </Label>
               <Input
                 id="payment_reference"
                 type="text"
-                placeholder="Enter reference number"
+                placeholder={requiresReference ? 'Required' : 'Optional'}
                 value={paymentReference || ''}
                 onChange={(e) => onFieldChange('payment_reference', e.target.value || null)}
                 className={errors.payment_reference ? 'border-destructive' : ''}
               />
+              {requiresReference && (
+                <p className="text-xs text-muted-foreground">
+                  Required for {selectedPaymentType?.name}
+                </p>
+              )}
               {errors.payment_reference && (
                 <p className="text-xs text-destructive">{errors.payment_reference.message}</p>
               )}
             </div>
-          )}
+          </div>
 
           {/* TDS Rounding Toggle - Only show when TDS amount is a decimal */}
           {showTdsRounding && (

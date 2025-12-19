@@ -27,8 +27,10 @@ export interface TabItem {
 export interface PanelTabsProps {
   /** Array of tab items to display */
   tabs: TabItem[];
-  /** ID of the tab to show by default (defaults to first tab) */
+  /** ID of the tab to show by default (defaults to first tab) - used for uncontrolled mode */
   defaultTab?: string;
+  /** Controlled active tab ID - when provided, component becomes controlled */
+  activeTab?: string;
   /** Additional CSS classes */
   className?: string;
   /** Callback fired when the active tab changes */
@@ -40,20 +42,28 @@ export interface PanelTabsProps {
 export function PanelTabs({
   tabs,
   defaultTab,
+  activeTab: controlledActiveTab,
   className,
   onTabChange,
   mobileMaxTabs = 3,
 }: PanelTabsProps) {
-  const [activeTab, setActiveTab] = React.useState<string>(
+  // Support both controlled and uncontrolled modes
+  const [internalActiveTab, setInternalActiveTab] = React.useState<string>(
     defaultTab || tabs[0]?.id || ''
   );
+
+  // Use controlled value if provided, otherwise use internal state
+  const isControlled = controlledActiveTab !== undefined;
+  const activeTab = isControlled ? controlledActiveTab : internalActiveTab;
   const [isOverflowOpen, setIsOverflowOpen] = React.useState(false);
   const menuRef = React.useRef<HTMLDivElement>(null);
   const triggerRef = React.useRef<HTMLButtonElement>(null);
   const isMobile = useIsMobile();
 
   const handleTabChange = (tabId: string) => {
-    setActiveTab(tabId);
+    if (!isControlled) {
+      setInternalActiveTab(tabId);
+    }
     onTabChange?.(tabId);
     setIsOverflowOpen(false);
   };

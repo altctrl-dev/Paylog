@@ -118,6 +118,9 @@ export function InvoiceDetailPanelV3({
   // Two-step dialog: 'details' shows vendor info, 'confirm' shows final confirmation
   const [vendorDialogStep, setVendorDialogStep] = React.useState<'details' | 'confirm'>('details');
 
+  // Controlled tab navigation state
+  const [activeTab, setActiveTab] = React.useState<string>('details');
+
   // BUG-007: Check vendor status before approval
   const vendorPendingData = React.useRef<{
     vendor: {
@@ -133,8 +136,23 @@ export function InvoiceDetailPanelV3({
   // React Query client for cache invalidation
   const queryClient = useQueryClient();
 
-  // Mutations with close callback
-  const approveInvoice = useApproveInvoiceV2(onClose);
+  // Mutations with callbacks
+  // Handle approval success - navigate to Payments tab if pending payment exists
+  const handleApprovalSuccess = React.useCallback(
+    (hasPaymentPending: boolean) => {
+      if (hasPaymentPending) {
+        // Navigate to Payments tab so admin can review the pending payment
+        setActiveTab('payments');
+        // Don't close panel - let admin review the payment
+      } else {
+        // No pending payment - close panel
+        onClose();
+      }
+    },
+    [onClose]
+  );
+
+  const approveInvoice = useApproveInvoiceV2(handleApprovalSuccess);
   const rejectInvoice = useRejectInvoiceV2(onClose);
 
   // BUG-007: Track vendor+invoice approval state
@@ -301,16 +319,31 @@ export function InvoiceDetailPanelV3({
       const invoiceResult = await approveInvoiceV2(invoiceId);
 
       if (invoiceResult.success) {
-        toast.success(`Invoice ${invoice?.invoice_number || ''} has been approved`);
+        const hasPaymentPending = invoiceResult.data?.hasPaymentPending ?? false;
+
+        // Show appropriate toast based on payment status
+        if (hasPaymentPending) {
+          toast.success(`Invoice ${invoice?.invoice_number || ''} approved. Payment pending review.`);
+        } else {
+          toast.success(`Invoice ${invoice?.invoice_number || ''} has been approved`);
+        }
+
         // Invalidate caches
         queryClient.invalidateQueries({ queryKey: ['invoices'] });
         queryClient.invalidateQueries({ queryKey: ['invoices-v2'] });
         queryClient.invalidateQueries({ queryKey: ['vendors'] });
-        // Close dialog and panel
+
+        // Close dialog and reset state
         setIsVendorPendingDialogOpen(false);
         setVendorDialogStep('details');
         vendorPendingData.current = null;
-        onClose();
+
+        // Navigate to payments tab if payment pending, otherwise close panel
+        if (hasPaymentPending) {
+          setActiveTab('payments');
+        } else {
+          onClose();
+        }
       } else {
         toast.error(invoiceResult.error || 'Failed to approve invoice. Please try approving the invoice manually.');
       }
@@ -633,6 +666,9 @@ export function InvoiceDetailPanelV3({
                 isRecurring={invoice.is_recurring}
                 isArchived={invoice.is_archived}
                 hasPendingPayment={hasPendingPayment}
+                canApprove={permissions.canApprove}
+                onApprove={handleApprove}
+                isApproving={approveInvoice.isPending}
               />
             </div>
 
@@ -653,7 +689,12 @@ export function InvoiceDetailPanelV3({
 
             {/* Tabs + Content */}
             <div className="flex-1 overflow-hidden">
-              <PanelTabs tabs={tabs} className="h-full" />
+              <PanelTabs
+                tabs={tabs}
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+                className="h-full"
+              />
             </div>
           </div>
 
@@ -858,6 +899,7 @@ export function InvoiceDetailPanelV3({
           )}
         </AlertDialogContent>
       </AlertDialog>
+
     </>
   );
 }

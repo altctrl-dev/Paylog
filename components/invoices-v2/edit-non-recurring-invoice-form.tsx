@@ -17,7 +17,7 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { TDSSection } from './tds-section';
-import { InlinePaymentFields } from './inline-payment-fields';
+// InlinePaymentFields removed - payment recording now done via Payments tab
 import { AmountInput } from './amount-input';
 import {
   nonRecurringInvoiceSchema,
@@ -79,7 +79,7 @@ export function EditNonRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: 
     entities,
     categories,
     currencies,
-    paymentTypes,
+    // paymentTypes removed - payment recording now done via Payments tab
     isLoading: isLoadingOptions,
     isError: isOptionsError,
     error: optionsError,
@@ -115,20 +115,13 @@ export function EditNonRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: 
       invoice_amount: 0,
       tds_applicable: false,
       tds_percentage: null,
-      is_paid: false,
-      paid_date: null,
-      paid_amount: null,
-      paid_currency: null,
-      payment_type_id: null,
-      payment_reference: null,
       tds_rounded: false,
     },
   });
 
   // Watch values
   const watchedTdsApplicable = watch('tds_applicable');
-  const watchedRecordPayment = watch('is_paid'); // Repurposed: now means "record a new payment"
-  const watchedCurrencyId = watch('currency_id');
+  // Note: Payment recording removed from edit forms - managed via Payments tab
 
   // Pre-fill form with existing invoice data
   React.useEffect(() => {
@@ -234,12 +227,7 @@ export function EditNonRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: 
         tds_applicable: validatedData.tds_applicable,
         tds_percentage: validatedData.tds_percentage || null,
         tds_rounded: validatedData.tds_rounded ?? false, // BUG-003: Include TDS rounding preference
-        is_paid: validatedData.is_paid,
-        paid_date: validatedData.is_paid && validatedData.paid_date ? validatedData.paid_date.toISOString() : null,
-        paid_amount: validatedData.is_paid ? validatedData.paid_amount : null,
-        paid_currency: validatedData.is_paid ? validatedData.paid_currency : null,
-        payment_type_id: validatedData.is_paid ? validatedData.payment_type_id : null,
-        payment_reference: validatedData.is_paid ? validatedData.payment_reference : null,
+        // Note: Payment fields removed - payments are managed via Payments tab after invoice creation
       };
 
       // Force JSON serialization
@@ -494,27 +482,8 @@ export function EditNonRecurringInvoiceForm({ invoiceId, onSuccess, onCancel }: 
         errors={errors}
       />
 
-      {/* Record Payment Section (Optional) */}
-      <InlinePaymentFields
-        recordPayment={watchedRecordPayment}
-        onRecordPaymentChange={(record) => setValue('is_paid', record)}
-        paidDate={watch('paid_date') ?? null}
-        paidAmount={watch('paid_amount') ?? null}
-        paidCurrency={watch('paid_currency') ?? null}
-        paymentTypeId={watch('payment_type_id') ?? null}
-        paymentReference={watch('payment_reference') ?? null}
-        onFieldChange={(field, value) => setValue(field as keyof NonRecurringInvoiceFormData, value)}
-        invoiceCurrency={currencies.find((c) => c.id === watchedCurrencyId)?.code}
-        currencies={currencies}
-        paymentTypes={paymentTypes}
-        control={control as unknown as Control<Record<string, unknown>>}
-        errors={errors}
-        tdsApplicable={watchedTdsApplicable}
-        tdsPercentage={watch('tds_percentage') ?? 0}
-        invoiceAmount={watch('invoice_amount')}
-        tdsRounded={watch('tds_rounded') ?? false}
-        onTdsRoundedChange={(rounded) => setValue('tds_rounded', rounded)}
-      />
+      {/* Note: Payment recording is now done separately via the Payments tab after invoice creation.
+          This keeps edit forms focused on invoice details only. */}
 
       {/* File Upload (Optional) */}
       <div className="space-y-2">
