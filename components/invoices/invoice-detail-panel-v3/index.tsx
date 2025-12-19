@@ -925,14 +925,14 @@ export function InvoiceDetailPanelV3({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              <span className="text-blue-600">Payment Pending Review</span>
+              <span className="text-amber-600">Payment Pending Review</span>
             </AlertDialogTitle>
             <AlertDialogDescription>
               This invoice has a payment record that requires approval.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-4 rounded-md my-2">
-            <p className="text-sm text-blue-800 dark:text-blue-200">
+          <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-4 rounded-md my-2">
+            <p className="text-sm text-amber-800 dark:text-amber-200">
               The payment was recorded during invoice creation and is now pending approval.
               Would you like to review it now?
             </p>
@@ -943,7 +943,7 @@ export function InvoiceDetailPanelV3({
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handlePaymentReview}
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-amber-600 hover:bg-amber-700"
             >
               Review Payment
             </AlertDialogAction>
