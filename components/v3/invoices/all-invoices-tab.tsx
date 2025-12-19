@@ -88,6 +88,7 @@ import { useSession } from 'next-auth/react';
 import { type InvoiceStatus, INVOICE_STATUS, type InvoiceFilters } from '@/types/invoice';
 import { MonthNavigator } from './month-navigator';
 import { calculateTds } from '@/lib/utils/tds';
+import { formatCurrency } from '@/lib/utils/format';
 
 // ============================================================================
 // Sortable Table Head Component
@@ -274,14 +275,6 @@ function StatusBadge({ status, hasPendingPayment }: StatusBadgeProps) {
 // Format Helpers
 // ============================================================================
 
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
-
 function formatDate(dateString: string | Date | null): string {
   if (!dateString) return '-';
   return new Date(dateString).toLocaleDateString('en-IN', {
@@ -289,15 +282,6 @@ function formatDate(dateString: string | Date | null): string {
     month: '2-digit',
     day: '2-digit',
   });
-}
-
-function formatCurrencyWithDecimals(amount: number): string {
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
 }
 
 /**
@@ -1282,10 +1266,10 @@ export function AllInvoicesTab() {
                         <TableCell className="text-muted-foreground text-sm">{formatDate(invoice.invoice_date)}</TableCell>
                         <TableCell>
                           <div className="space-y-0.5">
-                            <div className="font-medium text-sm">{formatCurrency(invoice.invoice_amount)}</div>
+                            <div className="font-medium text-sm">{formatCurrency(invoice.invoice_amount, invoice.currency?.code)}</div>
                             {invoice.tds_applicable && invoice.tds_percentage && tdsAmount > 0 && (
                               <div className="text-[10px] text-muted-foreground">
-                                TDS {formatCurrencyWithDecimals(tdsAmount)} ({invoice.tds_percentage}%)
+                                TDS {formatCurrency(tdsAmount, invoice.currency?.code)} ({invoice.tds_percentage}%)
                               </div>
                             )}
                           </div>
@@ -1330,7 +1314,7 @@ export function AllInvoicesTab() {
                         </TableCell>
                         <TableCell className="pr-6">
                           <span className={cn('font-medium text-sm', pendingAmount > 0 ? 'text-amber-500' : 'text-muted-foreground')}>
-                            {pendingAmount > 0 ? formatCurrency(pendingAmount) : '–'}
+                            {pendingAmount > 0 ? formatCurrency(pendingAmount, invoice.currency?.code) : '–'}
                           </span>
                         </TableCell>
                       </TableRow>
@@ -1405,11 +1389,11 @@ export function AllInvoicesTab() {
                     <TableCell>
                       <div className="space-y-0.5">
                         <div className="font-medium text-sm">
-                          {formatCurrency(invoice.invoice_amount)}
+                          {formatCurrency(invoice.invoice_amount, invoice.currency?.code)}
                         </div>
                         {invoice.tds_applicable && invoice.tds_percentage && tdsAmount > 0 && (
                           <div className="text-[10px] text-muted-foreground">
-                            TDS {formatCurrencyWithDecimals(tdsAmount)} ({invoice.tds_percentage}%)
+                            TDS {formatCurrency(tdsAmount, invoice.currency?.code)} ({invoice.tds_percentage}%)
                           </div>
                         )}
                       </div>
@@ -1514,7 +1498,7 @@ export function AllInvoicesTab() {
                         'font-medium text-sm',
                         pendingAmount > 0 ? 'text-amber-500' : 'text-muted-foreground'
                       )}>
-                        {pendingAmount > 0 ? formatCurrency(pendingAmount) : '–'}
+                        {pendingAmount > 0 ? formatCurrency(pendingAmount, invoice.currency?.code) : '–'}
                       </span>
                     </TableCell>
                   </TableRow>

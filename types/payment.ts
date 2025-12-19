@@ -160,7 +160,10 @@ export interface PaymentSummary {
   invoice_amount: number;
   total_paid: number;
   remaining_balance: number;
+  /** Count of approved payments */
   payment_count: number;
+  /** Count of pending payments awaiting approval */
+  pending_payment_count: number;
   is_fully_paid: boolean;
   is_partially_paid: boolean;
   /** Whether there's a pending payment awaiting approval */

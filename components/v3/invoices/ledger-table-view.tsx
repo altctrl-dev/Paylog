@@ -37,6 +37,7 @@ import {
 } from '@/components/ui/tooltip';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { formatCurrency as formatCurrencyUtil } from '@/lib/utils/format';
 import { LEDGER_ENTRY_TYPE, type LedgerEntry, type LedgerSummary } from '@/types/ledger';
 
 // ============================================================================
@@ -46,6 +47,8 @@ import { LEDGER_ENTRY_TYPE, type LedgerEntry, type LedgerSummary } from '@/types
 interface LedgerTableViewProps {
   entries: LedgerEntry[];
   summary: LedgerSummary;
+  /** Currency code (ISO 4217) for proper currency formatting */
+  currencyCode?: string;
   className?: string;
 }
 
@@ -54,16 +57,11 @@ interface LedgerTableViewProps {
 // ============================================================================
 
 /**
- * Format number as Indian Rupees
+ * Format currency with null handling
  */
-function formatCurrency(amount: number | null): string {
+function formatCurrency(amount: number | null, currencyCode?: string): string {
   if (amount === null) return '—';
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(amount);
+  return formatCurrencyUtil(amount, currencyCode);
 }
 
 /**
@@ -76,19 +74,19 @@ function formatDate(date: Date): string {
 /**
  * Get TDS display text
  */
-function getTdsDisplay(entry: LedgerEntry): string {
+function getTdsDisplay(entry: LedgerEntry, currencyCode?: string): string {
   if (entry.type === LEDGER_ENTRY_TYPE.INVOICE) {
     if (entry.tdsApplicable && entry.tdsPercentage) {
       const tdsAmount = entry.invoiceAmount
         ? entry.invoiceAmount - (entry.payableAmount ?? 0)
         : 0;
-      return `${formatCurrency(tdsAmount)} (${entry.tdsPercentage}%)`;
+      return `${formatCurrency(tdsAmount, currencyCode)} (${entry.tdsPercentage}%)`;
     }
     return '—';
   }
   // Payment entry
   if (entry.tdsAmountApplied) {
-    return formatCurrency(entry.tdsAmountApplied);
+    return formatCurrency(entry.tdsAmountApplied, currencyCode);
   }
   return '—';
 }
@@ -185,7 +183,7 @@ function BalanceIndicator({
 // Main Component
 // ============================================================================
 
-export function LedgerTableView({ entries, summary, className }: LedgerTableViewProps) {
+export function LedgerTableView({ entries, summary, currencyCode, className }: LedgerTableViewProps) {
   return (
     <Card className={cn('overflow-hidden', className)}>
       <div className="overflow-x-auto">
@@ -245,15 +243,15 @@ export function LedgerTableView({ entries, summary, className }: LedgerTableView
                       </div>
                     </TableCell>
                     <TableCell className="text-right font-mono">
-                      {isInvoice ? formatCurrency(entry.invoiceAmount) : '—'}
+                      {isInvoice ? formatCurrency(entry.invoiceAmount, currencyCode) : '—'}
                     </TableCell>
                     <TableCell className="text-right font-mono text-sm">
-                      {getTdsDisplay(entry)}
+                      {getTdsDisplay(entry, currencyCode)}
                     </TableCell>
                     <TableCell className="text-right font-mono">
                       {isInvoice ? (
                         <span className="text-amber-700 dark:text-amber-400">
-                          {formatCurrency(entry.payableAmount)}
+                          {formatCurrency(entry.payableAmount, currencyCode)}
                         </span>
                       ) : (
                         '—'
@@ -262,7 +260,7 @@ export function LedgerTableView({ entries, summary, className }: LedgerTableView
                     <TableCell className="text-right font-mono">
                       {!isInvoice ? (
                         <span className="text-green-700 dark:text-green-400">
-                          {formatCurrency(entry.paidAmount)}
+                          {formatCurrency(entry.paidAmount, currencyCode)}
                         </span>
                       ) : (
                         '—'
@@ -271,7 +269,7 @@ export function LedgerTableView({ entries, summary, className }: LedgerTableView
                     <TableCell className="text-right font-mono font-semibold">
                       <div className="flex items-center justify-end">
                         <BalanceIndicator entry={entry} previousBalance={previousBalance} />
-                        {formatCurrency(entry.runningBalance)}
+                        {formatCurrency(entry.runningBalance, currencyCode)}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -285,16 +283,16 @@ export function LedgerTableView({ entries, summary, className }: LedgerTableView
                   Totals
                 </TableCell>
                 <TableCell className="text-right font-mono">
-                  {formatCurrency(summary.totalInvoiced)}
+                  {formatCurrency(summary.totalInvoiced, currencyCode)}
                 </TableCell>
                 <TableCell className="text-right font-mono">
-                  {formatCurrency(summary.totalTdsDeducted)}
+                  {formatCurrency(summary.totalTdsDeducted, currencyCode)}
                 </TableCell>
                 <TableCell className="text-right font-mono text-amber-700 dark:text-amber-400">
-                  {formatCurrency(summary.totalPayable)}
+                  {formatCurrency(summary.totalPayable, currencyCode)}
                 </TableCell>
                 <TableCell className="text-right font-mono text-green-700 dark:text-green-400">
-                  {formatCurrency(summary.totalPaid)}
+                  {formatCurrency(summary.totalPaid, currencyCode)}
                 </TableCell>
                 <TableCell className="text-right font-mono">
                   <span
@@ -304,7 +302,7 @@ export function LedgerTableView({ entries, summary, className }: LedgerTableView
                         : 'text-green-700 dark:text-green-400'
                     )}
                   >
-                    {formatCurrency(summary.outstandingBalance)}
+                    {formatCurrency(summary.outstandingBalance, currencyCode)}
                   </span>
                 </TableCell>
               </TableRow>

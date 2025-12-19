@@ -5,6 +5,8 @@ import { PaymentHistoryList } from '@/components/payments/payment-history-list';
 interface PaymentsTabProps {
   invoiceId: number;
   isAdmin: boolean;
+  /** Currency code (ISO 4217) for proper currency formatting */
+  currencyCode?: string;
 }
 
 /**
@@ -20,10 +22,10 @@ interface PaymentsTabProps {
  * Note: isAdmin prop is accepted for interface consistency but PaymentHistoryList
  * determines admin status internally from session.
  */
-export function PaymentsTab({ invoiceId }: PaymentsTabProps) {
+export function PaymentsTab({ invoiceId, currencyCode }: PaymentsTabProps) {
   return (
     <div className="space-y-4">
-      <PaymentHistoryList invoiceId={invoiceId} />
+      <PaymentHistoryList invoiceId={invoiceId} currencyCode={currencyCode} />
     </div>
   );
 }

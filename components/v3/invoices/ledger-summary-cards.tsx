@@ -14,6 +14,7 @@ import * as React from 'react';
 import { IndianRupee, FileText, Receipt, AlertCircle } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils/format';
 import type { LedgerSummary } from '@/types/ledger';
 
 // ============================================================================
@@ -22,6 +23,8 @@ import type { LedgerSummary } from '@/types/ledger';
 
 interface LedgerSummaryCardsProps {
   summary: LedgerSummary;
+  /** Currency code (ISO 4217) for proper currency formatting */
+  currencyCode?: string;
   className?: string;
 }
 
@@ -31,23 +34,9 @@ interface SummaryCardProps {
   subtitle?: string;
   icon: React.ReactNode;
   variant?: 'default' | 'success' | 'warning' | 'danger';
+  /** Currency code (ISO 4217) for proper currency formatting */
+  currencyCode?: string;
   className?: string;
-}
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
-/**
- * Format number as Indian Rupees
- */
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(amount);
 }
 
 // ============================================================================
@@ -60,6 +49,7 @@ function SummaryCard({
   subtitle,
   icon,
   variant = 'default',
+  currencyCode,
   className,
 }: SummaryCardProps) {
   const variantStyles = {
@@ -89,7 +79,7 @@ function SummaryCard({
         <div className="space-y-1">
           <p className="text-sm font-medium text-muted-foreground">{title}</p>
           <p className={cn('text-2xl font-bold tracking-tight', valueStyles[variant])}>
-            {formatCurrency(value)}
+            {formatCurrency(value, currencyCode)}
           </p>
           {subtitle && (
             <p className="text-xs text-muted-foreground">{subtitle}</p>
@@ -107,7 +97,7 @@ function SummaryCard({
 // Main Component
 // ============================================================================
 
-export function LedgerSummaryCards({ summary, className }: LedgerSummaryCardsProps) {
+export function LedgerSummaryCards({ summary, currencyCode, className }: LedgerSummaryCardsProps) {
   const {
     totalInvoiced,
     totalTdsDeducted,
@@ -134,6 +124,7 @@ export function LedgerSummaryCards({ summary, className }: LedgerSummaryCardsPro
         subtitle={`${invoiceCount} invoice${invoiceCount !== 1 ? 's' : ''}`}
         icon={<FileText className="h-5 w-5" />}
         variant="default"
+        currencyCode={currencyCode}
       />
 
       <SummaryCard
@@ -142,6 +133,7 @@ export function LedgerSummaryCards({ summary, className }: LedgerSummaryCardsPro
         subtitle="Tax deducted at source"
         icon={<Receipt className="h-5 w-5" />}
         variant="default"
+        currencyCode={currencyCode}
       />
 
       <SummaryCard
@@ -150,6 +142,7 @@ export function LedgerSummaryCards({ summary, className }: LedgerSummaryCardsPro
         subtitle={`${paymentCount} payment${paymentCount !== 1 ? 's' : ''}`}
         icon={<IndianRupee className="h-5 w-5" />}
         variant="success"
+        currencyCode={currencyCode}
       />
 
       <SummaryCard
@@ -162,6 +155,7 @@ export function LedgerSummaryCards({ summary, className }: LedgerSummaryCardsPro
         }
         icon={<AlertCircle className="h-5 w-5" />}
         variant={outstandingVariant}
+        currencyCode={currencyCode}
       />
     </div>
   );

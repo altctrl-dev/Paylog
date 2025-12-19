@@ -23,6 +23,7 @@ import { KPICard, KPIGrid } from './kpi-card';
 import { DataTable, type InvoiceRow } from './data-table';
 import { SimpleAIInsight } from './ai-insights';
 import { cn } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils/format';
 
 // ============================================================================
 // Types
@@ -59,19 +60,6 @@ export interface DashboardPageProps {
   /** Callback when edit invoice is triggered */
   onEditInvoice?: (id: string) => void;
   className?: string;
-}
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
 }
 
 // ============================================================================

@@ -467,10 +467,10 @@ export function InvoiceDetailPanelV3({
     {
       id: 'payments',
       label: 'Payments',
-      badge: paymentSummary?.payment_count,
+      badge: (paymentSummary?.payment_count ?? 0) + (paymentSummary?.pending_payment_count ?? 0),
       content: (
         <div className="p-4">
-          <PaymentsTab invoiceId={invoiceId} isAdmin={isAdmin} />
+          <PaymentsTab invoiceId={invoiceId} isAdmin={isAdmin} currencyCode={invoice.currency?.code} />
         </div>
       ),
     },

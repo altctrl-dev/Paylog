@@ -32,6 +32,7 @@ import { usePanel } from '@/hooks/use-panel';
 import { useLedgerSummary } from '@/hooks/use-ledger';
 import { calculateTds } from '@/lib/utils/tds';
 import { cn } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils/format';
 import type { PanelConfig } from '@/types/panel';
 import { PANEL_WIDTH } from '@/types/panel';
 import { INVOICE_STATUS_CONFIG, type InvoiceStatus } from '@/types/invoice';
@@ -66,18 +67,6 @@ interface OutstandingInvoice {
   remainingBalance: number;
   isOverdue: boolean;
   daysOverdue: number;
-}
-
-/**
- * Format currency in Indian number system
- */
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
 }
 
 /**
@@ -307,7 +296,7 @@ export function ProfilePaymentPanel({
                 'font-bold text-lg',
                 totalPending > 0 ? 'text-destructive' : 'text-green-500'
               )}>
-                {formatCurrency(totalPending)}
+                {formatCurrency(totalPending, profile?.currency?.code)}
               </span>
             </div>
           </div>
@@ -393,20 +382,20 @@ export function ProfilePaymentPanel({
                     <div className="space-y-0.5 text-xs">
                       <div className="flex justify-between text-muted-foreground">
                         <span>Invoice Amount:</span>
-                        <span>{formatCurrency(invoice.invoice_amount)}</span>
+                        <span>{formatCurrency(invoice.invoice_amount, profile?.currency?.code)}</span>
                       </div>
                       {invoice.totalPaid > 0 && (
                         <div className="flex justify-between text-muted-foreground">
                           <span>Paid:</span>
                           <span className="text-green-600">
-                            -{formatCurrency(invoice.totalPaid)}
+                            -{formatCurrency(invoice.totalPaid, profile?.currency?.code)}
                           </span>
                         </div>
                       )}
                       <div className="flex justify-between pt-1 border-t font-semibold">
                         <span>Remaining:</span>
                         <span className={invoice.isOverdue ? 'text-red-500' : 'text-amber-500'}>
-                          {formatCurrency(invoice.remainingBalance)}
+                          {formatCurrency(invoice.remainingBalance, profile?.currency?.code)}
                         </span>
                       </div>
                     </div>

@@ -151,6 +151,7 @@ export async function getPaymentSummary(
         total_paid: totalPaid,
         remaining_balance: Math.max(0, remainingBalance),
         payment_count: paymentCount,
+        pending_payment_count: pendingPaymentCount,
         is_fully_paid: isFullyPaid,
         is_partially_paid: isPartiallyPaid,
         has_pending_payment: hasPendingPayment,

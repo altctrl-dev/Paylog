@@ -13,6 +13,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils/format';
 
 // ============================================================================
 // Types
@@ -30,24 +31,13 @@ export interface PaymentCardPayment {
 
 export interface PanelPaymentCardProps {
   payment: PaymentCardPayment;
+  /** Currency code (ISO 4217) for proper currency formatting */
+  currencyCode?: string;
   onApprove?: (paymentId: number) => void;
   onReject?: (paymentId: number) => void;
   showActions?: boolean;
   isProcessing?: boolean;
   className?: string;
-}
-
-// ============================================================================
-// Helpers
-// ============================================================================
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(amount);
 }
 
 function formatDate(date: Date | string): string {
@@ -84,6 +74,7 @@ const statusLabels: Record<PaymentCardPayment['status'], string> = {
 
 export function PanelPaymentCard({
   payment,
+  currencyCode,
   onApprove,
   onReject,
   showActions = false,
@@ -117,7 +108,7 @@ export function PanelPaymentCard({
 
         {/* Amount */}
         <div className="text-lg font-bold tracking-tight">
-          {formatCurrency(amount_paid)}
+          {formatCurrency(amount_paid, currencyCode)}
         </div>
 
         {/* Payment Details */}
@@ -133,7 +124,7 @@ export function PanelPaymentCard({
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">TDS Applied</span>
               <span className="font-medium text-amber-600 dark:text-amber-400">
-                {formatCurrency(tds_amount_applied)}
+                {formatCurrency(tds_amount_applied, currencyCode)}
               </span>
             </div>
           )}

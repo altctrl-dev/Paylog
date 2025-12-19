@@ -42,19 +42,11 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { calculateTds } from '@/lib/utils/tds';
+import { formatCurrency } from '@/lib/utils/format';
 
 // ============================================================================
 // Format Helpers
 // ============================================================================
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
-}
 
 function formatDate(dateString: string | Date | null): string {
   if (!dateString) return '-';
@@ -420,13 +412,13 @@ export function TDSTab() {
                       {formatDate(invoice.invoice_date)}
                     </TableCell>
                     <TableCell className="font-medium">
-                      {formatCurrency(invoice.invoice_amount)}
+                      {formatCurrency(invoice.invoice_amount, invoice.currency?.code)}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {formatTdsPercentage(invoice.tds_percentage)}
                     </TableCell>
                     <TableCell className="font-medium pl-4">
-                      {formatCurrency(tdsAmount)}
+                      {formatCurrency(tdsAmount, invoice.currency?.code)}
                     </TableCell>
                   </TableRow>
                 );
@@ -440,7 +432,7 @@ export function TDSTab() {
           <div className="flex justify-center items-center px-4 py-4 border-t bg-muted/30">
             <div className="text-center">
               <div className="text-xs text-muted-foreground uppercase tracking-wider">Total TDS Amount</div>
-              <div className="text-xl font-semibold">{formatCurrency(totals.tdsAmount)}</div>
+              <div className="text-xl font-semibold">{formatCurrency(totals.tdsAmount, filteredInvoices[0]?.currency?.code)}</div>
             </div>
           </div>
         )}

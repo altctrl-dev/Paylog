@@ -338,6 +338,7 @@ ELSE:
 5. [x] Implement controlled tab navigation for Payments tab
 6. [x] Update `approveInvoiceV2()` to return `hasPaymentPending` flag
 7. [x] Update documentation
+8. [x] Fix Payments tab badge to include pending payment count
 
 ---
 

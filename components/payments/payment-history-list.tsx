@@ -19,9 +19,12 @@ import { approvePayment, rejectPayment } from '@/app/actions/payments';
 import { PAYMENT_STATUS_CONFIG, PAYMENT_STATUS } from '@/types/payment';
 import type { PaymentStatus } from '@/types/payment';
 import { toast } from 'sonner';
+import { formatCurrency } from '@/lib/utils/format';
 
 interface PaymentHistoryListProps {
   invoiceId: number;
+  /** Currency code (ISO 4217) for proper currency formatting */
+  currencyCode?: string;
 }
 
 /**
@@ -37,18 +40,6 @@ function formatDate(date: Date | string): string {
 }
 
 /**
- * Format currency for display
- */
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
-}
-
-/**
  * Get payment type label from payment_type relation
  */
 function getPaymentTypeLabel(paymentType: { name: string } | null | undefined): string {
@@ -56,7 +47,7 @@ function getPaymentTypeLabel(paymentType: { name: string } | null | undefined): 
   return paymentType.name;
 }
 
-export function PaymentHistoryList({ invoiceId }: PaymentHistoryListProps) {
+export function PaymentHistoryList({ invoiceId, currencyCode }: PaymentHistoryListProps) {
   const { data: session } = useSession();
   const { data: payments, isLoading, error, refetch } = usePayments(invoiceId);
   const { data: summary, refetch: refetchSummary } = usePaymentSummary(invoiceId);
@@ -168,13 +159,13 @@ export function PaymentHistoryList({ invoiceId }: PaymentHistoryListProps) {
             <div>
               <p className="text-xs text-muted-foreground">Total Paid</p>
               <p className="font-semibold text-primary">
-                {formatCurrency(summary.total_paid)}
+                {formatCurrency(summary.total_paid, currencyCode)}
               </p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Remaining</p>
               <p className="font-semibold text-destructive">
-                {formatCurrency(summary.remaining_balance)}
+                {formatCurrency(summary.remaining_balance, currencyCode)}
               </p>
             </div>
             <div>
@@ -227,7 +218,7 @@ export function PaymentHistoryList({ invoiceId }: PaymentHistoryListProps) {
                       {formatDate(payment.payment_date)}
                     </td>
                     <td className="px-4 py-3 text-right text-sm font-medium">
-                      {formatCurrency(payment.amount_paid)}
+                      {formatCurrency(payment.amount_paid, currencyCode)}
                     </td>
                     <td className="px-4 py-3 text-sm text-muted-foreground">
                       {getPaymentTypeLabel(payment.payment_type)}
@@ -238,7 +229,7 @@ export function PaymentHistoryList({ invoiceId }: PaymentHistoryListProps) {
                       </Badge>
                     </td>
                     <td className="px-4 py-3 text-right text-sm font-medium text-muted-foreground">
-                      {formatCurrency(payment.balanceAfter)}
+                      {formatCurrency(payment.balanceAfter, currencyCode)}
                     </td>
                     {isAdmin && (
                       <td className="px-4 py-3 text-center">
