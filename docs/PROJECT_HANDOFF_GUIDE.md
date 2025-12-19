@@ -1,7 +1,7 @@
 # PayLog - Complete Project Handoff Guide
 
-**Document Version**: 1.1
-**Last Updated**: December 18, 2025
+**Document Version**: 1.2
+**Last Updated**: December 19, 2025
 **Prepared For**: New Development Team Onboarding
 
 ---
@@ -75,6 +75,8 @@ PayLog is a **comprehensive expense and invoice management system** designed for
 - ✅ Tab overflow menu for mobile screens
 - ✅ Native mobile dropdowns (replacing Radix UI for touch compatibility)
 - ✅ Panel responsive width (maxWidth instead of fixed width)
+- ✅ Payments tab badge fix (shows pending + approved count)
+- ✅ Dynamic currency formatting (uses invoice's currency code)
 
 ---
 
@@ -1018,6 +1020,39 @@ export function useIsDesktop(): boolean;  // min-width: 1024px
 
 ---
 
+### Payments Tab Badge & Currency Fixes - ✅ COMPLETE (Dec 19, 2025)
+
+**Files Modified**:
+- `types/payment.ts` - Added `pending_payment_count` to PaymentSummary
+- `app/actions/payments.ts` - Return `pending_payment_count` in response
+- `components/invoices/invoice-detail-panel-v3/index.tsx` - Combined badge count
+- Multiple components updated for dynamic currency formatting
+
+**Bug Fixes**:
+
+1. **Payments Tab Badge Missing Pending Count**:
+   - Root cause: `pendingPaymentCount` was calculated in `getPaymentSummary` but not returned
+   - Fix: Added `pending_payment_count` to `PaymentSummary` type and return value
+   - Result: Payments tab badge now shows total (approved + pending)
+
+2. **Currency Symbol Hardcoded**:
+   - Root cause: Local `formatCurrency` functions hardcoded `'INR'` or `'USD'`
+   - Fix: Removed all local formatCurrency functions, use shared utility with `currencyCode` prop
+   - Pattern: `formatCurrency(amount, invoice.currency?.code)`
+   - Files fixed: 9 components across payments, ledger, invoices, dashboard
+
+**New Pattern - Currency Code Propagation**:
+```typescript
+// Parent component
+<PaymentsTab currencyCode={invoice.currency?.code} />
+
+// Child component
+import { formatCurrency } from '@/lib/utils/format';
+{formatCurrency(amount, currencyCode)}
+```
+
+---
+
 ## Future Roadmap (Post v1.0.0)
 
 **Low Priority / Technical Debt**:
@@ -1308,6 +1343,39 @@ const computeTabSets = useMemo(() => {
   return { visible: baseVisible, overflow: baseOverflow };
 }, [tabs, activeTab, isMobile, mobileMaxTabs]);
 ```
+
+### 11. Currency Formatting Pattern
+
+**ALWAYS** use the shared `formatCurrency` utility with the invoice/profile's currency code:
+
+```typescript
+// ✅ CORRECT - Dynamic currency from invoice
+import { formatCurrency } from '@/lib/utils/format';
+
+// In component receiving invoice data:
+{formatCurrency(invoice.invoice_amount, invoice.currency?.code)}
+
+// In component receiving currencyCode prop:
+interface PaymentsTabProps {
+  invoiceId: number;
+  currencyCode?: string;  // Pass from parent
+}
+{formatCurrency(amount, currencyCode)}
+```
+
+```typescript
+// ❌ WRONG - Hardcoded currency
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',  // Always INR - ignores invoice currency!
+  }).format(value);
+}
+```
+
+**Key Files**:
+- Shared utility: `lib/utils/format.ts`
+- Currency code source: `invoice.currency?.code` or `profile?.currency?.code`
 
 ---
 
@@ -1765,4 +1833,4 @@ standard_user (lowest)
 
 **Document End**
 
-*This document should be updated as the project evolves. Last comprehensive update: December 18, 2025.*
+*This document should be updated as the project evolves. Last comprehensive update: December 19, 2025.*

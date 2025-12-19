@@ -1,7 +1,7 @@
 # PayLog - Complete Context Restoration Prompt
 
-**Document Version**: 2.0
-**Last Updated**: December 18, 2025
+**Document Version**: 2.1
+**Last Updated**: December 19, 2025
 **Purpose**: Use this prompt at the start of ANY new Claude session to restore full project context.
 
 ---
@@ -28,11 +28,11 @@ After reading, confirm you understand:
 - **Tech Stack**: Next.js 14.2.35, TypeScript, PostgreSQL, Prisma, shadcn/ui, React Query, Zustand
 - **Hosting**: Railway (PostgreSQL + deployment)
 
-## Current Status (December 18, 2025)
+## Current Status (December 19, 2025)
 - Sprint 14: COMPLETE (13/13 items)
 - Progress: ~99% toward v1.0.0
-- Recent: Mobile bug fixes completed (3 critical bugs fixed)
-- Commits: 85+ in December 2025
+- Recent: Payments tab badge + Currency fixes (Dec 19)
+- Commits: 87+ in December 2025
 
 ## Architecture Patterns (CRITICAL - MUST FOLLOW)
 
@@ -109,6 +109,13 @@ className="w-full"  // 100% on mobile, capped by maxWidth
 // Pattern: components/panels/shared/panel-tabs.tsx (computeTabSets useMemo)
 ```
 
+### Currency Formatting - Use shared utility with currencyCode:
+```typescript
+import { formatCurrency } from '@/lib/utils/format';
+formatCurrency(amount, invoice.currency?.code)  // Dynamic currency
+// NEVER use hardcoded: currency: 'INR' or 'USD'
+```
+
 ### Media Query Hooks:
 ```typescript
 import { useIsMobile, useIsTablet, useIsDesktop } from '@/hooks/use-media-query';
@@ -168,11 +175,17 @@ pnpm build     # must succeed
 - Mobile: Action bar in footer, tab overflow menu
 - New useMediaQuery hook for responsive breakpoints
 
-### Session #3 - Mobile Bug Fixes (LATEST):
+### Session #3 - Mobile Bug Fixes:
 - Fixed: Dropdown menus not working (replaced Radix with native)
 - Fixed: Panel content clipped on left edge (maxWidth instead of width)
 - Fixed: Tab swap bug (proper swap logic in useMemo)
 - Root causes: Radix UI touch issues, inline style specificity, incomplete swap logic
+
+### Session #4 - Payments Tab Badge & Currency Fixes (LATEST - Dec 19):
+- Fixed: Payments tab badge not showing pending count (added `pending_payment_count` to PaymentSummary)
+- Fixed: Currency symbol hardcoded as $ instead of invoice's currency (use shared `formatCurrency` with `invoice.currency?.code`)
+- Pattern: Pass `currencyCode` prop down component chain, use `formatCurrency(amount, currencyCode)`
+- Files fixed: 12 files including payment-history-list, ledger components, all-invoices-tab, tds-tab, dashboard
 
 ## Database Models (16 total)
 User, InvoiceProfile, Invoice, Vendor, Category, PaymentType, Payment,
@@ -312,6 +325,8 @@ paylog-3/
 | Mobile dropdown | Touch not working on Radix UI | Native dropdown with touchstart | panel-tabs.tsx, index.tsx |
 | Panel clipping | Left edge content cut off | maxWidth instead of width | panel-level.tsx |
 | Tab swap | Tab disappearing from both locations | Proper swap in useMemo | panel-tabs.tsx |
+| Payments badge | Not showing pending count | Add `pending_payment_count` to PaymentSummary | types/payment.ts, payments.ts |
+| Currency symbol | Hardcoded $ or ₹ | Use shared `formatCurrency(amount, currencyCode)` | lib/utils/format.ts |
 
 ---
 
@@ -349,9 +364,10 @@ paylog-3/
 
 ---
 
-## Recent Commits (December 18, 2025)
+## Recent Commits (December 2025)
 
 ```
+1af2419 fix(currency): use dynamic currency formatting across all components
 0caae6a fix(tabs): properly swap overflow tab with last visible tab on mobile
 039a4c4 fix(panel): use maxWidth for responsive panel sizing on mobile
 3af4605 fix(mobile): replace Radix UI popover with native dropdown for mobile menus
@@ -392,11 +408,17 @@ paylog-3/
 
 6. **TDS Calculation**: Always use the invoice's `tds_rounded` preference to ensure consistency.
 
+7. **Return ALL Calculated Values**: When server actions calculate values (like `pendingPaymentCount`), include them in the return type and response - don't just use internally.
+
+8. **Centralize Formatting Utilities**: Never create local `formatCurrency` functions - always use the shared utility from `lib/utils/format.ts` with the entity's currency code.
+
+9. **Currency Code Propagation**: Pass `currencyCode` prop from parent (where invoice/profile is available) down to child components that display currency values.
+
 ---
 
 **Document End**
 
 *Update this prompt after each session to maintain context continuity.*
 
-**Last Updated**: December 18, 2025
-**Session**: Mobile Bug Fixes Complete
+**Last Updated**: December 19, 2025
+**Session**: Payments Tab Badge & Currency Fixes Complete

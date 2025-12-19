@@ -1026,3 +1026,239 @@ All checks passed:
 **Sprint 14**: COMPLETE (13/13 items)
 **Overall Progress**: ~99% complete toward v1.0.0
 **Next Steps**: v1.0.0 release preparation
+
+---
+
+## December 19, 2025 Session - Payments Tab Badge & Currency Fixes
+
+### Issues Reported by User
+
+The user reported two issues during this session:
+
+1. **Payments Tab Badge Missing Pending Count**: The Payments tab in the invoice detail panel wasn't showing a badge when there was a pending payment. The Attachments tab showed its count correctly, but Payments didn't.
+
+2. **Currency Symbol Hardcoded**: Currency amounts were displaying `$` symbol instead of the invoice's actual currency symbol (e.g., `₹` for INR invoices).
+
+---
+
+### Root Cause Analysis
+
+#### Bug 1: Payments Tab Badge Not Showing Pending Count
+
+**Root Cause**: The `getPaymentSummary` server action was calculating `pendingPaymentCount` internally but NOT returning it in the response. The `PaymentSummary` type only had:
+- `payment_count` (approved payments only)
+- `has_pending_payment` (boolean)
+
+But `pending_payment_count` (the actual count) was missing.
+
+**Investigation Path**:
+1. Checked `PaymentSummary` type in `types/payment.ts` - missing `pending_payment_count`
+2. Checked `getPaymentSummary` in `app/actions/payments.ts` - calculated but not returned
+3. Checked invoice detail panel - only using `payment_count` for badge
+
+#### Bug 2: Currency Symbol Hardcoded
+
+**Root Cause**: Multiple components had their own local `formatCurrency` functions that hardcoded either `'USD'` or `'INR'`:
+
+```typescript
+// ❌ WRONG - Hardcoded currency
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',  // Always INR!
+  }).format(value);
+}
+```
+
+The shared utility at `lib/utils/format.ts` already had the correct implementation:
+
+```typescript
+// ✅ CORRECT - Dynamic currency
+export function formatCurrency(value: number, currencyCode?: string) {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: currencyCode || 'INR',
+  }).format(value);
+}
+```
+
+---
+
+### Solutions Implemented
+
+#### Fix 1: Added `pending_payment_count` to PaymentSummary
+
+**Files Modified**:
+- `types/payment.ts` - Added field to interface
+- `app/actions/payments.ts` - Return field in response
+- `components/invoices/invoice-detail-panel-v3/index.tsx` - Use combined count for badge
+
+**Changes**:
+
+```typescript
+// types/payment.ts
+export interface PaymentSummary {
+  invoice_id: number;
+  invoice_amount: number;
+  total_paid: number;
+  remaining_balance: number;
+  /** Count of approved payments */
+  payment_count: number;
+  /** Count of pending payments awaiting approval */
+  pending_payment_count: number;  // NEW
+  is_fully_paid: boolean;
+  is_partially_paid: boolean;
+  /** Whether there's a pending payment awaiting approval */
+  has_pending_payment: boolean;
+}
+```
+
+```typescript
+// app/actions/payments.ts - getPaymentSummary return
+return {
+  success: true,
+  data: {
+    // ...existing fields...
+    pending_payment_count: pendingPaymentCount,  // NEW
+    // ...
+  },
+};
+```
+
+```typescript
+// invoice-detail-panel-v3/index.tsx - Payments tab badge
+{
+  id: 'payments',
+  label: 'Payments',
+  badge: (paymentSummary?.payment_count ?? 0) + (paymentSummary?.pending_payment_count ?? 0),
+  content: <PaymentsTab invoiceId={invoiceId} isAdmin={isAdmin} currencyCode={invoice.currency?.code} />,
+}
+```
+
+#### Fix 2: Dynamic Currency Formatting Across All Components
+
+**Strategy**: Remove all local `formatCurrency` functions and use the shared utility from `lib/utils/format.ts`, passing the invoice's `currency?.code` property.
+
+**Files Modified** (9 files total):
+
+| File | Changes |
+|------|---------|
+| `components/invoices/invoice-detail-panel-v3/tabs/payments-tab.tsx` | Added `currencyCode` prop, pass to PaymentHistoryList |
+| `components/payments/payment-history-list.tsx` | Removed local formatCurrency, use shared with currencyCode prop |
+| `components/panels/shared/panel-payment-card.tsx` | Added currencyCode prop, use shared formatCurrency |
+| `components/v3/invoices/ledger-table-view.tsx` | Added currencyCode prop, updated all formatCurrency calls |
+| `components/v3/invoices/ledger-summary-cards.tsx` | Added currencyCode prop to component and SummaryCard |
+| `components/v3/invoices/all-invoices-tab.tsx` | Removed 2 local formatCurrency functions, use shared with invoice.currency?.code |
+| `components/v3/invoices/tds-tab.tsx` | Removed local formatCurrency, use shared with invoice.currency?.code |
+| `components/v3/dashboard/dashboard-page.tsx` | Removed local formatCurrency, use shared utility |
+| `components/master-data/profile-payment-panel.tsx` | Removed local formatCurrency, use shared with profile?.currency?.code |
+
+**Pattern Used**:
+
+```typescript
+// Before (❌ Wrong - hardcoded)
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+  }).format(value);
+}
+// Usage: {formatCurrency(amount)}
+
+// After (✅ Correct - dynamic)
+import { formatCurrency } from '@/lib/utils/format';
+// Usage: {formatCurrency(amount, invoice.currency?.code)}
+```
+
+---
+
+### Code Changes Summary
+
+#### PaymentsTab Component Chain:
+
+```
+invoice-detail-panel-v3/index.tsx
+  └── currencyCode={invoice.currency?.code}
+      └── PaymentsTab
+          └── currencyCode prop
+              └── PaymentHistoryList
+                  └── formatCurrency(amount, currencyCode)
+```
+
+#### Ledger Component Chain:
+
+```
+ledger-tab.tsx
+  └── currencyCode={selectedProfile.currency?.code}
+      └── LedgerSummaryCards
+      │   └── formatCurrency(value, currencyCode)
+      └── LedgerTableView
+          └── formatCurrency(entry.amount, currencyCode)
+```
+
+---
+
+### Commits
+
+```
+1af2419 fix(currency): use dynamic currency formatting across all components
+```
+
+---
+
+### Files Modified
+
+| File | Lines Changed | Changes |
+|------|---------------|---------|
+| `types/payment.ts` | +2 | Added `pending_payment_count` to PaymentSummary |
+| `app/actions/payments.ts` | +1 | Return `pending_payment_count` in response |
+| `components/invoices/invoice-detail-panel-v3/index.tsx` | +2 | Combined badge count, pass currencyCode |
+| `components/invoices/invoice-detail-panel-v3/tabs/payments-tab.tsx` | +5 | Added currencyCode prop |
+| `components/payments/payment-history-list.tsx` | +3, -8 | Removed local formatCurrency, use shared |
+| `components/panels/shared/panel-payment-card.tsx` | +4, -8 | Added currencyCode prop |
+| `components/v3/invoices/ledger-table-view.tsx` | +6, -10 | Added currencyCode prop |
+| `components/v3/invoices/ledger-summary-cards.tsx` | +8, -10 | Added currencyCode props |
+| `components/v3/invoices/all-invoices-tab.tsx` | +1, -20 | Removed 2 local formatCurrency functions |
+| `components/v3/invoices/tds-tab.tsx` | +1, -10 | Removed local formatCurrency |
+| `components/v3/dashboard/dashboard-page.tsx` | +1, -10 | Removed local formatCurrency |
+| `components/master-data/profile-payment-panel.tsx` | +1, -10 | Removed local formatCurrency |
+
+---
+
+### Quality Gates
+
+All checks passed:
+- ✅ `pnpm lint` - 0 errors
+- ✅ `pnpm typecheck` - 0 errors
+- ✅ `pnpm build` - Successful
+
+---
+
+### Lessons Learned
+
+1. **Return ALL calculated values**: When a server action calculates a useful value (like `pendingPaymentCount`), make sure to include it in the return type and response, not just use it internally.
+
+2. **Centralize formatting utilities**: Having multiple local `formatCurrency` functions across components leads to inconsistency. Always use the shared utility from `lib/utils/format.ts`.
+
+3. **Currency code propagation**: When displaying currency values, always pass the currency code from the source entity (invoice, profile) down through the component chain.
+
+---
+
+### Testing Checklist
+
+After these fixes, verify:
+- [x] Payments tab badge shows total count (approved + pending)
+- [x] Currency symbols match invoice currency (₹ for INR, $ for USD)
+- [x] Ledger tab shows correct currency per profile
+- [x] TDS tab shows correct currency
+- [x] All Invoices tab shows correct currency
+- [x] Dashboard shows correct currency
+- [x] Profile Payment Panel shows correct currency
+- [x] Build passes successfully
+
+---
+
+**Session Status**: PAYMENTS TAB BADGE + CURRENCY FIXES COMPLETE
+**Sprint 14**: COMPLETE (13/13 items)
+**Overall Progress**: ~99% complete toward v1.0.0
+**Next Steps**: v1.0.0 release preparation, documentation review
