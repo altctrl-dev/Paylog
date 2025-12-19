@@ -9,11 +9,11 @@
 'use client';
 
 import * as React from 'react';
-import { Check } from 'lucide-react';
+import { Check, ChevronDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from 'cmdk';
 import { cn } from '@/lib/utils';
-import { useSearchVendors } from '@/hooks/use-vendors';
+import { useSearchVendors, useAllVendors } from '@/hooks/use-vendors';
 
 interface VendorTextAutocompleteProps {
   /** Current vendor ID (null if new/custom vendor) */
@@ -47,11 +47,19 @@ export function VendorTextAutocomplete({
   const [search, setSearch] = React.useState('');
   const [open, setOpen] = React.useState(false);
   const [selectedVendorName, setSelectedVendorName] = React.useState('');
+  const [isBrowseMode, setIsBrowseMode] = React.useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   // Fetch vendors based on search query OR when we need to load initial vendor by ID
   const shouldFetchVendors = open || search.length > 0 || (!!value && value > 0 && !search);
-  const { data: vendors = [], isLoading } = useSearchVendors(search || '', shouldFetchVendors);
+  const { data: searchVendors = [], isLoading: isSearchLoading } = useSearchVendors(search || '', shouldFetchVendors && !isBrowseMode);
+
+  // IMP-004: Fetch ALL vendors when browsing (arrow key triggered)
+  const { data: allVendors = [], isLoading: isBrowseLoading } = useAllVendors(isBrowseMode && open);
+
+  // Use browse vendors when in browse mode, otherwise use search vendors
+  const vendors = isBrowseMode ? allVendors : searchVendors;
+  const isLoading = isBrowseMode ? isBrowseLoading : isSearchLoading;
 
   // Initialize search with selected vendor name when value changes (for edit forms)
   // Note: `search` is intentionally excluded from dependencies to avoid race conditions
@@ -74,6 +82,8 @@ export function VendorTextAutocomplete({
     const newValue = e.target.value;
     setSearch(newValue);
     setOpen(newValue.length > 0);
+    // Exit browse mode when user types - switch to search mode
+    setIsBrowseMode(false);
 
     // Check if input matches a vendor
     const matchedVendor = vendors.find(
@@ -98,6 +108,7 @@ export function VendorTextAutocomplete({
     setSelectedVendorName(vendor.name);
     onChange(vendor.id, vendor.name);
     setOpen(false);
+    setIsBrowseMode(false);
     inputRef.current?.blur();
   };
 
@@ -117,7 +128,24 @@ export function VendorTextAutocomplete({
     // Delay closing to allow click on dropdown items
     setTimeout(() => {
       setOpen(false);
+      setIsBrowseMode(false);
     }, 200);
+  };
+
+  /**
+   * Handle keyboard navigation
+   * IMP-004: Arrow down opens dropdown with all vendors
+   */
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowDown' && !open) {
+      e.preventDefault();
+      setIsBrowseMode(true);
+      setOpen(true);
+    } else if (e.key === 'Escape' && open) {
+      e.preventDefault();
+      setOpen(false);
+      setIsBrowseMode(false);
+    }
   };
 
   /**
@@ -129,36 +157,49 @@ export function VendorTextAutocomplete({
 
   return (
     <div className="relative space-y-1">
-      {/* Text Input */}
-      <Input
-        ref={inputRef}
-        type="text"
-        value={getDisplayValue()}
-        onChange={handleInputChange}
-        onFocus={handleFocus}
-        onBlur={handleBlur}
-        disabled={disabled}
-        placeholder={placeholder}
-        className={cn(
-          'w-full',
-          error && 'border-destructive focus-visible:ring-destructive'
-        )}
-        autoComplete="off"
-      />
+      {/* Text Input with Chevron Indicator */}
+      <div className="relative">
+        <Input
+          ref={inputRef}
+          type="text"
+          value={getDisplayValue()}
+          onChange={handleInputChange}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          onKeyDown={handleKeyDown}
+          disabled={disabled}
+          placeholder={placeholder}
+          className={cn(
+            'w-full pr-8',
+            error && 'border-destructive focus-visible:ring-destructive'
+          )}
+          autoComplete="off"
+        />
+        {/* IMP-004: Chevron indicator to hint arrow-down feature */}
+        <ChevronDown
+          className={cn(
+            'absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none transition-transform duration-200',
+            open && 'rotate-180'
+          )}
+        />
+      </div>
 
       {/* Autocomplete Dropdown */}
-      {open && search.length > 0 && (
-        <div className="absolute z-50 w-full mt-1 bg-popover text-popover-foreground shadow-md rounded-md border">
+      {/* IMP-004: Show dropdown when searching OR when in browse mode (arrow key) */}
+      {open && (search.length > 0 || isBrowseMode) && (
+        <div className="absolute z-50 w-full mt-1 bg-popover text-popover-foreground shadow-md rounded-md border max-h-60 overflow-auto">
           <Command>
             <CommandList>
               <CommandEmpty>
                 {isLoading ? (
                   <div className="py-6 text-center text-sm text-muted-foreground">
-                    Searching...
+                    {isBrowseMode ? 'Loading vendors...' : 'Searching...'}
                   </div>
                 ) : (
                   <div className="py-6 text-center text-sm text-muted-foreground">
-                    No vendor found. Keep typing to add new vendor.
+                    {isBrowseMode
+                      ? 'No vendors found. Type to add a new vendor.'
+                      : 'No vendor found. Keep typing to add new vendor.'}
                   </div>
                 )}
               </CommandEmpty>
@@ -170,6 +211,13 @@ export function VendorTextAutocomplete({
                       key={vendor.id}
                       value={vendor.name}
                       onSelect={() => handleSelect(vendor)}
+                      // Use onMouseDown to ensure selection fires before blur on Windows
+                      // Without this, Windows event timing causes blur to fire before click,
+                      // requiring users to double-click to select items
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        handleSelect(vendor);
+                      }}
                       className="cursor-pointer"
                     >
                       <Check

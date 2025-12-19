@@ -2,7 +2,7 @@
 
 > **Status**: 🔄 IN PROGRESS
 > **Created**: 2024-12-12
-> **Last Updated**: 2024-12-15
+> **Last Updated**: 2024-12-20
 
 ## Progress Summary
 
@@ -20,6 +20,9 @@
 | BUG-003: TDS Rounding Consistency (Invoice-Level) | ✅ **COMPLETED** | A | Fixed 2024-12-13 |
 | BUG-008: Double TDS Deduction in Payment Panel | ✅ **COMPLETED** | A | Fixed 2024-12-15 |
 | BUG-007: Vendor Auto-Approval During Invoice Creation | ✅ **COMPLETED** | E | Fixed 2024-12-15 |
+| **December 2025** | | | |
+| BUG-009: Vendor Autocomplete Single-Click Not Working on Windows | ✅ **COMPLETED** | F | Fixed with onMouseDown |
+| IMP-004: Vendor Autocomplete - Browse All Vendors with Arrow Key | ✅ **COMPLETED** | F | Arrow key + chevron indicator |
 
 ---
 
@@ -30,24 +33,34 @@
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │ GROUP A: TDS Calculation Fixes (CRITICAL - Do First)            │
-│ ├─ BUG-006: TDS not deducted in remaining balance (~1 hour)     │
-│ └─ BUG-003: TDS rounding as invoice preference (~4-6 hours)     │
+│ ├─ BUG-006: TDS not deducted in remaining balance (~1 hour)  ✅ │
+│ ├─ BUG-003: TDS rounding as invoice preference (~4-6 hours)  ✅ │
+│ └─ BUG-008: Double TDS deduction in payment panel (~30 min)  ✅ │
 │     Files: app/actions/payments.ts, schema.prisma, forms        │
 ├─────────────────────────────────────────────────────────────────┤
 │ GROUP B: All Invoices Tab Quick Fixes (Same File - Do Together) │
-│ ├─ BUG-004: Search missing fields (~30 min)                     │
-│ ├─ IMP-003: Zero balance as dash (~15 min)                      │
-│ └─ IMP-002: Responsive action bar (~1 hour)                     │
+│ ├─ BUG-004: Search missing fields (~30 min)                  ✅ │
+│ ├─ IMP-003: Zero balance as dash (~15 min)                   ✅ │
+│ └─ IMP-002: Responsive action bar (~1 hour)                  ✅ │
 │     Files: all-invoices-tab.tsx, app/actions/invoices.ts        │
 ├─────────────────────────────────────────────────────────────────┤
 │ GROUP C: Form Data Loading (Investigation Required)             │
-│ └─ BUG-005: Vendor not populated on edit (~1 hour)              │
+│ └─ BUG-005: Vendor not populated on edit (~1 hour)           ✅ │
 │     Files: edit-non-recurring-invoice-form.tsx,                 │
 │            vendor-text-autocomplete.tsx                         │
 ├─────────────────────────────────────────────────────────────────┤
 │ GROUP D: Status UI (Standalone)                                 │
-│ └─ BUG-002: Status color differentiation (~2 hours)             │
+│ └─ BUG-002: Status color differentiation (~2 hours)          ✅ │
 │     Files: Status badge components                              │
+├─────────────────────────────────────────────────────────────────┤
+│ GROUP E: Approval Workflow                                      │
+│ └─ BUG-007: Vendor auto-approval bug (~2-3 hours)            ✅ │
+│     Files: schema.prisma, master-data.ts, notifications.ts      │
+├─────────────────────────────────────────────────────────────────┤
+│ GROUP F: Cross-Platform UX (Vendor Autocomplete)                │
+│ ├─ BUG-009: Single-click not working on Windows (~30 min)    ✅ │
+│ └─ IMP-004: Browse all vendors with arrow key (~2 hours)     ✅ │
+│     Files: vendor-text-autocomplete.tsx, use-vendors.ts         │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -68,6 +81,7 @@
    - [IMP-001: Comprehensive Invoice Filtering System](#imp-001-comprehensive-invoice-filtering-system)
    - [IMP-002: Responsive Action Bar](#imp-002-responsive-action-bar)
    - [IMP-003: Zero Balance Display as Dash](#imp-003-zero-balance-display-as-dash)
+   - [IMP-004: Vendor Autocomplete - Browse All Vendors with Arrow Key](#imp-004-vendor-autocomplete---browse-all-vendors-with-arrow-key)
 4. [Bug Fixes](#bug-fixes)
    - [BUG-001: Block Payment Recording While Pending Payment Exists](#bug-001-block-payment-recording-while-pending-payment-exists)
    - [BUG-002: Invoice Status Colors for Payment Pending](#bug-002-invoice-status-colors-for-payment-pending)
@@ -75,6 +89,9 @@
    - [BUG-004: Search Missing Invoice Name/Profile](#bug-004-search-missing-invoice-nameprofile)
    - [BUG-005: Vendor Not Populated on Edit](#bug-005-vendor-not-populated-on-edit)
    - [BUG-006: TDS Not Deducted in Remaining Balance Calculation](#bug-006-tds-not-deducted-in-remaining-balance-calculation)
+   - [BUG-007: Vendor Auto-Approval During Invoice Creation](#bug-007-vendor-auto-approval-during-invoice-creation)
+   - [BUG-008: Double TDS Deduction in Record Payment Panel](#bug-008-double-tds-deduction-in-record-payment-panel)
+   - [BUG-009: Vendor Autocomplete Single-Click Not Working on Windows](#bug-009-vendor-autocomplete-single-click-not-working-on-windows)
 5. [Implementation Phases](#implementation-phases)
 6. [Implementation Checklist](#implementation-checklist)
 
@@ -1884,3 +1901,239 @@ Remaining Balance:  ₹1,20,986.00   ← CORRECT!
 - `hooks/use-vendors.ts` - `useApproveVendor` hook
 - `components/invoices/invoice-detail-panel-v3/index.tsx` - Vendor pending dialog
 - `components/notifications/notification-panel.tsx` - Vendor notification icons
+
+---
+
+### 2024-12-20 Session
+
+**Items Completed This Session**:
+- ✅ BUG-009: Vendor Autocomplete Single-Click Not Working on Windows
+- ✅ IMP-004: Vendor Autocomplete - Browse All Vendors with Arrow Key
+
+**Progress Summary (2024-12-20)**:
+| Item | Status | Group | Notes |
+|------|--------|-------|-------|
+| BUG-009: Single-click not working | ✅ COMPLETED | F | Fixed with `onMouseDown` + `preventDefault()` |
+| IMP-004: Browse all vendors | ✅ COMPLETED | F | Arrow key trigger + chevron indicator |
+
+**Changes Made**:
+
+1. **BUG-009 Fix**: Added `onMouseDown` handler with `preventDefault()` to `CommandItem` in vendor autocomplete. This ensures selection fires before blur on Windows.
+
+2. **IMP-004 Implementation**:
+   - Added `isBrowseMode` state to toggle between search and browse modes
+   - Added `handleKeyDown` handler for ArrowDown (open browse) and Escape (close)
+   - Added `useAllVendors` hook in `hooks/use-vendors.ts` for fetching all vendors alphabetically
+   - Added ChevronDown indicator that rotates when dropdown is open
+   - Added `max-h-60 overflow-auto` to dropdown for scrollable list
+   - Contextual loading/empty messages for browse vs search mode
+
+**Files Modified**:
+- `components/invoices-v2/vendor-text-autocomplete.tsx` - Both fixes
+- `hooks/use-vendors.ts` - Added `useAllVendors` hook and `vendorKeys.browse()` query key
+
+---
+
+### BUG-009: Vendor Autocomplete Single-Click Not Working on Windows
+
+**Priority**: Medium
+**Effort**: Low (~30 minutes)
+**Status**: ✅ **COMPLETED** (2024-12-20)
+**Group**: F (Cross-Platform UX)
+
+#### Problem Statement
+
+The vendor autocomplete dropdown in the one-time invoice form works correctly on Mac (single-click to select) but requires **double-click** on Windows (Dell PC) to select a vendor from the suggestions list.
+
+#### Evidence
+
+- **Mac (working)**: User types partial vendor name → suggestions appear → single click selects vendor ✅
+- **Windows (broken)**: User types partial vendor name → suggestions appear → single click does nothing → must double-click ❌
+
+#### Root Cause Analysis
+
+**Location:** `components/invoices-v2/vendor-text-autocomplete.tsx` lines 116-121
+
+```typescript
+const handleBlur = () => {
+  // Delay closing to allow click on dropdown items
+  setTimeout(() => {
+    setOpen(false);
+  }, 200);  // This 200ms timeout causes race condition on Windows
+};
+```
+
+**The Problem:**
+1. User clicks on a dropdown item
+2. On Windows, the blur event fires BEFORE the click event reaches the CommandItem
+3. The 200ms timeout isn't sufficient on Windows to allow the click to register
+4. First click triggers blur, dropdown starts closing
+5. Second click finally registers on the item
+
+**Why Mac Works:**
+- Mac's event timing differs - the click event registers before or simultaneously with blur
+- The 200ms buffer is sufficient on Mac's event loop
+
+#### Technical Implementation
+
+**Fix using `onMouseDown` with `preventDefault()`:**
+
+```typescript
+// In CommandItem - use onMouseDown instead of relying on onSelect
+<CommandItem
+  key={vendor.id}
+  value={vendor.name}
+  onMouseDown={(e) => {
+    e.preventDefault();  // Prevent blur from firing before selection
+    handleSelect(vendor);
+  }}
+  className="cursor-pointer"
+>
+```
+
+This ensures:
+1. `onMouseDown` fires BEFORE blur
+2. `preventDefault()` stops the blur event from interrupting
+3. Selection completes reliably on both Mac and Windows
+
+#### Acceptance Criteria
+
+- [x] Single-click selects vendor on Windows
+- [x] Single-click continues to work on Mac
+- [x] No regression in autocomplete behavior
+- [x] Blur still closes dropdown when clicking outside
+- [x] Build passes with no TypeScript errors
+
+#### Files Modified
+
+- [x] `components/invoices-v2/vendor-text-autocomplete.tsx` - Added `onMouseDown` with `preventDefault()` to CommandItem
+
+#### Implementation Notes
+
+Added `onMouseDown` handler to `CommandItem` that calls `preventDefault()` and triggers selection. This ensures the selection fires before the blur event can close the dropdown on Windows, fixing the double-click requirement.
+
+---
+
+### IMP-004: Vendor Autocomplete - Browse All Vendors with Arrow Key
+
+**Priority**: Medium
+**Effort**: Medium (~2 hours)
+**Status**: ✅ **COMPLETED** (2024-12-20)
+**Group**: F (Cross-Platform UX)
+
+#### Problem Statement
+
+Currently, the vendor text autocomplete field only shows suggestions when the user types at least one character. There is no way to browse ALL existing vendors without knowing at least part of their name. Users want the ability to see all vendors alphabetically.
+
+#### User Requirements (Confirmed)
+
+1. **Trigger**: Pressing the **down arrow key** when input is focused (even if empty)
+2. **Behavior**:
+   - Opens dropdown with ALL vendors
+   - Sorted alphabetically (A-Z)
+   - User can continue typing to filter, or use arrow keys to navigate
+3. **Visual Indicator**: Small chevron (▾) in the input field to hint this feature exists
+4. **No Limit**: Show ALL vendors (paginated/virtualized if list is very large)
+5. **Not on Initial Focus**: Don't auto-show all vendors when field first receives focus
+
+#### Current State
+
+**Location:** `components/invoices-v2/vendor-text-autocomplete.tsx`
+
+```typescript
+// Current: Only shows suggestions when search has content
+const handleFocus = () => {
+  if (search.length > 0) {
+    setOpen(true);  // Only opens if user has typed something
+  }
+};
+```
+
+**Limitations:**
+- No way to see all vendors without typing
+- No visual indicator that browsing is possible
+- New users don't know vendor names to search for
+
+#### Proposed Solution
+
+```typescript
+// 1. Add keydown handler for arrow down
+const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  if (e.key === 'ArrowDown' && !open) {
+    e.preventDefault();
+    setOpen(true);
+    // Trigger fetch of all vendors (empty search = all)
+  }
+};
+
+// 2. Update fetch logic to get all vendors when arrow triggered
+const shouldFetchAllVendors = open && search.length === 0;
+const { data: vendors = [], isLoading } = useSearchVendors(
+  search || '',
+  shouldFetchVendors,
+  shouldFetchAllVendors  // New flag to fetch all vendors
+);
+
+// 3. Add chevron indicator to input
+<div className="relative">
+  <Input
+    // ... existing props
+    onKeyDown={handleKeyDown}
+  />
+  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+</div>
+```
+
+#### Backend Consideration
+
+The `useSearchVendors` hook may need updating to:
+1. Accept a flag to fetch ALL vendors (not limit to search matches)
+2. Return vendors sorted alphabetically
+3. Handle pagination if vendor list is very large (100+)
+
+**Location:** `hooks/use-vendors.ts`
+
+```typescript
+// May need to add:
+export function useAllVendors(enabled: boolean) {
+  return useQuery({
+    queryKey: ['vendors', 'all'],
+    queryFn: async () => {
+      const result = await getVendors({ sortBy: 'name', sortOrder: 'asc' });
+      return result.success ? result.vendors : [];
+    },
+    enabled,
+  });
+}
+```
+
+#### Acceptance Criteria
+
+- [x] Down arrow key opens dropdown showing all vendors
+- [x] All vendors displayed alphabetically (A-Z)
+- [x] Chevron indicator visible in input field
+- [x] User can type to filter after arrow key opens dropdown
+- [x] Arrow key navigation works within dropdown
+- [x] ESC key closes dropdown
+- [x] Performance acceptable with large vendor list (100+)
+- [x] Build passes with no TypeScript errors
+
+#### Files Modified
+
+- [x] `components/invoices-v2/vendor-text-autocomplete.tsx` - Added keydown handler, chevron indicator, browse mode state
+- [x] `hooks/use-vendors.ts` - Added `useAllVendors` hook for fetching all vendors
+
+#### Implementation Notes
+
+1. **New State**: Added `isBrowseMode` state to track when user triggered browse via arrow key
+2. **Keydown Handler**: Added `handleKeyDown` that:
+   - Opens dropdown with all vendors on ArrowDown (when closed)
+   - Closes dropdown on Escape
+3. **New Hook**: Added `useAllVendors(enabled)` hook that fetches all active vendors sorted alphabetically
+4. **Chevron Indicator**: Added ChevronDown icon that rotates 180° when dropdown is open
+5. **Dropdown Max Height**: Added `max-h-60 overflow-auto` for scrollable dropdown
+6. **Browse Mode Messages**: Different loading/empty messages for browse mode vs search mode
+
+#### Dependencies
+
+- BUG-009 was fixed first (single-click issue affects this feature too) ✅

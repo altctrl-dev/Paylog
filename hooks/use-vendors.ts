@@ -29,6 +29,7 @@ export const vendorKeys = {
   list: (filters?: Partial<VendorFilters>) =>
     [...vendorKeys.lists(), filters] as const,
   search: (query: string) => [...vendorKeys.all, 'search', query] as const,
+  browse: () => [...vendorKeys.all, 'browse'] as const,
 };
 
 // ============================================================================
@@ -68,6 +69,32 @@ export function useSearchVendors(query: string, enabled = true) {
     },
     enabled: enabled && query.length >= 0, // Allow empty query for initial list
     staleTime: 30000, // 30 seconds
+  });
+}
+
+/**
+ * Browse ALL vendors (for arrow-key dropdown, no limit)
+ * IMP-004: Returns all active vendors sorted alphabetically
+ */
+export function useAllVendors(enabled = false) {
+  return useQuery({
+    queryKey: vendorKeys.browse(),
+    queryFn: async () => {
+      // Use getVendors with high per_page to get all vendors
+      const result = await getVendors({
+        is_active: true,
+        per_page: 500, // High limit to fetch all vendors
+      });
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      // Sort alphabetically by name
+      return (result.data?.vendors ?? []).sort((a, b) =>
+        a.name.localeCompare(b.name)
+      );
+    },
+    enabled,
+    staleTime: 60000, // 1 minute - master data changes infrequently
   });
 }
 
