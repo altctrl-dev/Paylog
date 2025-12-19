@@ -55,7 +55,6 @@ import { cn } from '@/lib/utils';
 import { useInvoices, useInvoiceFormOptions } from '@/hooks/use-invoices';
 import { useActivePaymentTypes } from '@/hooks/use-payment-types';
 import { createInvoiceArchiveRequest, permanentDeleteInvoice, approveInvoice, rejectInvoice } from '@/app/actions/invoices';
-import { checkInvoiceApprovalEligibility } from '@/app/actions/invoices-v2';
 import { approveVendorRequest } from '@/app/actions/admin/master-data-approval';
 import {
   AlertDialog,
@@ -401,15 +400,6 @@ export function AllInvoicesTab() {
   const [isApprovingVendor, setIsApprovingVendor] = useState(false);
   // Two-step dialog: 'details' shows vendor info, 'confirm' shows final confirmation
   const [vendorDialogStep, setVendorDialogStep] = useState<'details' | 'confirm'>('details');
-
-  // Invoice approval confirmation dialog state
-  const [approveDialogData, setApproveDialogData] = useState<{
-    invoiceId: number;
-    invoiceNumber: string;
-    vendorName: string;
-    amount: number;
-  } | null>(null);
-  const [isApproving, setIsApproving] = useState(false);
 
   // Delete confirmation dialog state
   const [deleteDialogData, setDeleteDialogData] = useState<{
@@ -832,66 +822,6 @@ export function AllInvoicesTab() {
       vendorName: invoice.vendor?.name,
       currencyCode: invoice.currency?.code,
     });
-  };
-
-  /**
-   * Approve invoice handler
-   * BUG-007 FIX: Now checks if vendor is pending approval before allowing invoice approval.
-   * If vendor is pending, shows a dialog with vendor details and option to approve vendor first.
-   */
-  const handleApproveInvoice = async (id: number, invoiceNumber: string) => {
-    // First check if vendor needs approval
-    const eligibility = await checkInvoiceApprovalEligibility(id);
-
-    if (!eligibility.success) {
-      toast.error(eligibility.error || 'Failed to check approval eligibility');
-      return;
-    }
-
-    if (eligibility.data?.vendorPending && eligibility.data.vendor) {
-      // Vendor needs approval first - show dialog with vendor details
-      setVendorPendingData({
-        invoiceId: id,
-        invoiceNumber,
-        vendor: eligibility.data.vendor,
-      });
-      setIsVendorPendingDialogOpen(true);
-      return;
-    }
-
-    // Vendor is approved - get invoice details for confirmation dialog
-    const invoice = filteredInvoices.find(inv => inv.id === id);
-    if (!invoice) {
-      toast.error('Invoice not found');
-      return;
-    }
-
-    setApproveDialogData({
-      invoiceId: id,
-      invoiceNumber,
-      vendorName: invoice.vendor.name,
-      amount: invoice.invoice_amount,
-    });
-  };
-
-  const handleConfirmApprove = async () => {
-    if (!approveDialogData) return;
-
-    setIsApproving(true);
-    try {
-      const result = await approveInvoice(approveDialogData.invoiceId);
-      if (result.success) {
-        toast.success(`Invoice ${approveDialogData.invoiceNumber} has been approved`);
-        setApproveDialogData(null);
-      } else {
-        toast.error(result.error || 'Failed to approve invoice');
-      }
-    } catch (error) {
-      console.error('Approve error:', error);
-      toast.error('An unexpected error occurred');
-    } finally {
-      setIsApproving(false);
-    }
   };
 
   /**
@@ -1377,8 +1307,8 @@ export function AllInvoicesTab() {
                               </button>
                             )}
                             {canApproveReject && (
-                              <button className="text-muted-foreground hover:text-green-500 transition-colors" onClick={() => handleApproveInvoice(invoice.id, invoice.invoice_number)} title="Approve">
-                                <Check className="h-4 w-4" /><span className="sr-only">Approve</span>
+                              <button className="text-muted-foreground hover:text-green-500 transition-colors" onClick={() => handleViewInvoice(invoice.id)} title="Review & Approve">
+                                <Check className="h-4 w-4" /><span className="sr-only">Review & Approve</span>
                               </button>
                             )}
                             {canApproveReject && (
@@ -1531,11 +1461,11 @@ export function AllInvoicesTab() {
                         {canApproveReject && (
                           <button
                             className="text-muted-foreground hover:text-green-500 transition-colors"
-                            onClick={() => handleApproveInvoice(invoice.id, invoice.invoice_number)}
-                            title="Approve"
+                            onClick={() => handleViewInvoice(invoice.id)}
+                            title="Review & Approve"
                           >
                             <Check className="h-4 w-4" />
-                            <span className="sr-only">Approve</span>
+                            <span className="sr-only">Review & Approve</span>
                           </button>
                         )}
 
@@ -1734,36 +1664,6 @@ export function AllInvoicesTab() {
           )}
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Invoice Approval Confirmation Dialog */}
-      <ConfirmationDialog
-        open={!!approveDialogData}
-        onOpenChange={(open) => !open && setApproveDialogData(null)}
-        title="Approve Invoice"
-        description="Are you sure you want to approve this invoice? Once approved, it will be ready for payment."
-        variant="default"
-        confirmLabel={isApproving ? 'Approving...' : 'Approve'}
-        cancelLabel="Cancel"
-        onConfirm={handleConfirmApprove}
-        isLoading={isApproving}
-      >
-        {approveDialogData && (
-          <div className="space-y-2">
-            <ConfirmationContentRow
-              label="Invoice Number"
-              value={approveDialogData.invoiceNumber}
-            />
-            <ConfirmationContentRow
-              label="Vendor"
-              value={approveDialogData.vendorName}
-            />
-            <ConfirmationContentRow
-              label="Amount"
-              value={formatCurrency(approveDialogData.amount)}
-            />
-          </div>
-        )}
-      </ConfirmationDialog>
 
       {/* Delete Invoice Confirmation Dialog */}
       <ConfirmationDialog
