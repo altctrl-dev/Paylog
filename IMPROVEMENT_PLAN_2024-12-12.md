@@ -23,6 +23,9 @@
 | **December 2025** | | | |
 | BUG-009: Vendor Autocomplete Single-Click Not Working on Windows | ✅ **COMPLETED** | F | Fixed with onMouseDown |
 | IMP-004: Vendor Autocomplete - Browse All Vendors with Arrow Key | ✅ **COMPLETED** | F | Arrow key + chevron indicator |
+| IMP-005: Case-Insensitive Vendor Search | ✅ **COMPLETED** | F | Added mode: 'insensitive' |
+| IMP-006: Clickable Chevron with Touch Support | ✅ **COMPLETED** | F | 32x32px touch-friendly button |
+| IMP-007: Clickable Invoice Table Rows | ✅ **COMPLETED** | G | Row click opens detail panel |
 
 ---
 
@@ -1909,12 +1912,18 @@ Remaining Balance:  ₹1,20,986.00   ← CORRECT!
 **Items Completed This Session**:
 - ✅ BUG-009: Vendor Autocomplete Single-Click Not Working on Windows
 - ✅ IMP-004: Vendor Autocomplete - Browse All Vendors with Arrow Key
+- ✅ IMP-005: Case-Insensitive Vendor Search
+- ✅ IMP-006: Clickable Chevron with Touch Support
+- ✅ IMP-007: Clickable Invoice Table Rows
 
 **Progress Summary (2024-12-20)**:
 | Item | Status | Group | Notes |
 |------|--------|-------|-------|
 | BUG-009: Single-click not working | ✅ COMPLETED | F | Fixed with `onMouseDown` + `preventDefault()` |
 | IMP-004: Browse all vendors | ✅ COMPLETED | F | Arrow key trigger + chevron indicator |
+| IMP-005: Case-insensitive search | ✅ COMPLETED | F | Added `mode: 'insensitive'` to Prisma query |
+| IMP-006: Clickable chevron | ✅ COMPLETED | F | 32x32px touch-friendly button |
+| IMP-007: Clickable invoice rows | ✅ COMPLETED | G | Row click opens detail panel |
 
 **Changes Made**:
 
@@ -1928,9 +1937,30 @@ Remaining Balance:  ₹1,20,986.00   ← CORRECT!
    - Added `max-h-60 overflow-auto` to dropdown for scrollable list
    - Contextual loading/empty messages for browse vs search mode
 
+3. **IMP-005 Implementation**:
+   - Added `mode: 'insensitive'` to `searchVendors` Prisma query
+   - Now searching "acme" matches "ACME", "Acme", etc.
+
+4. **IMP-006 Implementation**:
+   - Converted chevron icon to clickable button with 32x32px touch target
+   - Click toggles browse mode (open/close all vendors list)
+   - Added `onTouchEnd` handler for mobile touch support
+   - Added `aria-label` for accessibility
+   - Moved checkmark indicator to end of vendor name (inline after name)
+
+5. **IMP-007 Implementation**:
+   - Made invoice table rows clickable to open detail panel
+   - Removed Eye (view) icon from actions column (redundant)
+   - Added `stopPropagation` on checkbox and actions columns (excluded from click)
+   - Added hover effect (`hover:bg-muted/50`) and cursor pointer
+   - Added keyboard accessibility (`role="button"`, `tabIndex={0}`, Enter/Space handler)
+   - Applied to both grouped view and flat view
+
 **Files Modified**:
-- `components/invoices-v2/vendor-text-autocomplete.tsx` - Both fixes
+- `components/invoices-v2/vendor-text-autocomplete.tsx` - All vendor autocomplete fixes
 - `hooks/use-vendors.ts` - Added `useAllVendors` hook and `vendorKeys.browse()` query key
+- `app/actions/master-data.ts` - Added case-insensitive search mode
+- `components/v3/invoices/all-invoices-tab.tsx` - Clickable table rows (IMP-007)
 
 ---
 
@@ -2137,3 +2167,90 @@ export function useAllVendors(enabled: boolean) {
 #### Dependencies
 
 - BUG-009 was fixed first (single-click issue affects this feature too) ✅
+
+---
+
+### IMP-007: Clickable Invoice Table Rows
+
+**Priority**: Medium
+**Effort**: Low (~30 minutes)
+**Status**: ✅ **COMPLETED** (2024-12-20)
+**Group**: G (UX Enhancements)
+
+#### Problem Statement
+
+Users need to click on the Eye icon in the actions column to view invoice details. This requires precise clicking on a small icon. Modern UX patterns make entire rows clickable while keeping action buttons functional.
+
+#### User Requirements (Confirmed)
+
+1. **Entire row clickable**: Clicking anywhere on the row (except checkbox and actions) opens invoice detail panel
+2. **Excluded columns**: Checkbox column and actions column should NOT trigger row click
+3. **Hover effect**: Visual feedback when hovering over row
+4. **Accessibility**: Keyboard navigation support (Enter/Space to activate)
+5. **Remove Eye icon**: Since row is clickable, the View icon becomes redundant
+
+#### Technical Implementation
+
+**Changes to TableRow (both grouped and flat views)**:
+
+```typescript
+<TableRow
+  key={invoice.id}
+  className="border-b border-border/50 cursor-pointer hover:bg-muted/50 transition-colors"
+  onClick={() => handleViewInvoice(invoice.id)}
+  role="button"
+  tabIndex={0}
+  onKeyDown={(e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleViewInvoice(invoice.id);
+    }
+  }}
+>
+```
+
+**Excluded columns with stopPropagation**:
+
+```typescript
+// Checkbox column
+<TableCell className="pl-4" onClick={(e) => e.stopPropagation()}>
+  <Checkbox ... />
+</TableCell>
+
+// Actions column
+<TableCell className="pl-4" onClick={(e) => e.stopPropagation()}>
+  <div className="flex items-center gap-2">
+    {/* Action buttons */}
+  </div>
+</TableCell>
+```
+
+#### Acceptance Criteria
+
+- [x] Clicking on row opens invoice detail panel
+- [x] Checkbox column click does NOT open detail panel
+- [x] Actions column click does NOT open detail panel
+- [x] Hover effect visible on row hover (`hover:bg-muted/50`)
+- [x] Cursor changes to pointer on hover
+- [x] Enter/Space key activates row when focused
+- [x] Eye (view) icon removed from actions column
+- [x] Applied to both grouped view and flat view
+- [x] Build passes with no TypeScript errors
+
+#### Files Modified
+
+- [x] `components/v3/invoices/all-invoices-tab.tsx`
+  - Removed Eye import from lucide-react
+  - Added onClick, role, tabIndex, onKeyDown to TableRow (grouped view lines 1241-1254)
+  - Added onClick, role, tabIndex, onKeyDown to TableRow (flat view lines 1353-1366)
+  - Added onClick stopPropagation to checkbox TableCell (both views)
+  - Added onClick stopPropagation to actions TableCell (both views)
+  - Removed Eye button from actions (both views)
+  - Added `cursor-pointer hover:bg-muted/50 transition-colors` to TableRow className
+
+#### Implementation Notes
+
+1. **Modern hover effect**: Used `hover:bg-muted/50` for subtle background change on hover, with `transition-colors` for smooth animation
+2. **Accessibility**: Added `role="button"` and `tabIndex={0}` for keyboard accessibility, plus Enter/Space key handlers
+3. **Event isolation**: Used `onClick={(e) => e.stopPropagation()}` on excluded columns to prevent row click from triggering
+4. **Both views updated**: Changes applied to both grouped view (for weekly grouping) and flat view (for monthly/archived)

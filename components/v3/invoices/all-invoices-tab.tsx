@@ -19,7 +19,6 @@ import {
   Search,
   Download,
   Plus,
-  Eye,
   Pencil,
   Trash2,
   Archive,
@@ -1241,9 +1240,18 @@ export function AllInvoicesTab() {
                       <TableRow
                         key={invoice.id}
                         data-state={selectedInvoices.has(invoice.id) ? 'selected' : undefined}
-                        className="border-b border-border/50"
+                        className="border-b border-border/50 cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={() => handleViewInvoice(invoice.id)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            handleViewInvoice(invoice.id);
+                          }
+                        }}
                       >
-                        <TableCell className="pl-4">
+                        <TableCell className="pl-4" onClick={(e) => e.stopPropagation()}>
                           <Checkbox
                             checked={selectedInvoices.has(invoice.id)}
                             onCheckedChange={() => toggleSelect(invoice.id)}
@@ -1275,11 +1283,8 @@ export function AllInvoicesTab() {
                           </div>
                         </TableCell>
                         <TableCell><StatusBadge status={invoice.status as InvoiceStatus} hasPendingPayment={invoice.has_pending_payment} /></TableCell>
-                        <TableCell className="pl-4">
+                        <TableCell className="pl-4" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center gap-2">
-                            <button className="text-muted-foreground hover:text-foreground transition-colors" onClick={() => handleViewInvoice(invoice.id)} title="View">
-                              <Eye className="h-4 w-4" /><span className="sr-only">View</span>
-                            </button>
                             {!filters.showArchived && (
                               <button className="text-muted-foreground hover:text-foreground transition-colors" onClick={() => handleEditInvoice(invoice.id, invoice.is_recurring)} title="Edit">
                                 <Pencil className="h-4 w-4" /><span className="sr-only">Edit</span>
@@ -1347,10 +1352,19 @@ export function AllInvoicesTab() {
                   <TableRow
                     key={invoice.id}
                     data-state={selectedInvoices.has(invoice.id) ? 'selected' : undefined}
-                    className="border-b border-border/50"
+                    className="border-b border-border/50 cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => handleViewInvoice(invoice.id)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleViewInvoice(invoice.id);
+                      }
+                    }}
                   >
                     {/* Checkbox */}
-                    <TableCell className="pl-4">
+                    <TableCell className="pl-4" onClick={(e) => e.stopPropagation()}>
                       <Checkbox
                         checked={selectedInvoices.has(invoice.id)}
                         onCheckedChange={() => toggleSelect(invoice.id)}
@@ -1405,18 +1419,8 @@ export function AllInvoicesTab() {
                     </TableCell>
 
                     {/* Actions */}
-                    <TableCell className="pl-4">
+                    <TableCell className="pl-4" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center gap-2">
-                        {/* View */}
-                        <button
-                          className="text-muted-foreground hover:text-foreground transition-colors"
-                          onClick={() => handleViewInvoice(invoice.id)}
-                          title="View"
-                        >
-                          <Eye className="h-4 w-4" />
-                          <span className="sr-only">View</span>
-                        </button>
-
                         {/* Edit - hide when archived */}
                         {!filters.showArchived && (
                           <button
