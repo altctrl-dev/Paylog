@@ -27,7 +27,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { cn } from '@/lib/utils';
 import { INVOICE_STATUS, type InvoiceStatus, type InvoiceFilters } from '@/types/invoice';
 
 // ============================================================================
@@ -275,16 +274,13 @@ export function InvoiceFilterPopover({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
-          variant={filterCount > 0 ? 'default' : 'outline'}
-          className={cn(
-            'gap-2',
-            filterCount > 0 && 'bg-primary text-primary-foreground'
-          )}
+          variant="outline"
+          className="gap-2"
         >
           <SlidersHorizontal className="h-4 w-4" />
           Filters
           {filterCount > 0 && (
-            <span className="ml-1 rounded-full bg-primary-foreground/20 px-1.5 py-0.5 text-xs font-medium">
+            <span className="ml-1 rounded-full bg-muted text-muted-foreground px-2 py-0.5 text-xs font-medium">
               {filterCount}
             </span>
           )}

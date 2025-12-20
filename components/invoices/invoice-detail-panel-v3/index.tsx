@@ -41,7 +41,7 @@ import type { InvoiceStatus } from '@/types/invoice';
 import { calculateTds } from '@/lib/utils/tds';
 import {
   Pencil,
-  IndianRupee,
+  CreditCard,
   Pause,
   Check,
   X,
@@ -607,7 +607,7 @@ export function InvoiceDetailPanelV3({
                   )}
                   {hasRemainingBalance && (
                     <MobileActionButton
-                      icon={<IndianRupee className="h-4 w-4" />}
+                      icon={<CreditCard className="h-4 w-4" />}
                       label="Record Payment"
                       onClick={handleRecordPayment}
                       disabled={isMutationPending || !permissions.canRecordPayment}

@@ -10,7 +10,7 @@
 import * as React from 'react';
 import {
   Pencil,
-  IndianRupee,
+  CreditCard,
   Pause,
   Archive,
   Trash2,
@@ -128,7 +128,7 @@ export function PanelV3ActionBar({
     },
     {
       id: 'record-payment',
-      icon: <IndianRupee />,
+      icon: <CreditCard />,
       label: 'Record Payment',
       onClick: onRecordPayment,
       // Show if there's balance, but may be disabled due to blocking reason

@@ -977,15 +977,15 @@ export function AllInvoicesTab() {
           {isMobile ? (
             <>
               <Button
-                variant={activeFilterCount > 0 ? 'default' : 'outline'}
-                className={cn('gap-2', activeFilterCount > 0 && 'bg-primary text-primary-foreground')}
+                variant="outline"
+                className="gap-2"
                 onClick={() => setFilterSheetOpen(true)}
                 aria-label={activeFilterCount > 0 ? `Filters (${activeFilterCount} active)` : 'Open filters'}
               >
                 <SlidersHorizontal className="h-4 w-4" />
                 <span className="hidden sm:inline">Filters</span>
                 {activeFilterCount > 0 && (
-                  <span className="ml-1 rounded-full bg-primary-foreground/20 px-1.5 py-0.5 text-xs font-medium">
+                  <span className="ml-1 rounded-full bg-muted text-muted-foreground px-2 py-0.5 text-xs font-medium">
                     {activeFilterCount}
                   </span>
                 )}
