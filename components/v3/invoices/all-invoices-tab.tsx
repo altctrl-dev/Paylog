@@ -959,91 +959,94 @@ export function AllInvoicesTab() {
       </div>
 
       {/* Action Bar */}
-      <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-        {/* Left: Search, Filter, Sort */}
-        <div className="flex flex-1 gap-2">
-          {/* Search */}
-          <div className="relative flex-1 max-w-xs">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search invoices..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 bg-background"
-            />
-          </div>
+      <div className="flex items-center gap-2">
+        {/* Search - shrinks on mobile to fit other elements */}
+        <div className="relative flex-1 min-w-0 max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search invoices..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 bg-background"
+          />
+        </div>
 
-          {/* Filters - Popover on desktop, Sheet on mobile */}
-          {isMobile ? (
-            <>
-              <Button
-                variant="outline"
-                className="gap-2"
-                onClick={() => setFilterSheetOpen(true)}
-                aria-label={activeFilterCount > 0 ? `Filters (${activeFilterCount} active)` : 'Open filters'}
-              >
-                <SlidersHorizontal className="h-4 w-4" />
-                <span className="hidden sm:inline">Filters</span>
-                {activeFilterCount > 0 && (
-                  <span className="ml-1 rounded-full bg-muted text-muted-foreground px-2 py-0.5 text-xs font-medium">
-                    {activeFilterCount}
-                  </span>
-                )}
-              </Button>
-              <InvoiceFilterSheet
-                open={filterSheetOpen}
-                onOpenChange={setFilterSheetOpen}
-                filters={filters}
-                onFiltersChange={setFilters}
-                options={filterOptions}
-                isLoading={isLoadingOptions}
-                activeFilterCount={activeFilterCount}
-              />
-            </>
-          ) : (
-            <InvoiceFilterPopover
+        {/* Filters - Popover on desktop, Sheet on mobile */}
+        {isMobile ? (
+          <>
+            <Button
+              variant="outline"
+              size="icon"
+              className="shrink-0 relative"
+              onClick={() => setFilterSheetOpen(true)}
+              aria-label={activeFilterCount > 0 ? `Filters (${activeFilterCount} active)` : 'Open filters'}
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              {activeFilterCount > 0 && (
+                <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-muted text-muted-foreground text-[10px] font-medium flex items-center justify-center">
+                  {activeFilterCount}
+                </span>
+              )}
+            </Button>
+            <InvoiceFilterSheet
+              open={filterSheetOpen}
+              onOpenChange={setFilterSheetOpen}
               filters={filters}
               onFiltersChange={setFilters}
               options={filterOptions}
               isLoading={isLoadingOptions}
               activeFilterCount={activeFilterCount}
             />
-          )}
-        </div>
+          </>
+        ) : (
+          <InvoiceFilterPopover
+            filters={filters}
+            onFiltersChange={setFilters}
+            options={filterOptions}
+            isLoading={isLoadingOptions}
+            activeFilterCount={activeFilterCount}
+          />
+        )}
 
-        {/* Right: Month Navigator (only in monthly mode), Export, New Invoice */}
-        <div className="flex items-center gap-2">
-          {!filters.showArchived && filters.viewMode === 'monthly' && (
-            <MonthNavigator
-              month={selectedMonth}
-              year={selectedYear}
-              onChange={handleMonthChange}
-            />
-          )}
-          <Button variant="outline" className="gap-2" onClick={handleExport}>
-            <Download className="h-4 w-4" />
-            <span className="hidden sm:inline">Export</span>
-          </Button>
-          <DropdownMenu open={showInvoiceTypeMenu} onOpenChange={setShowInvoiceTypeMenu}>
-            <DropdownMenuTrigger asChild>
-              <Button className="gap-2">
-                <Plus className="h-4 w-4" />
-                <span className="sm:hidden">New</span>
-                <span className="hidden sm:inline">New Invoice</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => handleNewInvoice('recurring')}>
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Recurring Invoice
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleNewInvoice('non-recurring')}>
-                <FileText className="mr-2 h-4 w-4" />
-                One-time Invoice
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+        {/* Month Navigator - desktop only, shown when in monthly view */}
+        {!isMobile && !filters.showArchived && filters.viewMode === 'monthly' && (
+          <MonthNavigator
+            month={selectedMonth}
+            year={selectedYear}
+            onChange={handleMonthChange}
+          />
+        )}
+
+        {/* Export Button - icon only on mobile, with text on desktop */}
+        <Button
+          variant="outline"
+          size={isMobile ? 'icon' : 'default'}
+          className={isMobile ? 'shrink-0' : 'gap-2 shrink-0'}
+          onClick={handleExport}
+        >
+          <Download className="h-4 w-4" />
+          {!isMobile && <span>Export</span>}
+        </Button>
+
+        {/* New Invoice Button */}
+        <DropdownMenu open={showInvoiceTypeMenu} onOpenChange={setShowInvoiceTypeMenu}>
+          <DropdownMenuTrigger asChild>
+            <Button className="gap-2 shrink-0">
+              <Plus className="h-4 w-4" />
+              <span>New</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => handleNewInvoice('recurring')}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Recurring Invoice
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleNewInvoice('non-recurring')}>
+              <FileText className="mr-2 h-4 w-4" />
+              One-time Invoice
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Active Filter Pills */}
