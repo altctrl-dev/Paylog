@@ -960,14 +960,14 @@ export function AllInvoicesTab() {
 
       {/* Action Bar */}
       <div className="flex items-center gap-2">
-        {/* Search - shrinks on mobile to fit other elements */}
-        <div className="relative flex-1 min-w-0 max-w-xs">
+        {/* Search */}
+        <div className="relative flex-1 min-w-[120px] max-w-[220px] sm:max-w-[320px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search invoices..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 bg-background"
+            className="w-full min-w-0 pl-9 bg-background"
           />
         </div>
 
@@ -1017,23 +1017,32 @@ export function AllInvoicesTab() {
           />
         )}
 
-        {/* Export Button - icon only on mobile, with text on desktop */}
+        {/* Spacer to push buttons to the right */}
+        <div className="hidden sm:flex sm:flex-1" />
+
+        {/* Export Button - icon only on mobile */}
         <Button
           variant="outline"
           size={isMobile ? 'icon' : 'default'}
-          className={isMobile ? 'shrink-0' : 'gap-2 shrink-0'}
+          className={cn(isMobile ? 'shrink-0' : 'gap-2')}
           onClick={handleExport}
         >
           <Download className="h-4 w-4" />
           {!isMobile && <span>Export</span>}
         </Button>
 
-        {/* New Invoice Button */}
+        {/* New Invoice Button - icon only on mobile */}
         <DropdownMenu open={showInvoiceTypeMenu} onOpenChange={setShowInvoiceTypeMenu}>
           <DropdownMenuTrigger asChild>
-            <Button className="gap-2 shrink-0">
-              <Plus className="h-4 w-4" />
-              <span>New</span>
+            <Button size="default" className={cn(isMobile ? 'px-3 shrink-0' : 'gap-2')}>
+              {isMobile ? (
+                <span className="font-semibold">+ New</span>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4" />
+                  <span>New Invoice</span>
+                </>
+              )}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">

@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-12-17 01:00:18 IST",
+  "timestamp": "2025-12-22 23:34:13 IST",
   "agents_seen": [
     "Main Agent (Direct Work)"
   ],
@@ -9,21 +9,26 @@
   "open_questions": [],
   "owned_artifacts": [
     "OMPACTION.md",
+    "CONTEXT_RESTORATION_GUIDE.md",
     "IMPROVEMENT_PLAN_2024-12-12.md",
     "compaction-summary.json",
-    "components/invoices-v2/edit-non-recurring-invoice-form.tsx",
-    "components/invoices-v2/edit-recurring-invoice-form.tsx",
-    "components/master-data/category-list.tsx",
-    "components/master-data/invoice-profile-management.tsx",
-    "components/master-data/master-data-request-detail-panel.tsx",
-    "components/master-data/payment-type-list.tsx",
-    "components/master-data/profile-detail-panel-v3.tsx",
-    "components/ui/confirmation-dialog.tsx"
+    "components/invoices/invoice-detail-panel-v3/index.tsx",
+    "components/invoices/invoice-detail-panel-v3/panel-v3-hero.tsx",
+    "components/panels/shared/index.ts",
+    "components/panels/shared/panel-stat-group.tsx",
+    "components/v3/invoices/all-invoices-tab.tsx",
+    "docs/CONTEXT_RESTORE_PROMPT.md",
+    "components/ui/stat-badges.tsx"
   ],
   "contracts_touched": [],
   "files_touched": [
     {
       "path": "OMPACTION.md",
+      "reason": "modified",
+      "anchors": []
+    },
+    {
+      "path": "CONTEXT_RESTORATION_GUIDE.md",
       "reason": "modified",
       "anchors": []
     },
@@ -38,42 +43,37 @@
       "anchors": []
     },
     {
-      "path": "components/invoices-v2/edit-non-recurring-invoice-form.tsx",
+      "path": "components/invoices/invoice-detail-panel-v3/index.tsx",
       "reason": "modified",
       "anchors": []
     },
     {
-      "path": "components/invoices-v2/edit-recurring-invoice-form.tsx",
+      "path": "components/invoices/invoice-detail-panel-v3/panel-v3-hero.tsx",
       "reason": "modified",
       "anchors": []
     },
     {
-      "path": "components/master-data/category-list.tsx",
+      "path": "components/panels/shared/index.ts",
       "reason": "modified",
       "anchors": []
     },
     {
-      "path": "components/master-data/invoice-profile-management.tsx",
+      "path": "components/panels/shared/panel-stat-group.tsx",
       "reason": "modified",
       "anchors": []
     },
     {
-      "path": "components/master-data/master-data-request-detail-panel.tsx",
+      "path": "components/v3/invoices/all-invoices-tab.tsx",
       "reason": "modified",
       "anchors": []
     },
     {
-      "path": "components/master-data/payment-type-list.tsx",
+      "path": "docs/CONTEXT_RESTORE_PROMPT.md",
       "reason": "modified",
       "anchors": []
     },
     {
-      "path": "components/master-data/profile-detail-panel-v3.tsx",
-      "reason": "modified",
-      "anchors": []
-    },
-    {
-      "path": "components/ui/confirmation-dialog.tsx",
+      "path": "components/ui/stat-badges.tsx",
       "reason": "created",
       "anchors": []
     }

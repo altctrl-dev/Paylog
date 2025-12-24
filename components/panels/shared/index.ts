@@ -19,6 +19,9 @@ export {
   PanelStatGroup,
   type StatItem,
   type PanelStatGroupProps,
+  type BadgeType,
+  type BadgeVariant,
+  type BadgeSize,
 } from './panel-stat-group';
 
 // Action Bar

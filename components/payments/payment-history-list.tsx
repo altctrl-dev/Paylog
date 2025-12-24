@@ -101,7 +101,10 @@ export function PaymentHistoryList({ invoiceId, currencyCode }: PaymentHistoryLi
   const paymentsWithBalance = React.useMemo(() => {
     if (!payments || !summary) return [];
 
-    let runningBalance = summary.invoice_amount;
+    // BUG FIX: Use payable amount (invoice - TDS), not invoice_amount
+    // Payable = remaining_balance + total_paid (accounts for TDS deduction)
+    const payableAmount = summary.remaining_balance + summary.total_paid;
+    let runningBalance = payableAmount;
 
     return payments.map((payment) => {
       const balanceAfter = runningBalance - payment.amount_paid;

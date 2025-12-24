@@ -1,7 +1,7 @@
 # PayLog - Complete Project Handoff Guide
 
-**Document Version**: 1.2
-**Last Updated**: December 19, 2025
+**Document Version**: 1.3
+**Last Updated**: December 20, 2025
 **Prepared For**: New Development Team Onboarding
 
 ---
@@ -52,7 +52,7 @@ PayLog is a **comprehensive expense and invoice management system** designed for
 |--------|-------|
 | **Overall Progress** | ~99% toward v1.0.0 |
 | **Sprint** | Sprint 14+ (COMPLETE) |
-| **December 2025 Commits** | 85+ |
+| **December 2025 Commits** | 90+ |
 | **Remaining Work** | Final polish & testing |
 
 ### Key Achievements (December 2025)
@@ -77,6 +77,8 @@ PayLog is a **comprehensive expense and invoice management system** designed for
 - ✅ Panel responsive width (maxWidth instead of fixed width)
 - ✅ Payments tab badge fix (shows pending + approved count)
 - ✅ Dynamic currency formatting (uses invoice's currency code)
+- ✅ Mobile action bar compact layout (icon-only buttons, shrinking search)
+- ✅ UI consistency improvements (CreditCard icon, outline buttons, muted badges)
 
 ---
 
@@ -1377,6 +1379,108 @@ function formatCurrency(value: number) {
 - Shared utility: `lib/utils/format.ts`
 - Currency code source: `invoice.currency?.code` or `profile?.currency?.code`
 
+### 12. Mobile Action Bar Compact Layout Pattern
+
+**For action bars on mobile screens, use shrinking search + icon-only buttons**:
+
+**Understanding Button Heights (CRITICAL)**:
+```typescript
+// From components/ui/button.tsx:
+size: {
+  default: 'h-10 px-4 py-2',   // 40px height ✅ matches Input
+  sm: 'h-9 rounded-md px-3',   // 36px height ❌ shorter than Input
+  lg: 'h-11 rounded-md px-8',  // 44px height
+  icon: 'h-10 w-10',           // 40px square ✅ matches Input
+}
+
+// From components/ui/input.tsx:
+// Input default: 'h-10' (40px)
+
+// RULE: Always use size="icon" or size="default" for buttons alongside inputs
+// NEVER use size="sm" - it creates misaligned heights
+```
+
+**Layout Pattern**:
+```
+Desktop: [Search field        ] [Filters (badge)] [< Dec >] [Export] [+ New Invoice ▾]
+Mobile:  [Search...    ] [🔽] [📥] [+ New]
+         └─ shrinks ─┘  └── icon-only ──┘ └─ CTA ─┘
+```
+
+**Implementation**:
+```typescript
+{/* Search field - shrinks on mobile with min/max width */}
+<div className="relative flex-1 min-w-[120px] max-w-[220px] sm:max-w-[320px]">
+  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+  <Input
+    placeholder="Search invoices..."
+    className="w-full min-w-0 pl-9 bg-background"
+  />
+</div>
+
+{/* Spacer - ONLY on desktop to push buttons right */}
+<div className="hidden sm:flex sm:flex-1" />
+
+{/* Filter - icon-only on mobile with badge overlay */}
+{isMobile ? (
+  <Button variant="outline" size="icon" className="shrink-0 relative">
+    <SlidersHorizontal className="h-4 w-4" />
+    {count > 0 && (
+      <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-muted text-muted-foreground text-[10px] flex items-center justify-center font-medium">
+        {count}
+      </span>
+    )}
+  </Button>
+) : (
+  <Button variant="outline" className="gap-2">
+    <SlidersHorizontal className="h-4 w-4" />
+    Filters
+    {count > 0 && <Badge>{count}</Badge>}
+  </Button>
+)}
+
+{/* Export - icon only on mobile */}
+<Button
+  variant="outline"
+  size={isMobile ? 'icon' : 'default'}
+  className={cn(isMobile ? 'shrink-0' : 'gap-2')}
+>
+  <Download className="h-4 w-4" />
+  {!isMobile && <span>Export</span>}
+</Button>
+
+{/* New Invoice - "+ New" on mobile (CTA needs text), full label on desktop */}
+<Button size="default" className={cn(isMobile ? 'px-3 shrink-0' : 'gap-2')}>
+  {isMobile ? (
+    <span className="font-semibold">+ New</span>
+  ) : (
+    <>
+      <Plus className="h-4 w-4" />
+      <span>New Invoice</span>
+    </>
+  )}
+</Button>
+```
+
+**Key CSS Classes**:
+| Class | Purpose |
+|-------|---------|
+| `flex-1 min-w-[120px] max-w-[220px]` | Shrink search with bounds |
+| `hidden sm:flex sm:flex-1` | Desktop-only spacer |
+| `shrink-0` | Prevent button from shrinking |
+| `size="icon"` | 40x40px square (matches Input height) |
+| `size="default"` | 40px height (matches Input height) |
+| `absolute -top-1 -right-1` | Badge at top-right corner |
+| `cn()` | Conditional class merging |
+
+**Common Mistakes**:
+| Mistake | Result | Fix |
+|---------|--------|-----|
+| Using `size="sm"` | 36px height, misaligned | Use `size="icon"` or `size="default"` |
+| Spacer always visible | Mobile buttons not natural | Use `hidden sm:flex sm:flex-1` |
+| No `shrink-0` on buttons | Buttons get squashed | Add `shrink-0` to prevent |
+| Fixed search width | Doesn't adapt to mobile | Use `flex-1 min-w-[x] max-w-[y]` |
+
 ---
 
 ## Common Pitfalls & Solutions
@@ -1833,4 +1937,4 @@ standard_user (lowest)
 
 **Document End**
 
-*This document should be updated as the project evolves. Last comprehensive update: December 19, 2025.*
+*This document should be updated as the project evolves. Last comprehensive update: December 20, 2025.*

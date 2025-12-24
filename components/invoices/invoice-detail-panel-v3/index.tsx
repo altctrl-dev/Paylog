@@ -707,7 +707,7 @@ export function InvoiceDetailPanelV3({
           {/* Main content area */}
           <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
             {/* Header */}
-            <div className="px-6 py-2 border-b">
+            <div className="px-4 py-2 border-0">
               <PanelV3Header
                 invoiceNumber={invoice.invoice_number}
                 vendorName={invoice.vendor.name}
@@ -722,7 +722,7 @@ export function InvoiceDetailPanelV3({
             </div>
 
             {/* Hero */}
-            <div className="px-6 py-4 border-b bg-muted/30">
+            <div className="px-0 py-2 border-0 rounded-sm bg-muted/0">
               <PanelV3Hero
                 invoiceAmount={invoice.invoice_amount}
                 totalPaid={paymentSummary?.total_paid ?? 0}
@@ -733,11 +733,13 @@ export function InvoiceDetailPanelV3({
                 tdsPercentage={invoice.tds_percentage}
                 tdsRounded={invoice.tds_rounded} // BUG-003: Pass invoice's TDS rounding preference
                 currencyCode={invoice.currency?.code}
+                isRecurring={!!invoice.invoice_profile_id}
+                dueDate={invoice.due_date}
               />
             </div>
 
             {/* Tabs + Content */}
-            <div className="flex-1 overflow-hidden">
+            <div className="py-1 flex-1 overflow-hidden">
               <PanelTabs
                 tabs={tabs}
                 activeTab={activeTab}

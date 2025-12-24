@@ -1,19 +1,19 @@
 # PayLog - Complete Context Restoration Prompt
 
-**Document Version**: 2.1
-**Last Updated**: December 19, 2025
+**Document Version**: 3.0
+**Last Updated**: December 20, 2025
 **Purpose**: Use this prompt at the start of ANY new Claude session to restore full project context.
 
 ---
 
-## Quick Context Restore
+## Quick Context Restore (Copy This)
 
 Copy and paste the following prompt at the start of your session:
 
 ---
 
 ```
-I'm working on PayLog, an expense/invoice management system for Indian businesses. Please read these files to restore complete project context:
+I'm continuing work on PayLog, an expense/invoice management system for Indian businesses. This is a context restoration prompt - please read these files to restore complete project context:
 
 1. /Users/althaf/Projects/paylog-3/docs/PROJECT_HANDOFF_GUIDE.md (comprehensive project documentation)
 2. /Users/althaf/Projects/paylog-3/docs/SESSION_SUMMARY_DEC25.md (December 2025 session details)
@@ -28,11 +28,12 @@ After reading, confirm you understand:
 - **Tech Stack**: Next.js 14.2.35, TypeScript, PostgreSQL, Prisma, shadcn/ui, React Query, Zustand
 - **Hosting**: Railway (PostgreSQL + deployment)
 
-## Current Status (December 19, 2025)
+## Current Status (December 20, 2025)
 - Sprint 14: COMPLETE (13/13 items)
+- Improvement Plan: ALL 22 ITEMS COMPLETE (11 bugs + 11 improvements)
 - Progress: ~99% toward v1.0.0
-- Recent: Payments tab badge + Currency fixes (Dec 19)
-- Commits: 87+ in December 2025
+- Recent Work: Mobile action bar refinement with button height consistency
+- December 2025 Commits: 90+
 
 ## Architecture Patterns (CRITICAL - MUST FOLLOW)
 
@@ -122,6 +123,29 @@ import { useIsMobile, useIsTablet, useIsDesktop } from '@/hooks/use-media-query'
 const isMobile = useIsMobile(); // max-width: 639px
 ```
 
+### Mobile Action Bar - Button Height Consistency (CRITICAL):
+```typescript
+// Button sizes from button.tsx:
+// size="default" = h-10 (40px) ✅ matches Input
+// size="icon" = h-10 w-10 (40px square) ✅ matches Input
+// size="sm" = h-9 (36px) ❌ SHORTER than Input - don't use!
+
+// Input from input.tsx: h-10 (40px)
+
+// RULE: For action bars with Input + Buttons, use size="icon" or size="default"
+// NEVER use size="sm" - creates misaligned heights
+
+// Pattern:
+<div className="relative flex-1 min-w-[120px] max-w-[220px] sm:max-w-[320px]">
+  <Input className="w-full min-w-0 pl-9" />
+</div>
+<div className="hidden sm:flex sm:flex-1" /> {/* Desktop-only spacer */}
+<Button size={isMobile ? 'icon' : 'default'} className="shrink-0">
+  <Icon className="h-4 w-4" />
+  {!isMobile && <span>Label</span>}
+</Button>
+```
+
 ### Zod File Validation:
 ```typescript
 z.custom<File>((val) => val === null || val === undefined || val instanceof File)
@@ -156,36 +180,50 @@ pnpm build     # must succeed
 ### Responsive Hooks:
 - Media Query: hooks/use-media-query.ts (useIsMobile, useIsTablet, useIsDesktop)
 
+### UI Components:
+- Button: components/ui/button.tsx (size variants: default h-10, sm h-9, icon h-10 w-10)
+- Input: components/ui/input.tsx (h-10)
+
 ### Utilities:
 - TDS Calculation: lib/utils/tds.ts
+- Currency Format: lib/utils/format.ts
 - Validations: lib/validations/
 
 ## December 2025 Session Summary
 
-### Session #1 - Sprint 14 Completion:
+### Session #1 (Dec 18) - Sprint 14 Completion:
 - AmountInput component (fixes "01500" bug)
 - Payment Types CRUD (full admin management)
 - Activities Tab (standalone with filtering & pagination)
 - Settings Restructure (Profile/Security/Activities tabs)
 
-### Session #2 - Invoice Detail Panel Redesign:
+### Session #2 (Dec 18) - Invoice Detail Panel Redesign:
 - Panel title: "Invoice - {name}" (human-readable)
 - Header: Invoice number + vendor (left), badges stacked (right)
 - Due date moved to Details tab with overdue badge
 - Mobile: Action bar in footer, tab overflow menu
 - New useMediaQuery hook for responsive breakpoints
 
-### Session #3 - Mobile Bug Fixes:
+### Session #3 (Dec 18) - Mobile Bug Fixes:
 - Fixed: Dropdown menus not working (replaced Radix with native)
 - Fixed: Panel content clipped on left edge (maxWidth instead of width)
 - Fixed: Tab swap bug (proper swap logic in useMemo)
-- Root causes: Radix UI touch issues, inline style specificity, incomplete swap logic
 
-### Session #4 - Payments Tab Badge & Currency Fixes (LATEST - Dec 19):
-- Fixed: Payments tab badge not showing pending count (added `pending_payment_count` to PaymentSummary)
-- Fixed: Currency symbol hardcoded as $ instead of invoice's currency (use shared `formatCurrency` with `invoice.currency?.code`)
-- Pattern: Pass `currencyCode` prop down component chain, use `formatCurrency(amount, currencyCode)`
-- Files fixed: 12 files including payment-history-list, ledger components, all-invoices-tab, tds-tab, dashboard
+### Session #4 (Dec 19) - Payments Tab Badge & Currency:
+- Fixed: Payments tab badge (added `pending_payment_count` to PaymentSummary)
+- Fixed: Currency hardcoded (use `formatCurrency(amount, currencyCode)`)
+
+### Session #5 (Dec 19) - UI Consistency:
+- Changed: Record Payment icon to CreditCard
+- Changed: Filters button to outline variant
+- Changed: Badge styling to muted colors
+
+### Session #6 (Dec 20) - Mobile Action Bar Refinement (LATEST):
+- Compact action bar layout for mobile screens
+- **Key Discovery**: Button height mismatch - size="sm" (36px) vs Input (40px)
+- **Fix**: Use size="icon" (40px) or size="default" (40px) for action bar buttons
+- Desktop-only spacer with `hidden sm:flex sm:flex-1`
+- "+ New" CTA on mobile, full "New Invoice" on desktop
 
 ## Database Models (16 total)
 User, InvoiceProfile, Invoice, Vendor, Category, PaymentType, Payment,
@@ -203,9 +241,11 @@ pending_approval → unpaid/on_hold/rejected → partial → paid
    - /Users/althaf/Projects/paylog-3/docs/PROJECT_HANDOFF_GUIDE.md
    - /Users/althaf/Projects/paylog-3/docs/SESSION_SUMMARY_DEC25.md
    - /Users/althaf/Projects/paylog-3/docs/CONTEXT_RESTORE_PROMPT.md
+   - /Users/althaf/Projects/paylog-3/IMPROVEMENT_PLAN_2024-12-12.md
 5. Quality gates must pass before EVERY commit
 6. Use reusable components from components/ui/ and components/panels/shared/
 7. Test on actual mobile devices, not just browser responsive mode
+8. For action bar buttons, ALWAYS use size="icon" or size="default" (h-10 = 40px), NEVER size="sm" (h-9 = 36px)
 
 What would you like to work on?
 ```
@@ -253,12 +293,15 @@ Read these additional files for mobile context:
 - components/panels/shared/panel-tabs.tsx (native dropdown pattern, tab swap)
 - components/panels/panel-level.tsx (maxWidth responsive pattern)
 - components/invoices/invoice-detail-panel-v3/index.tsx (mobile footer action bar)
+- components/v3/invoices/all-invoices-tab.tsx (mobile action bar compact layout)
+- components/ui/button.tsx (size variants reference)
+- components/ui/input.tsx (height reference)
 ```
 
 ### For Filter/Table Work:
 ```
 Read these additional files for filtering context:
-- components/v3/invoices/all-invoices-tab.tsx (1849 lines)
+- components/v3/invoices/all-invoices-tab.tsx (1745 lines)
 - components/v3/invoices/invoice-filter-popover.tsx
 - hooks/use-invoices-v2.ts
 ```
@@ -287,6 +330,8 @@ paylog-3/
 │       └── activity-log.ts
 ├── components/
 │   ├── ui/                       # shadcn/ui components
+│   │   ├── button.tsx            # size: default h-10, sm h-9, icon h-10 w-10
+│   │   └── input.tsx             # h-10 (40px)
 │   ├── v3/invoices/              # Invoice tabs system
 │   ├── v3/settings/              # Settings page
 │   ├── invoices-v2/              # Invoice forms + AmountInput
@@ -305,7 +350,9 @@ paylog-3/
 │   ├── use-panel.ts
 │   └── use-media-query.ts        # Responsive breakpoint hooks
 ├── lib/
-│   ├── utils/tds.ts              # TDS calculation
+│   ├── utils/
+│   │   ├── tds.ts                # TDS calculation
+│   │   └── format.ts             # Currency formatting
 │   └── validations/              # Zod schemas
 └── types/
     ├── invoice.ts
@@ -327,6 +374,7 @@ paylog-3/
 | Tab swap | Tab disappearing from both locations | Proper swap in useMemo | panel-tabs.tsx |
 | Payments badge | Not showing pending count | Add `pending_payment_count` to PaymentSummary | types/payment.ts, payments.ts |
 | Currency symbol | Hardcoded $ or ₹ | Use shared `formatCurrency(amount, currencyCode)` | lib/utils/format.ts |
+| Button height | Buttons shorter than Input | Use `size="icon"` or `size="default"` (h-10), NOT `size="sm"` (h-9) | all-invoices-tab.tsx |
 
 ---
 
@@ -337,7 +385,7 @@ paylog-3/
 │ Invoice - AC Charges                             [X] │  ← Human-readable title
 ├──────────────────────────────────────────────────────┤
 │ lkbjhghhg               [Pending Approval]       [✏]│  ← Invoice # + stacked badges
-│ IOE Access                      [Recurring]      [₹]│  ← Vendor (no "from")
+│ IOE Access                      [Recurring]      [💳]│  ← Vendor (no "from"), CreditCard icon
 ├──────────────────────────────────────────────────────┤
 │ [Inv Amount] [TDS] [Total Paid] [Remaining]      [⏸]│  ← Hero stats
 │ ▓░░░░░░░░░░ Payment Progress: 0%                 [✓]│  ← Progress bar
@@ -350,7 +398,7 @@ paylog-3/
 │                               [Overdue by 17 days]  │  ← Due date in Details tab
 │                                                     │
 ├──────────────────────────────────────────────────────┤
-│ [✏][₹][✓][✗] [⋮]                        [Close]    │  ← Mobile: actions in footer
+│ [✏][💳][✓][✗] [⋮]                        [Close]    │  ← Mobile: actions in footer
 └──────────────────────────────────────────────────────┘
 ```
 
@@ -364,13 +412,54 @@ paylog-3/
 
 ---
 
+## Mobile Action Bar - Visual Structure
+
+```
+Desktop: [Search field        ] [Filters (badge)] [< Dec >] [Export] [+ New Invoice ▾]
+Mobile:  [Search...    ] [🔽] [📥] [+ New]
+         └─ shrinks ─┘  └ 40px ┘└─ 40px ─┘└─ CTA ─┘
+```
+
+### Button Height Rule (CRITICAL):
+```
+Input height:        h-10 (40px)
+size="default":      h-10 (40px) ✅ MATCHES
+size="icon":         h-10 w-10 (40px square) ✅ MATCHES
+size="sm":           h-9 (36px) ❌ SHORTER - DON'T USE!
+```
+
+### Key CSS Patterns:
+| Class | Purpose |
+|-------|---------|
+| `flex-1 min-w-[120px] max-w-[220px]` | Shrink search with bounds |
+| `hidden sm:flex sm:flex-1` | Desktop-only spacer |
+| `shrink-0` | Prevent button from shrinking |
+| `size="icon"` | 40x40px square (matches Input h-10) |
+| `absolute -top-1 -right-1` | Badge at top-right corner |
+
+---
+
 ## Recent Commits (December 2025)
 
 ```
+1d41916 style(mobile): compact action bar layout for invoice list
+3e6523d style(ui): consistent payment icon and filter button styling
+9a7a306 feat(ux): make invoice table rows clickable (IMP-007)
+b1e4ac1 feat(vendor): case-insensitive search + clickable chevron with touch support
+e626b77 fix(vendor): single-click selection on Windows + browse all vendors
+a042e3b feat(ui): add sync button and green button variants
+febd616 docs: comprehensive session documentation for December 19, 2025
 1af2419 fix(currency): use dynamic currency formatting across all components
+a49409d style(dialog): change payment review dialog to amber color scheme
+c46425b refactor(invoices): approve button now opens detail panel for review
+0d18078 feat(invoices): add payment review popup dialog after approval
+cb005cf feat(invoices): improve approval UX with pending payment auto-navigation
+eb63d77 docs: comprehensive documentation update for December 18 sessions
 0caae6a fix(tabs): properly swap overflow tab with last visible tab on mobile
 039a4c4 fix(panel): use maxWidth for responsive panel sizing on mobile
 3af4605 fix(mobile): replace Radix UI popover with native dropdown for mobile menus
+231180b fix(mobile): replace DropdownMenu with Popover for better touch support
+e021e4e fix(mobile): fix dropdown menus and tab underline on mobile view
 3c1f6ce feat(invoice-panel): redesign invoice detail panel with mobile responsiveness
 3a63bae feat(payments): redesign Record Payment panel with improved UX
 ```
@@ -381,10 +470,12 @@ paylog-3/
 
 ### Completed (~99%):
 - [x] All Sprint 14 items (13/13)
+- [x] All Improvement Plan items (22/22 - 11 bugs + 11 improvements)
 - [x] Invoice Detail Panel redesign
 - [x] Payment Panel redesign
-- [x] Mobile responsiveness
+- [x] Mobile responsiveness (panels, tabs, action bars)
 - [x] All critical bug fixes
+- [x] Mobile action bar compact layout with button height consistency
 
 ### Remaining (~1%):
 - [ ] Final documentation review
@@ -414,11 +505,15 @@ paylog-3/
 
 9. **Currency Code Propagation**: Pass `currencyCode` prop from parent (where invoice/profile is available) down to child components that display currency values.
 
+10. **Button Height Consistency**: When mixing Input fields with Buttons in action bars, use `size="icon"` (40x40px) or `size="default"` (h-10 = 40px) - NEVER `size="sm"` (h-9 = 36px) as it creates visual misalignment.
+
+11. **Flexbox Shrinking**: Use `flex-1 min-w-0` for elements that should shrink, `shrink-0` for elements that shouldn't. Desktop-only spacers should use `hidden sm:flex sm:flex-1`.
+
 ---
 
 **Document End**
 
 *Update this prompt after each session to maintain context continuity.*
 
-**Last Updated**: December 19, 2025
-**Session**: Payments Tab Badge & Currency Fixes Complete
+**Last Updated**: December 20, 2025
+**Session**: Mobile Action Bar Refinement + Button Height Consistency Complete

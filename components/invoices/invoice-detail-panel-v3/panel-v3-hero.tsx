@@ -3,15 +3,15 @@
 /**
  * Panel V3 Hero Component
  *
- * Displays key invoice stats and payment progress:
- * - 4 stat cards (Invoice Amount, TDS, Total Paid, Remaining)
- * - Progress bar showing payment completion
+ * Displays key invoice stats with contextual badges:
+ * - Inv Amount: (R) recurring or (R̸) non-recurring badge
+ * - TDS Deducted: [X%] percentage badge
+ * - Total Paid: Circular progress ring with colored background
+ * - Remaining: Status icon (✓/⚠/◷) based on payment status
  */
 
 import * as React from 'react';
-import { IndianRupee, AlertCircle, CheckCircle } from 'lucide-react';
 import { PanelStatGroup, type StatItem } from '@/components/panels/shared';
-import { cn } from '@/lib/utils';
 import { calculateTds } from '@/lib/utils/tds';
 
 // ============================================================================
@@ -26,6 +26,10 @@ export interface PanelV3HeroProps {
   tdsPercentage?: number | null;
   tdsRounded?: boolean; // BUG-003: Invoice-level TDS rounding preference
   currencyCode?: string;
+  /** Whether this is a recurring invoice */
+  isRecurring?: boolean;
+  /** Invoice due date for determining overdue status */
+  dueDate?: Date | string | null;
 }
 
 // ============================================================================
@@ -44,39 +48,35 @@ function formatCurrency(amount: number, currency: string = 'INR'): string {
   }).format(amount);
 }
 
-// ============================================================================
-// Sub-Components
-// ============================================================================
-
-interface ProgressBarProps {
-  percentage: number;
+/**
+ * Determine if an invoice is overdue
+ */
+function isOverdue(dueDate: Date | string | null | undefined): boolean {
+  if (!dueDate) return false;
+  const due = typeof dueDate === 'string' ? new Date(dueDate) : dueDate;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  due.setHours(0, 0, 0, 0);
+  return due < today;
 }
 
-function ProgressBar({ percentage }: ProgressBarProps) {
-  // Clamp percentage between 0 and 100
-  const clampedPercentage = Math.min(Math.max(percentage, 0), 100);
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between text-sm">
-        <span className="text-muted-foreground">Payment Progress</span>
-        <span className="font-medium">{clampedPercentage.toFixed(0)}%</span>
-      </div>
-      <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-        <div
-          className={cn(
-            'h-full rounded-full transition-all duration-500',
-            clampedPercentage >= 100
-              ? 'bg-green-500 dark:bg-green-400'
-              : clampedPercentage >= 50
-                ? 'bg-primary'
-                : 'bg-amber-500 dark:bg-amber-400'
-          )}
-          style={{ width: `${clampedPercentage}%` }}
-        />
-      </div>
-    </div>
-  );
+/**
+ * Determine payment status variant based on payment progress and due date
+ */
+function getPaymentVariant(
+  progressPercentage: number,
+  dueDate: Date | string | null | undefined
+): 'success' | 'warning' | 'danger' {
+  // Fully paid = success
+  if (progressPercentage >= 100) {
+    return 'success';
+  }
+  // Not fully paid and overdue = danger
+  if (isOverdue(dueDate)) {
+    return 'danger';
+  }
+  // Not fully paid but not overdue = warning
+  return 'warning';
 }
 
 // ============================================================================
@@ -91,6 +91,8 @@ export function PanelV3Hero({
   tdsPercentage,
   tdsRounded = false, // BUG-003: Invoice-level TDS rounding preference
   currencyCode = 'INR',
+  isRecurring = false,
+  dueDate,
 }: PanelV3HeroProps) {
   // Calculate TDS amount using invoice's tds_rounded preference (BUG-003)
   const tdsAmount = tdsApplicable && tdsPercentage
@@ -104,54 +106,56 @@ export function PanelV3Hero({
   const progressPercentage =
     payableAmount > 0 ? (totalPaid / payableAmount) * 100 : 0;
 
-  // Build stat items
+  // Determine payment status variant (success/warning/danger)
+  const paymentVariant = getPaymentVariant(progressPercentage, dueDate);
+
+  // Build stat items with new badge system
   const stats: StatItem[] = [
+    // Inv Amount card with recurring/non-recurring badge
     {
       label: 'Inv Amount',
       value: formatCurrency(invoiceAmount, currencyCode),
-      icon: <IndianRupee className="h-4 w-4" />,
       variant: 'default',
+      badgeType: isRecurring ? 'recurring' : 'non-recurring',
     },
   ];
 
-  // Add TDS card if applicable
+  // Add TDS card if applicable with percentage badge
   if (tdsApplicable) {
     stats.push({
       label: 'TDS Deducted',
       value: formatCurrency(tdsAmount, currencyCode),
-      subtitle: tdsPercentage ? `${tdsPercentage}% TDS` : undefined,
-      icon: <IndianRupee className="h-4 w-4" />,
+      valueIndicator: tdsRounded ? 'rounded-up' : null,
       variant: 'default',
+      badgeType: 'percentage',
+      badgeValue: tdsPercentage ?? 0,
     });
   }
 
-  // Add Total Paid card
+  // Add Total Paid card with circular progress
   stats.push({
     label: 'Total Paid',
     value: formatCurrency(totalPaid, currencyCode),
-    icon: <CheckCircle className="h-4 w-4" />,
-    variant: 'success',
+    variant: paymentVariant,
+    badgeType: 'progress',
+    badgeValue: progressPercentage,
+    badgeVariant: paymentVariant,
   });
 
-  // Add Remaining card
+  // Add Remaining card with status icon
   stats.push({
     label: 'Remaining',
     value: formatCurrency(Math.max(remainingBalance, 0), currencyCode),
-    icon: <AlertCircle className="h-4 w-4" />,
-    variant: remainingBalance > 0 ? 'warning' : 'success',
+    variant: 'default', // Always muted background
+    badgeType: 'status-icon',
+    badgeVariant: paymentVariant, // Icon color matches payment status
   });
 
   // Determine column count based on whether TDS is shown
   const columns = tdsApplicable ? 4 : 3;
 
   return (
-    <div className="space-y-4">
-      {/* Stat Cards */}
-      <PanelStatGroup stats={stats} columns={columns as 2 | 3 | 4} />
-
-      {/* Progress Bar */}
-      <ProgressBar percentage={progressPercentage} />
-    </div>
+    <PanelStatGroup stats={stats} columns={columns as 2 | 3 | 4} />
   );
 }
 

@@ -1262,3 +1262,344 @@ After these fixes, verify:
 **Sprint 14**: COMPLETE (13/13 items)
 **Overall Progress**: ~99% complete toward v1.0.0
 **Next Steps**: v1.0.0 release preparation, documentation review
+
+---
+
+## December 19, 2025 Session #2 - UI Consistency Improvements
+
+### Changes Implemented
+
+This session focused on visual consistency improvements to the invoice detail panel action bar and payments tab.
+
+#### 1. Record Payment Icon Change
+**File**: `components/invoices/invoice-detail-panel-v3/panel-v3-action-bar.tsx`
+
+- **Before**: Indian Rupee icon (₹) from `IndianRupee` lucide icon
+- **After**: Credit card icon (`CreditCard`) - more universal for payment action
+
+#### 2. Filters Button Styling Change
+**File**: `components/v3/invoices/all-invoices-tab.tsx`
+
+- **Before**: Default button variant
+- **After**: `variant="outline"` - consistent with Export button styling
+
+#### 3. Filter Badge Styling
+**File**: `components/v3/invoices/all-invoices-tab.tsx`
+
+- **Before**: Various badge colors
+- **After**: Muted badge styling (`bg-muted text-muted-foreground`) - less visual noise
+
+---
+
+### Commits
+
+```
+a49409d style(dialog): change payment review dialog to amber color scheme
+c46425b refactor(invoices): approve button now opens detail panel for review
+```
+
+---
+
+### Quality Gates
+
+All checks passed:
+- ✅ `pnpm lint` - 0 errors
+- ✅ `pnpm typecheck` - 0 errors
+- ✅ `pnpm build` - Successful
+
+---
+
+## December 20, 2025 Session - Mobile Action Bar Refinement
+
+### Session Overview
+
+This session focused on refining the mobile action bar layout for the All Invoices tab, addressing button sizing consistency, height alignment, and creating an optimal single-row layout for narrow mobile screens.
+
+### Issues Addressed
+
+1. **Initial Issue**: Mobile action bar was too crowded
+2. **Secondary Issue**: Button heights were inconsistent (Export `h-9`, Filter `h-10`, New `h-9` with varying widths)
+3. **Root Cause Discovery**: Using `size="sm"` gave `h-9` (36px) while Input uses `h-10` (40px) - causing visual misalignment
+4. **User Request Evolution**: Started with icon-only buttons, then refined to "+ New" text for CTA visibility
+
+### Understanding the Button System
+
+Through investigation of `components/ui/button.tsx`, we discovered the button sizing system:
+
+```typescript
+// Button size variants in button.tsx
+size: {
+  default: 'h-10 px-4 py-2',   // 40px height
+  sm: 'h-9 rounded-md px-3',   // 36px height
+  lg: 'h-11 rounded-md px-8',  // 44px height
+  icon: 'h-10 w-10',           // 40px square
+},
+```
+
+**Key insight**: Input component uses `h-10` (40px), so `size="icon"` (`h-10 w-10`) matches Input height perfectly.
+
+### Final Implementation
+
+**File**: `components/v3/invoices/all-invoices-tab.tsx`
+
+**Action Bar Layout**:
+```
+Desktop: [Search field        ] [Filters (badge)] [< Dec >] [Export] [+ New Invoice ▾]
+Mobile:  [Search...    ] [🔽] [📥] [+ New]
+         └─ shrinks ─┘  └── icon-only ──┘ └─ CTA ─┘
+```
+
+#### Changes Made
+
+1. **Search Field** (Lines 964-972)
+   - `flex-1 min-w-[120px] max-w-[220px] sm:max-w-[320px]`
+   - Shrinks on mobile while maintaining minimum usable width
+   - `w-full min-w-0` on the Input itself for proper flexbox shrinking
+
+2. **Spacer for Desktop Only** (Line 1021)
+   - `hidden sm:flex sm:flex-1` - Only shows on desktop to push buttons right
+   - On mobile, removed to let elements distribute naturally
+
+3. **Filter Button on Mobile** (Lines 977-1011)
+   - `size="icon"` for consistent 40x40px square
+   - Badge overlay: `absolute -top-1 -right-1`
+   - `shrink-0` to prevent shrinking
+
+4. **Export Button** (Lines 1024-1032)
+   - `size={isMobile ? 'icon' : 'default'}` - icon-only on mobile
+   - `shrink-0` on mobile to prevent shrinking
+
+5. **New Invoice Button** (Lines 1037-1046)
+   - `size="default"` with `px-3` padding adjustment on mobile
+   - Shows "+ New" text on mobile (important CTA visibility)
+   - Shows "New Invoice" with Plus icon on desktop
+   - `shrink-0` to prevent shrinking
+
+#### Final Code Pattern
+
+```typescript
+{/* Search - shrinks on mobile */}
+<div className="relative flex-1 min-w-[120px] max-w-[220px] sm:max-w-[320px]">
+  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+  <Input
+    placeholder="Search invoices..."
+    className="w-full min-w-0 pl-9 bg-background"
+  />
+</div>
+
+{/* Spacer - desktop only */}
+<div className="hidden sm:flex sm:flex-1" />
+
+{/* Export - icon only on mobile */}
+<Button
+  variant="outline"
+  size={isMobile ? 'icon' : 'default'}
+  className={cn(isMobile ? 'shrink-0' : 'gap-2')}
+>
+  <Download className="h-4 w-4" />
+  {!isMobile && <span>Export</span>}
+</Button>
+
+{/* New Invoice - "+ New" on mobile, "New Invoice" on desktop */}
+<Button size="default" className={cn(isMobile ? 'px-3 shrink-0' : 'gap-2')}>
+  {isMobile ? (
+    <span className="font-semibold">+ New</span>
+  ) : (
+    <>
+      <Plus className="h-4 w-4" />
+      <span>New Invoice</span>
+    </>
+  )}
+</Button>
+```
+
+### Key Learnings
+
+| Issue | Root Cause | Fix |
+|-------|------------|-----|
+| Buttons different heights | `size="sm"` = 36px, Input = 40px | Use `size="icon"` (40px) for mobile icon buttons |
+| Export looked squeezed | Custom padding with wrong size | Use `size="icon"` without custom padding |
+| "+ New" had unused space | `size="sm"` with text had odd padding | Use `size="default"` with `px-3` for tighter fit |
+| Buttons not right-aligned on mobile | Spacer was always visible | Make spacer `hidden sm:flex` |
+
+### Critical Pattern: Button Height Consistency
+
+When creating action bars with mixed elements (Input + Buttons), ensure height alignment:
+
+```typescript
+// Input uses h-10 (40px) by default from input.tsx
+// To match:
+// - Use size="icon" (h-10 w-10 = 40px square)
+// - Use size="default" (h-10 = 40px)
+// - DON'T use size="sm" (h-9 = 36px) - will be shorter
+```
+
+### Commits
+
+```
+1d41916 style(mobile): compact action bar layout for invoice list
+```
+
+---
+
+### Quality Gates
+
+All checks passed:
+- ✅ `pnpm lint` - 0 errors
+- ✅ `pnpm typecheck` - 0 errors
+- ✅ `pnpm build` - Successful
+
+---
+
+## Summary of All December 2025 Sessions
+
+| Date | Session | Focus | Key Deliverables |
+|------|---------|-------|------------------|
+| Dec 18 | #1 | Sprint 14 Completion | AmountInput, Payment Types CRUD, Activities Tab, Settings Restructure |
+| Dec 18 | #2 | Invoice Panel Redesign | Human-readable title, header redesign, due date in details, responsive tabs, mobile footer |
+| Dec 18 | #3 | Mobile Bug Fixes | Native dropdowns, maxWidth fix, proper tab swap logic |
+| Dec 19 | #1 | Payments Tab & Currency | Pending count badge, dynamic currency formatting |
+| Dec 19 | #2 | UI Consistency | CreditCard icon, outline filters button, muted badge |
+| Dec 20 | #1 | Mobile Action Bar | Compact layout, button height consistency, "+ New" CTA |
+
+---
+
+## All Commits (December 2025)
+
+```
+1d41916 style(mobile): compact action bar layout for invoice list
+3e6523d style(ui): consistent payment icon and filter button styling
+9a7a306 feat(ux): make invoice table rows clickable (IMP-007)
+b1e4ac1 feat(vendor): case-insensitive search + clickable chevron with touch support
+e626b77 fix(vendor): single-click selection on Windows + browse all vendors
+a042e3b feat(ui): add sync button and green button variants
+febd616 docs: comprehensive session documentation for December 19, 2025
+1af2419 fix(currency): use dynamic currency formatting across all components
+a49409d style(dialog): change payment review dialog to amber color scheme
+c46425b refactor(invoices): approve button now opens detail panel for review
+0d18078 feat(invoices): add payment review popup dialog after approval
+cb005cf feat(invoices): improve approval UX with pending payment auto-navigation
+eb63d77 docs: comprehensive documentation update for December 18 sessions
+0caae6a fix(tabs): properly swap overflow tab with last visible tab on mobile
+039a4c4 fix(panel): use maxWidth for responsive panel sizing on mobile
+3af4605 fix(mobile): replace Radix UI popover with native dropdown for mobile menus
+231180b fix(mobile): replace DropdownMenu with Popover for better touch support
+e021e4e fix(mobile): fix dropdown menus and tab underline on mobile view
+3c1f6ce feat(invoice-panel): redesign invoice detail panel with mobile responsiveness
+3a63bae feat(payments): redesign Record Payment panel with improved UX
+```
+
+---
+
+## December 22, 2025 Session - Hero Stats Card Redesign
+
+### Overview
+
+Redesigning the invoice detail panel hero stats cards to replace generic/redundant icons with meaningful, contextual badges that provide at-a-glance information.
+
+### Problem Statement
+
+Current hero cards show redundant icons (₹ rupee symbol on amount cards) that don't add information value. The payment progress bar is a separate row below the cards, not integrated into the card design.
+
+### Design Solution
+
+Replace generic icons with contextual badges that communicate status:
+
+| Card | Current Icon | New Badge | Purpose |
+|------|--------------|-----------|---------|
+| Inv Amount | ₹ (redundant) | **(R)** or **(R̸)** | Invoice type: Recurring vs Non-recurring |
+| TDS Deducted | ₹ (redundant) | **[1%]**, **[10%]** | TDS percentage at a glance |
+| Total Paid | ✓ checkmark | **Circular progress ring** | Payment % with colored background |
+| Remaining | ⚠ alert | **Status icon** (✓/◷/⚠) | Payment status indicator |
+
+### Detailed Specifications
+
+#### 1. Inv Amount Card - Invoice Type Badge
+```
+Recurring:      ₹48,700  (R)    ← Orange circle with R
+Non-recurring:  ₹48,700  (R̸)    ← Gray R with strikethrough
+```
+- **Background**: Muted (default)
+- **(R)**: Orange/primary colored circle
+- **(R̸)**: Gray, indicates "not recurring"
+
+#### 2. TDS Deducted Card - Percentage Badge
+```
+₹487  [1%]     ← Shows TDS rate
+₹5,000 [10%]   ← Shows TDS rate
+```
+- **Background**: Muted (default)
+- **Badge**: Small rounded badge showing percentage
+
+#### 3. Total Paid Card - Circular Progress + Dynamic Background
+```
+Fully paid:           ₹48,213 [100%]  → GREEN bg, full ring
+Partial + Overdue:    ₹22,500 [50%]   → RED bg, partial ring
+Partial + Not due:    ₹22,500 [50%]   → AMBER bg, partial ring
+Unpaid + Overdue:     ₹0 [0%]         → RED bg, empty ring
+Unpaid + Not due:     ₹0 [0%]         → AMBER bg, empty ring
+```
+- **Background**: Dynamic based on payment status AND due date
+- **Progress ring**: Shows payment percentage visually
+- **Ring colors**: Match background (green/red/amber)
+
+#### 4. Remaining Card - Status Icon + Muted Background
+```
+Fully paid:          ₹0 (✓)        → Muted bg, GREEN checkmark
+Partial + Overdue:   ₹22,500 (⚠)   → Muted bg, RED alert
+Partial + Not due:   ₹22,500 (◷)   → Muted bg, AMBER clock
+Unpaid + Overdue:    ₹48,213 (⚠)   → Muted bg, RED alert
+Unpaid + Not due:    ₹48,213 (◷)   → Muted bg, AMBER clock
+```
+- **Background**: Always muted
+- **Icon**: CheckCircle (paid), AlertTriangle (overdue), Clock (pending)
+- **Icon color**: Green/Red/Amber based on status
+
+### Implementation Plan
+
+#### Files to Modify:
+1. **`components/panels/shared/panel-stat-group.tsx`**
+   - Extend `StatItem` interface for new badge types
+   - Add `badgeType`, `badgeValue`, `badgeVariant` properties
+   - Create badge rendering logic
+
+2. **`components/invoices/invoice-detail-panel-v3/panel-v3-hero.tsx`**
+   - Add `isRecurring` prop
+   - Add `dueDate` prop for overdue calculation
+   - Build new badge configurations for each card
+   - Remove separate ProgressBar component
+
+3. **`components/invoices/invoice-detail-panel-v3/index.tsx`**
+   - Pass `isRecurring` and `dueDate` to hero component
+
+#### New Components to Create:
+- Circular progress ring component (SVG-based)
+- R-circle icon (can be styled div or SVG)
+- R-strikethrough icon (SVG)
+
+### Visual States Summary
+
+```
+┌────────────────┐  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐
+│ Inv Amount     │  │ TDS Deducted   │  │ Total Paid     │  │ Remaining      │
+│ ₹48,700   (R)  │  │ ₹487     [1%]  │  │ ₹0      [0%]   │  │ ₹48,213   (⚠)  │
+│  Recurring     │  │  TDS percent   │  │  Progress ring │  │  Status icon   │
+└────────────────┘  └────────────────┘  └────────────────┘  └────────────────┘
+   muted bg           muted bg           dynamic bg           muted bg
+```
+
+### Acceptance Criteria
+
+- [ ] Inv Amount shows (R) for recurring, (R̸) for non-recurring
+- [ ] TDS Deducted shows percentage badge [X%]
+- [ ] Total Paid has circular progress ring with percentage
+- [ ] Total Paid background: green (paid), red (overdue), amber (pending)
+- [ ] Remaining shows status icon: ✓ (paid), ⚠ (overdue), ◷ (pending)
+- [ ] All quality gates pass (lint, typecheck, build)
+
+---
+
+**Final Session Status**: MOBILE ACTION BAR REFINEMENT COMPLETE
+**Sprint 14**: COMPLETE (13/13 items)
+**Overall Progress**: ~99% complete toward v1.0.0
+**Current Work**: Hero Stats Card Redesign (in progress)
