@@ -192,7 +192,7 @@ export function VendorTextAutocomplete({
           placeholder={placeholder}
           className={cn(
             'w-full pr-8',
-            error && 'border-destructive focus-visible:ring-destructive'
+            error && 'border-destructive focus:ring-0'
           )}
           autoComplete="off"
         />

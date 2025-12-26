@@ -2,7 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Global Focus Management
+ *
+ * Use focus-visible instead of focus to only show focus rings
+ * for keyboard navigation, not mouse clicks.
+ * This improves UX for mouse users while maintaining accessibility.
+ */
 @layer base {
+  /* Remove ALL default focus outlines - components handle their own focus styles */
+  *:focus,
+  *:focus-visible {
+    outline: none;
+  }
   :root {
     /* Colors */
     --background: 0 0% 100%;
@@ -829,4 +841,13 @@
     border-color: hsl(var(--primary));
     box-shadow: 0 0 0 3px hsl(var(--primary) / 0.15);
   }
+}
+
+/* Sidebar FOUC Prevention - hide layout until React hydrates */
+[data-layout-wrapper] {
+  opacity: 0;
+  transition: opacity 0.15s ease-out;
+}
+[data-layout-wrapper].hydrated {
+  opacity: 1;
 }

@@ -253,7 +253,19 @@ export function Sidebar({ userRole, badgeCounts = {} }: SidebarProps) {
     setMobileMenuOpen,
   } = useUIVersion();
 
-  const isCollapsed = getCurrentSidebarCollapsed();
+  // Prevent hydration mismatch by using default state until mounted
+  const [mounted, setMounted] = React.useState(false);
+  const [transitionsEnabled, setTransitionsEnabled] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+    // Enable transitions after a brief delay to prevent initial flash animation
+    const timer = setTimeout(() => setTransitionsEnabled(true), 50);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Use false (expanded) during SSR, then switch to actual state after hydration
+  const isCollapsed = mounted ? getCurrentSidebarCollapsed() : false;
 
   // Close mobile menu on navigation
   React.useEffect(() => {
@@ -285,9 +297,11 @@ export function Sidebar({ userRole, badgeCounts = {} }: SidebarProps) {
 
       {/* Sidebar */}
       <aside
+        data-sidebar
         className={cn(
           'flex h-screen flex-col border-r border-border bg-card',
-          'transition-all duration-300 ease-in-out',
+          // Only enable transitions after initial mount to prevent flash
+          transitionsEnabled && 'transition-all duration-300 ease-in-out',
           // Desktop: fixed positioning with variable width
           'hidden md:flex fixed left-0 top-0 z-40',
           isCollapsed ? 'w-16' : 'w-64',

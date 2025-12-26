@@ -20,9 +20,25 @@ export const metadata: Metadata = {
 const themeScript = `
   (function() {
     try {
+      // Handle dark/light theme
       var theme = localStorage.getItem('theme');
-      if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      var isDark = theme === 'dark' ||
+        (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches) ||
+        (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      if (isDark) {
         document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+
+      // Handle sidebar collapsed state
+      var uiStore = localStorage.getItem('paylog-ui-preferences');
+      if (uiStore) {
+        var parsed = JSON.parse(uiStore);
+        var isCollapsed = parsed.state && parsed.state.sidebarCollapsedV3;
+        if (isCollapsed) {
+          document.documentElement.classList.add('sidebar-collapsed');
+        }
       }
     } catch (e) {}
   })();

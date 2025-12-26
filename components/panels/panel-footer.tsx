@@ -23,7 +23,7 @@ export function PanelFooter({ children, className }: PanelFooterProps) {
     <div
       className={cn(
         'flex flex-wrap items-center justify-end gap-2',
-        'border-t border-border bg-background px-6 py-4',
+        'border-t border-border bg-background px-6 py-3',
         'shrink-0', // Prevent footer from shrinking in flex layout
         className
       )}

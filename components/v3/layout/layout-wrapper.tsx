@@ -13,7 +13,7 @@
 import * as React from 'react';
 import { Sidebar } from './sidebar';
 import { Navbar } from './navbar';
-import { GlobalSearch } from '@/components/layout-v2/global-search';
+import { GlobalSearch } from './global-search';
 import { getCachedSidebarBadgeCounts } from '@/app/actions/dashboard';
 import { useUIVersion } from '@/lib/stores/ui-version-store';
 import { cn } from '@/lib/utils';
@@ -39,7 +39,20 @@ export function LayoutWrapper({ children, user }: LayoutWrapperProps) {
   const [commandPaletteOpen, setCommandPaletteOpen] = React.useState(false);
   const [badgeCounts, setBadgeCounts] = React.useState<Record<string, number>>({});
   const { getCurrentSidebarCollapsed } = useUIVersion();
-  const isCollapsed = getCurrentSidebarCollapsed();
+
+  // Prevent hydration mismatch by using default state until mounted
+  const [mounted, setMounted] = React.useState(false);
+  const [transitionsEnabled, setTransitionsEnabled] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+    // Enable transitions after a brief delay to prevent initial flash animation
+    const timer = setTimeout(() => setTransitionsEnabled(true), 50);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Use false (expanded) during SSR, then switch to actual state after hydration
+  const isCollapsed = mounted ? getCurrentSidebarCollapsed() : false;
 
   // Fetch badge counts on mount and refresh periodically
   React.useEffect(() => {
@@ -62,29 +75,38 @@ export function LayoutWrapper({ children, user }: LayoutWrapperProps) {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div
+      data-layout-wrapper
+      className={cn("min-h-screen bg-background", mounted && "hydrated")}
+    >
       {/* Fixed Sidebar */}
       <Sidebar userRole={user?.role} badgeCounts={badgeCounts} />
 
       {/* Main Content Area - offset by sidebar width */}
+      {/* Pass isCollapsed to Navbar for consistent state */}
       <div
+        data-main-content
         className={cn(
-          'flex flex-col min-h-screen transition-[margin] duration-300 ease-in-out',
+          'flex flex-col min-h-screen',
+          // Only enable transitions after initial mount to prevent flash
+          transitionsEnabled && 'transition-[margin] duration-300 ease-in-out',
           // Desktop: offset by sidebar width
           'md:ml-64',
           isCollapsed && 'md:ml-16'
         )}
       >
-        {/* Sticky Navbar */}
+        {/* Sticky Navbar - pass isCollapsed for consistent state */}
         <Navbar
           user={user}
           onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+          isCollapsed={isCollapsed}
         />
 
         {/* Page Content */}
         <main className="flex-1 px-4 py-6 overflow-y-auto">
           <div className={cn(
-            "mx-auto transition-[max-width] duration-300",
+            "mx-auto",
+            transitionsEnabled && "transition-[max-width] duration-300",
             isCollapsed ? "max-w-[1500px]" : "max-w-[1350px]"
           )}>
             {children}

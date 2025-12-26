@@ -53,7 +53,7 @@ const tabVariants = cva(
     'w-[170px] py-1.5',
     'text-sm font-medium font-bold text-center',
     'transition-all duration-200',
-    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+    'focus:outline-none focus:ring-0 focus:border-primary',
     'rounded-md',
   ],
   {
@@ -143,7 +143,7 @@ export function SettingsTabsCompact({
           'px-4 pr-8 py-2 rounded-lg',
           'bg-muted/50 border border-border',
           'text-sm font-medium text-foreground',
-          'focus:outline-none focus:ring-2 focus:ring-primary/50',
+          'focus:outline-none focus:ring-0',
           'cursor-pointer'
         )}
         aria-label="Select settings view"

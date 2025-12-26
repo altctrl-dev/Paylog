@@ -22,7 +22,6 @@ import {
   Moon,
   Menu,
   Plus,
-  Command,
   LogOut,
   User,
   Settings,
@@ -30,6 +29,8 @@ import {
   Database,
   ChevronRight,
   RefreshCw,
+  Search,
+  X,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -66,6 +67,8 @@ interface NavbarProps {
     role?: string | null;
   };
   onOpenCommandPalette?: () => void;
+  /** Sidebar collapsed state - passed from parent for consistent rendering */
+  isCollapsed?: boolean;
 }
 
 // ============================================================================
@@ -95,23 +98,95 @@ function formatRole(role?: string | null): string {
 // Sub-components
 // ============================================================================
 
-interface CommandPaletteTriggerProps {
-  onClick?: () => void;
+interface SearchBarProps {
+  onOpenCommandPalette?: () => void;
 }
 
-function CommandPaletteTrigger({ onClick }: CommandPaletteTriggerProps) {
+function SearchBar({ onOpenCommandPalette }: SearchBarProps) {
+  const [isExpanded, setIsExpanded] = React.useState(false);
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  // Focus input when expanded
+  React.useEffect(() => {
+    if (isExpanded && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isExpanded]);
+
+  // Handle keyboard shortcut
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Escape to close
+      if (e.key === 'Escape' && isExpanded) {
+        setIsExpanded(false);
+        setSearchQuery('');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isExpanded]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      // For now, open command palette with the search query
+      // In the future, this could directly search
+      onOpenCommandPalette?.();
+    }
+  };
+
+  if (isExpanded) {
+    return (
+      <form onSubmit={handleSubmit} className="relative">
+        <div
+          className={cn(
+            'flex items-center gap-2 rounded-full',
+            'bg-muted/50 border border-border pl-3 pr-2 py-1.5',
+            'transition-all duration-200'
+          )}
+        >
+          <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+          <input
+            ref={inputRef}
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search..."
+            className={cn(
+              'bg-transparent border-none',
+              'outline-none focus:outline-none focus:ring-0',
+              'text-sm text-foreground placeholder:text-muted-foreground',
+              'w-[180px]'
+            )}
+          />
+          <button
+            type="button"
+            onClick={() => {
+              setIsExpanded(false);
+              setSearchQuery('');
+            }}
+            className="p-1 rounded-full hover:bg-muted transition-colors"
+          >
+            <X className="h-3.5 w-3.5 text-muted-foreground" />
+          </button>
+        </div>
+      </form>
+    );
+  }
+
   return (
     <button
-      onClick={onClick}
+      onClick={() => setIsExpanded(true)}
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-lg',
-        'bg-muted/50 border border-border px-2.5 py-1.5',
-        'text-xs text-muted-foreground',
-        'hover:bg-muted hover:text-foreground transition-colors'
+        'inline-flex items-center gap-2 rounded-full',
+        'bg-muted/50 border border-border px-3 py-1.5',
+        'text-sm text-muted-foreground',
+        'hover:bg-muted hover:text-foreground transition-all duration-200'
       )}
     >
-      <Command className="h-3.5 w-3.5" />
-      <span className="font-medium">⌘K</span>
+      <Search className="h-4 w-4" />
+      <span className="text-xs font-medium">⌘K</span>
     </button>
   );
 }
@@ -363,9 +438,8 @@ function UserProfileMenu({ user }: UserProfileMenuProps) {
 // Main Component
 // ============================================================================
 
-export function Navbar({ user, onOpenCommandPalette }: NavbarProps) {
-  const { getCurrentSidebarCollapsed, toggleMobileMenu, invoiceCreationMode } = useUIVersion();
-  const isCollapsed = getCurrentSidebarCollapsed();
+export function Navbar({ user, onOpenCommandPalette, isCollapsed = false }: NavbarProps) {
+  const { toggleMobileMenu, invoiceCreationMode } = useUIVersion();
 
   // Keyboard shortcut for command palette
   React.useEffect(() => {
@@ -403,9 +477,9 @@ export function Navbar({ user, onOpenCommandPalette }: NavbarProps) {
         <div className="h-6 w-px bg-border" aria-hidden="true" />
       </div>
 
-      {/* Command Palette Trigger */}
+      {/* Search Bar */}
       <div className="hidden md:block">
-        <CommandPaletteTrigger onClick={onOpenCommandPalette} />
+        <SearchBar onOpenCommandPalette={onOpenCommandPalette} />
       </div>
 
       {/* Spacer */}

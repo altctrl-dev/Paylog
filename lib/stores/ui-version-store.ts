@@ -7,13 +7,18 @@ import { persist } from 'zustand/middleware';
  * Manages theme selection and per-theme UI preferences.
  *
  * Themes:
- * - v1: "Old" - Legacy UI
- * - v2: "Classic" - Current default UI
- * - v3: "Modern" - New SaaS-style UI with collapsible sidebar
+ * - v3: "Modern" - Current default (SaaS-style UI with collapsible sidebar)
+ *
+ * Archived themes (no longer available in UI):
+ * - v1: "Old" - Legacy UI (archived Dec 2024)
+ * - v2: "Classic" - Previous default (archived Dec 2024)
  */
 
 export type UIVersion = 'v1' | 'v2' | 'v3';
 export type InvoiceCreationMode = 'page' | 'panel';
+
+/** Active themes available for selection */
+export const ACTIVE_UI_VERSIONS: UIVersion[] = ['v3'];
 
 /** Human-readable theme names for UI display */
 export const UI_VERSION_LABELS: Record<UIVersion, string> = {
@@ -63,8 +68,8 @@ interface UIVersionStore {
 export const useUIVersion = create<UIVersionStore>()(
   persist(
     (set, get) => ({
-      // Theme - default to Classic (v2)
-      version: 'v2',
+      // Theme - default to Modern (v3)
+      version: 'v3',
       setVersion: (version) => set({ version }),
 
       // Per-theme sidebar states
@@ -143,7 +148,7 @@ export const useUIVersion = create<UIVersionStore>()(
     }),
     {
       name: 'paylog-ui-preferences',
-      version: 2, // Bump version for migration
+      version: 3, // Bump version for migration - archive v1/v2 themes
       migrate: (persistedState: unknown, version: number) => {
         const state = persistedState as Partial<UIVersionStore>;
 
@@ -155,6 +160,15 @@ export const useUIVersion = create<UIVersionStore>()(
             sidebarCollapsedV1: collapsed,
             sidebarCollapsedV2: collapsed,
             sidebarCollapsedV3: false, // Start Modern theme expanded
+          };
+        }
+
+        if (version < 3) {
+          // Migrate archived themes (v1, v2) to Modern (v3)
+          // All users are now on v3 - archived themes no longer available
+          return {
+            ...state,
+            version: 'v3' as UIVersion,
           };
         }
 

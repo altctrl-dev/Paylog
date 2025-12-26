@@ -105,7 +105,7 @@ export function PanelLevel({
     >
       <PanelHeader title={title} onClose={onClose} actions={headerActions} />
 
-      <div className="flex-1 overflow-y-auto px-6 py-4">{children}</div>
+      <div className="flex-1 overflow-y-auto px-6 pt-4 pb-1">{children}</div>
 
       {footer && <PanelFooter>{footer}</PanelFooter>}
     </motion.div>

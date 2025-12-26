@@ -1706,7 +1706,7 @@ export function AllInvoicesTab() {
               setVendorDialogStep('details');
               setVendorPendingData(null);
             }}
-            className="absolute right-5 top-5 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
+            className="absolute right-5 top-5 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-0 focus:border-primary disabled:pointer-events-none"
             disabled={isApprovingVendor}
           >
             <X className="h-5 w-5" />

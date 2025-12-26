@@ -180,8 +180,8 @@ export function LedgerTab({ className }: LedgerTabProps) {
                 onChange={handleProfileChange}
                 className={cn(
                   'flex h-10 w-full appearance-none rounded-md border border-input bg-background',
-                  'px-3 py-2 pr-10 text-sm ring-offset-background',
-                  'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
+                  'px-3 py-2 pr-10 text-sm',
+                  'focus:outline-none focus:ring-0 focus:border-primary',
                   'disabled:cursor-not-allowed disabled:opacity-50'
                 )}
               >

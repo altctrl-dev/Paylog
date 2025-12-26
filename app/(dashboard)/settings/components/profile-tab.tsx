@@ -13,7 +13,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { useUIVersion, UI_VERSION_LABELS, UI_VERSION_DESCRIPTIONS, type UIVersion } from '@/lib/stores/ui-version-store';
+import { useUIVersion, UI_VERSION_LABELS, UI_VERSION_DESCRIPTIONS, ACTIVE_UI_VERSIONS, type UIVersion } from '@/lib/stores/ui-version-store';
 import { Select } from '@/components/ui/select';
 import { updateUserProfile } from '@/app/actions/user-settings';
 import { User, Save, Loader2 } from 'lucide-react';
@@ -197,7 +197,7 @@ export function ProfileTab() {
               onChange={(e) => setVersion(e.target.value as UIVersion)}
               className="w-48"
             >
-              {(Object.keys(UI_VERSION_LABELS) as UIVersion[]).map((v) => (
+              {ACTIVE_UI_VERSIONS.map((v) => (
                 <option key={v} value={v}>
                   {UI_VERSION_LABELS[v]}
                 </option>
