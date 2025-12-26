@@ -16,11 +16,13 @@
 import * as React from 'react';
 import { useMemo } from 'react';
 import { FileText } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import { RecurringInvoiceCard, RecurringCardGrid } from './recurring-card';
 import { InvoiceTabsResponsive, type InvoiceTab } from './invoice-tabs';
 import { AllInvoicesTab } from './all-invoices-tab';
 import { TDSTab } from './tds-tab';
 import { LedgerTab } from './ledger-tab';
+import { DeletedInvoicesTab } from './deleted-invoices-tab';
 import { useInvoiceProfiles } from '@/hooks/use-invoices-v2';
 import { useInvoices } from '@/hooks/use-invoices';
 import { usePanel } from '@/hooks/use-panel';
@@ -267,6 +269,9 @@ export function InvoicesPage({
   onTabChange,
 }: InvoicesPageProps) {
   const { openPanel } = usePanel();
+  const { data: session } = useSession();
+  const userRole = session?.user?.role as string;
+  const isSuperAdmin = userRole === 'super_admin';
 
   // Fetch invoice profiles
   const {
@@ -472,6 +477,7 @@ export function InvoicesPage({
         value={activeTab}
         onChange={handleTabChange}
         breakpoint="sm"
+        showDeletedTab={isSuperAdmin}
       />
 
       {/* Tab Content */}
@@ -525,6 +531,8 @@ export function InvoicesPage({
         {activeTab === 'tds' && <TDSTab />}
 
         {activeTab === 'ledger' && <LedgerTab />}
+
+        {activeTab === 'deleted' && isSuperAdmin && <DeletedInvoicesTab />}
       </div>
     </div>
   );

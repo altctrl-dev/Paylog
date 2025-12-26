@@ -17,7 +17,7 @@ import { notifyMasterDataRequestPending } from '@/app/actions/notifications';
 // TYPES
 // ============================================================================
 
-export type MasterDataEntityType = 'vendor' | 'category' | 'invoice_profile' | 'payment_type' | 'invoice_archive';
+export type MasterDataEntityType = 'vendor' | 'category' | 'invoice_profile' | 'payment_type' | 'invoice_archive' | 'bulk_invoice_archive';
 export type MasterDataRequestStatus = 'draft' | 'pending_approval' | 'approved' | 'rejected';
 
 export interface VendorRequestData {
@@ -59,12 +59,26 @@ export interface InvoiceArchiveRequestData {
   reason?: string;
 }
 
+export interface BulkInvoiceArchiveRequestData {
+  invoice_ids: number[];
+  invoices: Array<{
+    id: number;
+    invoice_number: string;
+    vendor_name: string;
+    amount: number;
+  }>;
+  reason: string;
+  total_count: number;
+  total_amount: number;
+}
+
 export type RequestData =
   | VendorRequestData
   | CategoryRequestData
   | InvoiceProfileRequestData
   | PaymentTypeRequestData
-  | InvoiceArchiveRequestData;
+  | InvoiceArchiveRequestData
+  | BulkInvoiceArchiveRequestData;
 
 export interface MasterDataRequestWithDetails {
   id: number;
@@ -135,6 +149,8 @@ function validateRequestData(entityType: MasterDataEntityType, data: unknown): R
       return paymentTypeRequestSchema.parse(data);
     case 'invoice_archive':
       return invoiceArchiveRequestSchema.parse(data);
+    case 'bulk_invoice_archive':
+      return bulkInvoiceArchiveRequestSchema.parse(data);
     default:
       throw new Error(`Unknown entity type: ${entityType}`);
   }
@@ -181,6 +197,19 @@ const invoiceArchiveRequestSchema = z.object({
   invoice_id: z.number().min(1, 'Invoice ID is required'),
   invoice_number: z.string().min(1, 'Invoice number is required'),
   reason: z.string().max(1000, 'Reason too long').optional(),
+});
+
+const bulkInvoiceArchiveRequestSchema = z.object({
+  invoice_ids: z.array(z.number().min(1)).min(1, 'At least one invoice is required'),
+  invoices: z.array(z.object({
+    id: z.number().min(1),
+    invoice_number: z.string(),
+    vendor_name: z.string(),
+    amount: z.number(),
+  })),
+  reason: z.string().min(1, 'Archive reason is required').max(1000, 'Reason too long'),
+  total_count: z.number().min(1),
+  total_amount: z.number(),
 });
 
 // ============================================================================
@@ -793,6 +822,7 @@ function getEntityDisplayName(entityType: MasterDataEntityType): string {
     invoice_profile: 'Invoice Profile',
     payment_type: 'Payment Type',
     invoice_archive: 'Invoice Archive',
+    bulk_invoice_archive: 'Bulk Invoice Archive',
   };
   return labels[entityType] || entityType;
 }

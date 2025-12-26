@@ -491,7 +491,7 @@ export function InvoiceDetailPanelV3({
       label: 'Payments',
       badge: (paymentSummary?.payment_count ?? 0) + (paymentSummary?.pending_payment_count ?? 0),
       content: (
-        <div className="p-4">
+        <div className="px-0 py-4">
           <PaymentsTab invoiceId={invoiceId} isAdmin={isAdmin} currencyCode={invoice.currency?.code} />
         </div>
       ),
@@ -751,7 +751,7 @@ export function InvoiceDetailPanelV3({
 
           {/* Action Bar (right side) - hidden on mobile */}
           {!isMobile && (
-            <div className="border-l">
+            <div className="border-l ml-2 pl-2">
               <PanelV3ActionBar
                 permissions={permissions}
                 hasRemainingBalance={hasRemainingBalance}

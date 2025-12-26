@@ -27,6 +27,7 @@ model User {
   created_invoices         Invoice[]               @relation("InvoiceCreator")
   held_invoices            Invoice[]               @relation("InvoiceHolder")
   archived_invoices        Invoice[]               @relation("InvoiceArchiver")
+  deleted_invoices         Invoice[]               @relation("InvoiceDeleter")
   rejected_invoices        Invoice[]               @relation("InvoiceRejector")
   created_requests         MasterDataRequest[]     @relation("RequestRequester")
   reviewed_master_requests MasterDataRequest[]     @relation("RequestReviewer")
@@ -183,6 +184,11 @@ model Invoice {
   archived_by           Int?
   archived_at           DateTime?
   archived_reason       String?
+  // Soft delete fields (for recovery before permanent deletion)
+  deleted_at            DateTime?
+  deleted_by            Int?
+  deleted_reason        String?
+  recovery_deadline     DateTime? // Auto-permanent-delete after this date
   created_by            Int
   created_at            DateTime            @default(now())
   updated_at            DateTime            @updatedAt
@@ -206,6 +212,7 @@ model Invoice {
   entity                Entity?             @relation(fields: [entity_id], references: [id], onUpdate: NoAction)
   holder                User?               @relation("InvoiceHolder", fields: [hold_by], references: [id], onDelete: Restrict)
   archiver              User?               @relation("InvoiceArchiver", fields: [archived_by], references: [id], onDelete: Restrict)
+  deleter               User?               @relation("InvoiceDeleter", fields: [deleted_by], references: [id], onDelete: Restrict)
   invoice_profile       InvoiceProfile?     @relation("InvoiceProfileToInvoice", fields: [invoice_profile_id], references: [id], onDelete: SetNull)
   rejector              User?               @relation("InvoiceRejector", fields: [rejected_by], references: [id], onDelete: Restrict)
   vendor                Vendor              @relation(fields: [vendor_id], references: [id])
@@ -214,6 +221,7 @@ model Invoice {
   @@unique([invoice_number, vendor_id], map: "idx_invoices_number_vendor")
   @@index([status], map: "idx_invoices_status")
   @@index([is_archived], map: "idx_invoices_archived")
+  @@index([deleted_at], map: "idx_invoices_deleted")
   @@index([submission_count], map: "idx_invoices_submission_count")
   @@index([created_at], map: "idx_invoices_created_at")
   @@index([currency_id], map: "idx_invoices_currency")
@@ -438,4 +446,15 @@ model Notification {
   @@index([user_id, created_at], map: "idx_notifications_user_time")
   @@index([type], map: "idx_notifications_type")
   @@map("notifications")
+}
+
+/// System settings for application-wide configuration
+/// Key-value store for settings like soft_delete_retention_days
+model SystemSetting {
+  key        String   @id // Setting key (e.g., "soft_delete_retention_days")
+  value      String // Setting value (stored as string, parsed by application)
+  updated_at DateTime @default(now()) @updatedAt
+  updated_by Int? // User ID who last updated this setting
+
+  @@map("system_settings")
 }

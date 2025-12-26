@@ -53,7 +53,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { useInvoices, useInvoiceFormOptions } from '@/hooks/use-invoices';
 import { useActivePaymentTypes } from '@/hooks/use-payment-types';
-import { createInvoiceArchiveRequest, permanentDeleteInvoice, approveInvoice, rejectInvoice } from '@/app/actions/invoices';
+import { createInvoiceArchiveRequest, permanentDeleteInvoice, approveInvoice, rejectInvoice, bulkArchiveInvoices } from '@/app/actions/invoices';
 import { approveVendorRequest } from '@/app/actions/admin/master-data-approval';
 import {
   AlertDialog,
@@ -86,8 +86,10 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { type InvoiceStatus, INVOICE_STATUS, type InvoiceFilters } from '@/types/invoice';
 import { MonthNavigator } from './month-navigator';
+import { FloatingActionBar } from './floating-action-bar';
 import { calculateTds } from '@/lib/utils/tds';
 import { formatCurrency } from '@/lib/utils/format';
+import { bulkExportInvoices } from '@/app/actions/bulk-operations';
 
 // ============================================================================
 // Sortable Table Head Component
@@ -407,6 +409,11 @@ export function AllInvoicesTab() {
   const [isRejecting, setIsRejecting] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
 
+  // Bulk operation dialog states
+  const [bulkArchiveDialog, setBulkArchiveDialog] = useState(false);
+  const [bulkDeleteDialog, setBulkDeleteDialog] = useState(false);
+  const [isBulkOperationLoading, setIsBulkOperationLoading] = useState(false);
+
   // Unified filter state for InvoiceFilterPopover
   const [filters, setFilters] = useState<InvoiceFilterState>({
     viewMode: 'pending',
@@ -438,14 +445,14 @@ export function AllInvoicesTab() {
   const { data: formOptions, isLoading: isLoadingOptions } = useInvoiceFormOptions();
   const { data: paymentTypes = [] } = useActivePaymentTypes();
 
-  // Build filter options for the popover
-  const filterOptions: FilterOptions = {
+  // Build filter options for the popover (memoized to prevent re-renders)
+  const filterOptions: FilterOptions = useMemo(() => ({
     vendors: formOptions?.vendors ?? [],
     categories: formOptions?.categories ?? [],
     profiles: formOptions?.profiles ?? [],
     entities: formOptions?.entities ?? [],
     paymentTypes: paymentTypes,
-  };
+  }), [formOptions?.vendors, formOptions?.categories, formOptions?.profiles, formOptions?.entities, paymentTypes]);
 
   // Compute active filter count
   const activeFilterCount = useMemo(() => {
@@ -907,6 +914,153 @@ export function AllInvoicesTab() {
       toast.error('An unexpected error occurred');
     } finally {
       setIsRejecting(false);
+    }
+  };
+
+  // ============================================================================
+  // Bulk Operation Handlers
+  // ============================================================================
+
+  /**
+   * Handle bulk export - exports selected invoices to CSV
+   */
+  const handleBulkExport = async () => {
+    if (selectedInvoices.size === 0) return;
+
+    setIsBulkOperationLoading(true);
+    try {
+      // Default columns for export
+      const defaultColumns = [
+        'invoice_number',
+        'vendor_name',
+        'invoice_amount',
+        'invoice_date',
+        'due_date',
+        'status',
+        'total_paid',
+        'remaining_balance',
+      ];
+
+      const result = await bulkExportInvoices(
+        Array.from(selectedInvoices),
+        defaultColumns
+      );
+
+      if (!result.success) {
+        toast.error(result.error || 'Failed to export invoices');
+        return;
+      }
+
+      if (result.data?.csvContent) {
+        // Create and download CSV file
+        const blob = new Blob([result.data.csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `invoices_export_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        toast.success(`Exported ${selectedInvoices.size} invoice(s)`);
+        setSelectedInvoices(new Set());
+      } else {
+        toast.error('Failed to export invoices');
+      }
+    } catch (error) {
+      console.error('Bulk export error:', error);
+      toast.error('An unexpected error occurred');
+    } finally {
+      setIsBulkOperationLoading(false);
+    }
+  };
+
+  /**
+   * Handle bulk archive - opens archive dialog
+   */
+  const handleBulkArchive = () => {
+    if (selectedInvoices.size === 0) return;
+    setBulkArchiveDialog(true);
+  };
+
+  /**
+   * Handle bulk archive confirmation with reason
+   */
+  const handleBulkArchiveConfirm = async (reason: string) => {
+    if (selectedInvoices.size === 0) return;
+
+    setIsBulkOperationLoading(true);
+    try {
+      const invoiceIds = Array.from(selectedInvoices);
+      const result = await bulkArchiveInvoices(invoiceIds, reason);
+
+      if (!result.success) {
+        toast.error(result.error || 'Failed to archive invoices');
+        return;
+      }
+
+      // Check result type: archivedCount means direct archive, requestId means pending approval
+      if (result.data.archivedCount !== undefined) {
+        toast.success(`${result.data.archivedCount} invoice(s) archived successfully`);
+      } else if (result.data.requestId !== undefined) {
+        toast.success(`Archive request submitted for ${selectedInvoices.size} invoice(s). Pending admin approval.`);
+      }
+
+      setBulkArchiveDialog(false);
+      setSelectedInvoices(new Set());
+    } catch (error) {
+      console.error('Bulk archive error:', error);
+      toast.error('An unexpected error occurred');
+    } finally {
+      setIsBulkOperationLoading(false);
+    }
+  };
+
+  /**
+   * Handle bulk delete - opens delete dialog (super admin only)
+   */
+  const handleBulkDelete = () => {
+    if (selectedInvoices.size === 0 || !isSuperAdmin) return;
+    setBulkDeleteDialog(true);
+  };
+
+  /**
+   * Handle bulk delete confirmation with reason
+   */
+  const handleBulkDeleteConfirm = async (reason: string) => {
+    if (selectedInvoices.size === 0 || !isSuperAdmin) return;
+
+    setIsBulkOperationLoading(true);
+    try {
+      // For now, delete invoices one by one using existing soft delete
+      // TODO: Implement bulkSoftDeleteInvoices server action in Phase 3
+      let successCount = 0;
+      let failCount = 0;
+
+      for (const invoiceId of selectedInvoices) {
+        const result = await permanentDeleteInvoice(invoiceId, reason);
+        if (result.success) {
+          successCount++;
+        } else {
+          failCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        toast.success(`${successCount} invoice(s) moved to deleted`);
+      }
+      if (failCount > 0) {
+        toast.error(`Failed to delete ${failCount} invoice(s)`);
+      }
+
+      setBulkDeleteDialog(false);
+      setSelectedInvoices(new Set());
+    } catch (error) {
+      console.error('Bulk delete error:', error);
+      toast.error('An unexpected error occurred');
+    } finally {
+      setIsBulkOperationLoading(false);
     }
   };
 
@@ -1746,6 +1900,52 @@ export function AllInvoicesTab() {
         confirmLabel="Reject"
         onConfirm={handleRejectReasonConfirm}
         isLoading={isRejecting}
+      />
+
+      {/* Bulk Archive Reason Input Dialog */}
+      <InputDialog
+        open={bulkArchiveDialog}
+        onOpenChange={(open) => !open && setBulkArchiveDialog(false)}
+        title="Archive Selected Invoices"
+        description={`Enter a reason for archiving ${selectedInvoices.size} invoice(s).`}
+        inputLabel="Archive Reason"
+        inputPlaceholder="Enter reason for archiving..."
+        required
+        minLength={6}
+        maxLength={500}
+        variant="default"
+        confirmLabel={isBulkOperationLoading ? 'Archiving...' : 'Archive All'}
+        onConfirm={handleBulkArchiveConfirm}
+        isLoading={isBulkOperationLoading}
+      />
+
+      {/* Bulk Delete Reason Input Dialog (Super Admin Only) */}
+      <InputDialog
+        open={bulkDeleteDialog}
+        onOpenChange={(open) => !open && setBulkDeleteDialog(false)}
+        title="Delete Selected Invoices"
+        description={`Enter a reason for deleting ${selectedInvoices.size} invoice(s). They will be recoverable for 30 days.`}
+        inputLabel="Deletion Reason"
+        inputPlaceholder="Enter reason for deletion..."
+        required
+        minLength={6}
+        maxLength={500}
+        variant="destructive"
+        confirmLabel={isBulkOperationLoading ? 'Deleting...' : 'Delete All'}
+        onConfirm={handleBulkDeleteConfirm}
+        isLoading={isBulkOperationLoading}
+      />
+
+      {/* Floating Action Bar for Bulk Operations */}
+      <FloatingActionBar
+        selectedCount={selectedInvoices.size}
+        selectedInvoices={selectedInvoices}
+        userRole={userRole as string}
+        onExport={handleBulkExport}
+        onArchive={handleBulkArchive}
+        onDelete={isSuperAdmin ? handleBulkDelete : undefined}
+        onClearSelection={() => setSelectedInvoices(new Set())}
+        isLoading={isBulkOperationLoading}
       />
     </div>
   );

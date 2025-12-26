@@ -16,6 +16,7 @@ import type {
   ServerActionResult,
   RequestData,
   InvoiceArchiveRequestData,
+  BulkInvoiceArchiveRequestData,
 } from '../master-data-requests';
 import { archiveInvoice } from '../invoices';
 import {
@@ -331,6 +332,47 @@ export async function approveRequest(
         }
 
         createdEntityId = `ARC-${archiveData.invoice_id}`;
+        break;
+      }
+
+      case 'bulk_invoice_archive': {
+        // Bulk archive multiple invoices
+        const bulkArchiveData = finalData as BulkInvoiceArchiveRequestData;
+        const successfulArchives: number[] = [];
+        const failedArchives: { id: number; invoice_number: string; error: string }[] = [];
+
+        for (const invoice of bulkArchiveData.invoices) {
+          const archiveResult = await archiveInvoice(
+            invoice.id,
+            bulkArchiveData.reason || 'Archived via approved bulk request'
+          );
+
+          if (archiveResult.success) {
+            successfulArchives.push(invoice.id);
+          } else {
+            failedArchives.push({
+              id: invoice.id,
+              invoice_number: invoice.invoice_number,
+              error: archiveResult.error || 'Unknown error',
+            });
+          }
+        }
+
+        if (successfulArchives.length === 0) {
+          return {
+            success: false,
+            error: `Failed to archive any invoices. Errors: ${failedArchives.map((f) => `${f.invoice_number}: ${f.error}`).join('; ')}`,
+          };
+        }
+
+        // Create a summary entity ID
+        createdEntityId = `BULK-ARC-${successfulArchives.length}/${bulkArchiveData.invoices.length}`;
+
+        // Store partial success info in admin_notes if there were failures
+        if (failedArchives.length > 0) {
+          const failureNote = `Partial success: ${successfulArchives.length}/${bulkArchiveData.invoices.length} archived. Failed: ${failedArchives.map((f) => f.invoice_number).join(', ')}`;
+          adminNotes = adminNotes ? `${adminNotes}\n\n${failureNote}` : failureNote;
+        }
         break;
       }
 
@@ -662,6 +704,7 @@ function getEntityDisplayName(entityType: MasterDataEntityType): string {
     invoice_profile: 'Invoice Profile',
     payment_type: 'Payment Type',
     invoice_archive: 'Invoice Archive',
+    bulk_invoice_archive: 'Bulk Invoice Archive',
   };
   return labels[entityType] || entityType;
 }
@@ -939,6 +982,266 @@ export async function rejectVendorRequest(
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to reject vendor',
+    };
+  }
+}
+
+// ============================================================================
+// BULK ARCHIVE CHERRY-PICK APPROVAL
+// ============================================================================
+
+/**
+ * Cherry-pick approve bulk archive request
+ *
+ * Allows admin to selectively approve some invoices from a bulk archive request
+ * while rejecting others.
+ *
+ * @param requestId - The MasterDataRequest ID
+ * @param approvedInvoiceIds - Array of invoice IDs to approve for archiving
+ * @param rejectedInvoiceIds - Array of invoice IDs to reject (not archive)
+ * @param adminNotes - Optional notes from admin
+ */
+export async function cherryPickBulkArchive(
+  requestId: number,
+  approvedInvoiceIds: number[],
+  rejectedInvoiceIds: number[],
+  adminNotes?: string
+): Promise<ServerActionResult<{
+  approvedCount: number;
+  rejectedCount: number;
+  failedCount: number;
+  errors?: string[];
+}>> {
+  try {
+    const admin = await getAdmin();
+
+    // Get the request
+    const request = await db.masterDataRequest.findUnique({
+      where: { id: requestId },
+      include: {
+        requester: {
+          select: { id: true, full_name: true, email: true },
+        },
+      },
+    });
+
+    if (!request) {
+      return { success: false, error: 'Request not found' };
+    }
+
+    if (request.entity_type !== 'bulk_invoice_archive') {
+      return { success: false, error: 'Request is not a bulk archive request' };
+    }
+
+    if (request.status !== 'pending_approval') {
+      return { success: false, error: 'Request is not pending approval' };
+    }
+
+    // Parse request data
+    const requestData = JSON.parse(request.request_data) as BulkInvoiceArchiveRequestData;
+
+    // Validate that all IDs are from the original request
+    const originalIds = new Set(requestData.invoice_ids);
+    const allProvidedIds = [...approvedInvoiceIds, ...rejectedInvoiceIds];
+
+    for (const id of allProvidedIds) {
+      if (!originalIds.has(id)) {
+        return {
+          success: false,
+          error: `Invoice ID ${id} is not part of the original request`,
+        };
+      }
+    }
+
+    // Check for duplicates between approved and rejected
+    const approvedSet = new Set(approvedInvoiceIds);
+    for (const id of rejectedInvoiceIds) {
+      if (approvedSet.has(id)) {
+        return {
+          success: false,
+          error: `Invoice ID ${id} cannot be both approved and rejected`,
+        };
+      }
+    }
+
+    // Process approved invoices
+    const results = {
+      approvedCount: 0,
+      rejectedCount: rejectedInvoiceIds.length,
+      failedCount: 0,
+      errors: [] as string[],
+    };
+
+    for (const invoiceId of approvedInvoiceIds) {
+      const invoice = requestData.invoices.find((inv) => inv.id === invoiceId);
+      const archiveResult = await archiveInvoice(
+        invoiceId,
+        requestData.reason || 'Archived via approved bulk request'
+      );
+
+      if (archiveResult.success) {
+        results.approvedCount++;
+      } else {
+        results.failedCount++;
+        results.errors.push(
+          `${invoice?.invoice_number || invoiceId}: ${archiveResult.error || 'Unknown error'}`
+        );
+      }
+    }
+
+    // Determine final status
+    let finalStatus: string;
+    let createdEntityId: string;
+
+    if (results.approvedCount === 0 && results.rejectedCount > 0) {
+      // All rejected
+      finalStatus = 'rejected';
+      createdEntityId = `BULK-ARC-REJECTED`;
+    } else if (results.rejectedCount === 0 && results.failedCount === 0) {
+      // All approved successfully
+      finalStatus = 'approved';
+      createdEntityId = `BULK-ARC-${results.approvedCount}/${requestData.total_count}`;
+    } else {
+      // Partial (some approved, some rejected or failed)
+      finalStatus = 'approved'; // Mark as approved since some work was done
+      createdEntityId = `BULK-ARC-PARTIAL-${results.approvedCount}/${requestData.total_count}`;
+    }
+
+    // Build admin notes with summary
+    const summaryNotes = [
+      adminNotes || '',
+      `Cherry-pick results:`,
+      `- Approved & archived: ${results.approvedCount}`,
+      `- Rejected (not archived): ${results.rejectedCount}`,
+      results.failedCount > 0 ? `- Failed: ${results.failedCount}` : '',
+      results.errors.length > 0 ? `Errors: ${results.errors.join('; ')}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    // Update request status
+    await db.masterDataRequest.update({
+      where: { id: requestId },
+      data: {
+        status: finalStatus,
+        reviewer_id: admin.id,
+        reviewed_at: new Date(),
+        admin_notes: summaryNotes,
+        created_entity_id: createdEntityId,
+      },
+    });
+
+    revalidatePath('/invoices');
+    revalidatePath('/settings');
+    revalidatePath('/admin');
+
+    return {
+      success: true,
+      data: {
+        approvedCount: results.approvedCount,
+        rejectedCount: results.rejectedCount,
+        failedCount: results.failedCount,
+        errors: results.errors.length > 0 ? results.errors : undefined,
+      },
+    };
+  } catch (error) {
+    console.error('cherryPickBulkArchive error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to process cherry-pick approval',
+    };
+  }
+}
+
+/**
+ * Get bulk archive request details for cherry-pick UI
+ */
+export async function getBulkArchiveRequestDetails(
+  requestId: number
+): Promise<ServerActionResult<{
+  request: {
+    id: number;
+    status: string;
+    reason: string;
+    totalCount: number;
+    totalAmount: number;
+    requester: { id: number; full_name: string; email: string };
+    created_at: Date;
+  };
+  invoices: Array<{
+    id: number;
+    invoice_number: string;
+    vendor_name: string;
+    amount: number;
+    is_archived: boolean;
+  }>;
+}>> {
+  try {
+    await getAdmin();
+
+    const request = await db.masterDataRequest.findUnique({
+      where: { id: requestId },
+      include: {
+        requester: {
+          select: { id: true, full_name: true, email: true },
+        },
+      },
+    });
+
+    if (!request) {
+      return { success: false, error: 'Request not found' };
+    }
+
+    if (request.entity_type !== 'bulk_invoice_archive') {
+      return { success: false, error: 'Request is not a bulk archive request' };
+    }
+
+    const requestData = JSON.parse(request.request_data) as BulkInvoiceArchiveRequestData;
+
+    // Get current status of each invoice
+    const invoices = await db.invoice.findMany({
+      where: { id: { in: requestData.invoice_ids } },
+      select: {
+        id: true,
+        invoice_number: true,
+        invoice_amount: true,
+        is_archived: true,
+        vendor: { select: { name: true } },
+      },
+    });
+
+    // Merge with request data for vendor names
+    const enrichedInvoices = requestData.invoices.map((reqInv) => {
+      const dbInvoice = invoices.find((inv) => inv.id === reqInv.id);
+      return {
+        id: reqInv.id,
+        invoice_number: reqInv.invoice_number,
+        vendor_name: dbInvoice?.vendor.name || reqInv.vendor_name,
+        amount: reqInv.amount,
+        is_archived: dbInvoice?.is_archived || false,
+      };
+    });
+
+    return {
+      success: true,
+      data: {
+        request: {
+          id: request.id,
+          status: request.status,
+          reason: requestData.reason,
+          totalCount: requestData.total_count,
+          totalAmount: requestData.total_amount,
+          requester: request.requester,
+          created_at: request.created_at,
+        },
+        invoices: enrichedInvoices,
+      },
+    };
+  } catch (error) {
+    console.error('getBulkArchiveRequestDetails error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to get request details',
     };
   }
 }

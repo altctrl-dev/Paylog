@@ -518,14 +518,25 @@ export function useFilteredArchives(
 
       const status = statusMap[statusFilter];
 
-      const result = await getAdminRequests({
-        entity_type: 'invoice_archive',
-        status: status as 'pending_approval' | 'approved' | 'rejected' | undefined,
-      });
-      if (result.success && result.data) {
-        return result.data;
-      }
-      return [];
+      // Fetch both single and bulk archive requests
+      const [singleResult, bulkResult] = await Promise.all([
+        getAdminRequests({
+          entity_type: 'invoice_archive',
+          status: status as 'pending_approval' | 'approved' | 'rejected' | undefined,
+        }),
+        getAdminRequests({
+          entity_type: 'bulk_invoice_archive',
+          status: status as 'pending_approval' | 'approved' | 'rejected' | undefined,
+        }),
+      ]);
+
+      const singleArchives = singleResult.success && singleResult.data ? singleResult.data : [];
+      const bulkArchives = bulkResult.success && bulkResult.data ? bulkResult.data : [];
+
+      // Combine and sort by created_at (newest first)
+      return [...singleArchives, ...bulkArchives].sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
     },
     enabled: options?.enabled !== false,
   });

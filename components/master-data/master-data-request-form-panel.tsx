@@ -28,8 +28,8 @@ import { getEntities } from '@/app/actions/admin/entities';
 import { getVendors, getCategories } from '@/app/actions/master-data';
 import type { PanelConfig } from '@/types/panel';
 
-// Form-based entity types (excludes invoice_archive which is created from invoice list)
-export type FormEntityType = Exclude<MasterDataEntityType, 'invoice_archive'>;
+// Form-based entity types (excludes invoice_archive and bulk_invoice_archive which are created from invoice list)
+export type FormEntityType = Exclude<MasterDataEntityType, 'invoice_archive' | 'bulk_invoice_archive'>;
 
 interface MasterDataRequestFormPanelProps {
   config: PanelConfig;
@@ -73,8 +73,8 @@ const paymentTypeRequestSchema = z.object({
   // Note: is_active is controlled by admin during approval, not by requester
 });
 
-// Get schema based on entity type (excludes invoice_archive as it's not form-created)
-function getSchema(entityType: Exclude<MasterDataEntityType, 'invoice_archive'>) {
+// Get schema based on entity type (excludes archive types as they're not form-created)
+function getSchema(entityType: FormEntityType) {
   switch (entityType) {
     case 'vendor':
       return vendorRequestSchema;
@@ -84,6 +84,11 @@ function getSchema(entityType: Exclude<MasterDataEntityType, 'invoice_archive'>)
       return invoiceProfileRequestSchema;
     case 'payment_type':
       return paymentTypeRequestSchema;
+    default: {
+      // Exhaustiveness check - should never reach here
+      const _exhaustive: never = entityType;
+      return _exhaustive;
+    }
   }
 }
 
@@ -100,6 +105,13 @@ function getEntityDisplayName(entityType: MasterDataEntityType): string {
       return 'Payment Type';
     case 'invoice_archive':
       return 'Invoice Archive';
+    case 'bulk_invoice_archive':
+      return 'Bulk Invoice Archive';
+    default: {
+      // Exhaustiveness check - should never reach here
+      const _exhaustive: never = entityType;
+      return _exhaustive;
+    }
   }
 }
 
@@ -346,6 +358,11 @@ function getDefaultValues(entityType: FormEntityType): Record<string, unknown> {
         description: '',
         requires_reference: false,
       };
+    default: {
+      // Exhaustiveness check - should never reach here
+      const _exhaustive: never = entityType;
+      return _exhaustive;
+    }
   }
 }
 

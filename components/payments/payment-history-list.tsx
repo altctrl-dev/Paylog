@@ -180,7 +180,7 @@ export function PaymentHistoryList({ invoiceId, currencyCode }: PaymentHistoryLi
       )}
 
       {/* Payment History Table */}
-      <Card className="overflow-hidden">
+      <Card className="p-0 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="border-b bg-muted/50">
@@ -193,6 +193,9 @@ export function PaymentHistoryList({ invoiceId, currencyCode }: PaymentHistoryLi
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">
                   Method
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">
+                  Reference
                 </th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground">
                   Status
@@ -225,6 +228,9 @@ export function PaymentHistoryList({ invoiceId, currencyCode }: PaymentHistoryLi
                     </td>
                     <td className="px-4 py-3 text-sm text-muted-foreground">
                       {getPaymentTypeLabel(payment.payment_type)}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground">
+                      {payment.payment_reference || '-'}
                     </td>
                     <td className="px-4 py-3 text-center">
                       <Badge variant={statusConfig?.variant || 'default'}>

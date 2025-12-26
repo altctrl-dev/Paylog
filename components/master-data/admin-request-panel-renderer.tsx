@@ -10,6 +10,7 @@
 import * as React from 'react';
 import { usePanelStack } from '@/hooks/use-panel-stack';
 import { AdminRequestReviewPanel } from './admin-request-review-panel';
+import { BulkArchiveReviewPanel } from './bulk-archive-review-panel';
 import { RejectionReasonModal } from './rejection-reason-modal';
 
 interface AdminRequestPanelRendererProps {
@@ -51,6 +52,22 @@ export function AdminRequestPanelRenderer({ id, type, props, onClose }: AdminReq
 
     case 'admin-rejection-modal':
       return <RejectionReasonModal config={config} onClose={onClose} requestId={props.requestId as number} />;
+
+    case 'bulk-archive-review':
+      {
+        const numericRequestId = Number(props.requestId);
+        if (!Number.isFinite(numericRequestId)) {
+          console.error('[AdminRequestPanelRenderer] Invalid requestId for bulk archive:', props.requestId);
+          return null;
+        }
+        return (
+          <BulkArchiveReviewPanel
+            config={config}
+            onClose={onClose}
+            requestId={numericRequestId}
+          />
+        );
+      }
 
     default:
       return null;

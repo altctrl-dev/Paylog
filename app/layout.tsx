@@ -15,6 +15,19 @@ export const metadata: Metadata = {
   description: "Internal invoice tracking and payment management",
 };
 
+// Inline script to prevent theme flash (FOUC)
+// Runs before React hydration to set theme class on <html>
+const themeScript = `
+  (function() {
+    try {
+      var theme = localStorage.getItem('theme');
+      if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+      }
+    } catch (e) {}
+  })();
+`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -22,6 +35,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body className={`${inter.variable} ${inter.className}`}>
         <ThemeProvider attribute="class">
           {children}

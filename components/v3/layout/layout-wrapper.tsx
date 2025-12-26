@@ -82,7 +82,14 @@ export function LayoutWrapper({ children, user }: LayoutWrapperProps) {
         />
 
         {/* Page Content */}
-        <main className="flex-1 p-6 overflow-y-auto">{children}</main>
+        <main className="flex-1 px-4 py-6 overflow-y-auto">
+          <div className={cn(
+            "mx-auto transition-[max-width] duration-300",
+            isCollapsed ? "max-w-[1500px]" : "max-w-[1350px]"
+          )}>
+            {children}
+          </div>
+        </main>
       </div>
 
       {/* Command Palette (Global Search) */}

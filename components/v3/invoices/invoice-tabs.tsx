@@ -19,7 +19,7 @@ import { cn } from '@/lib/utils';
 // Types
 // ============================================================================
 
-export type InvoiceTab = 'recurring' | 'all' | 'tds' | 'ledger';
+export type InvoiceTab = 'recurring' | 'all' | 'tds' | 'ledger' | 'deleted';
 
 export interface InvoiceTabsProps
   extends Omit<React.HTMLAttributes<HTMLDivElement>, 'onChange'> {
@@ -27,6 +27,8 @@ export interface InvoiceTabsProps
   value: InvoiceTab;
   /** Callback when tab selection changes */
   onChange: (tab: InvoiceTab) => void;
+  /** Whether to show the Deleted tab (super admin only) */
+  showDeletedTab?: boolean;
 }
 
 // ============================================================================
@@ -43,6 +45,7 @@ const TAB_CONFIG: TabConfig[] = [
   { id: 'ledger', label: 'Ledger' },
   { id: 'tds', label: 'TDS' },
   { id: 'recurring', label: 'Recurring' },
+  { id: 'deleted', label: 'Deleted' },
 ];
 
 // ============================================================================
@@ -77,9 +80,15 @@ const tabVariants = cva(
 export function InvoiceTabs({
   value,
   onChange,
+  showDeletedTab = false,
   className,
   ...props
 }: InvoiceTabsProps) {
+  // Filter tabs based on showDeletedTab
+  const visibleTabs = TAB_CONFIG.filter(
+    (tab) => tab.id !== 'deleted' || showDeletedTab
+  );
+
   return (
     <div
       role="tablist"
@@ -91,7 +100,7 @@ export function InvoiceTabs({
       )}
       {...props}
     >
-      {TAB_CONFIG.map((tab) => {
+      {visibleTabs.map((tab) => {
         const isActive = value === tab.id;
 
         return (
@@ -191,6 +200,8 @@ export interface InvoiceTabsCompactProps {
   onChange: (tab: InvoiceTab) => void;
   /** Additional class names */
   className?: string;
+  /** Whether to show the Deleted tab (super admin only) */
+  showDeletedTab?: boolean;
 }
 
 /**
@@ -201,7 +212,13 @@ export function InvoiceTabsCompact({
   value,
   onChange,
   className,
+  showDeletedTab = false,
 }: InvoiceTabsCompactProps) {
+  // Filter tabs based on showDeletedTab
+  const visibleTabs = TAB_CONFIG.filter(
+    (tab) => tab.id !== 'deleted' || showDeletedTab
+  );
+
   return (
     <div className={cn('relative', className)}>
       <select
@@ -217,7 +234,7 @@ export function InvoiceTabsCompact({
         )}
         aria-label="Select invoice view"
       >
-        {TAB_CONFIG.map((tab) => (
+        {visibleTabs.map((tab) => (
           <option key={tab.id} value={tab.id}>
             {tab.label}
           </option>
@@ -255,6 +272,8 @@ export interface InvoiceTabsResponsiveProps {
   className?: string;
   /** Breakpoint to switch from compact to full tabs (default: 'sm') */
   breakpoint?: 'sm' | 'md' | 'lg';
+  /** Whether to show the Deleted tab (super admin only) */
+  showDeletedTab?: boolean;
 }
 
 /**
@@ -266,6 +285,7 @@ export function InvoiceTabsResponsive({
   onChange,
   className,
   breakpoint = 'sm',
+  showDeletedTab = false,
 }: InvoiceTabsResponsiveProps) {
   const breakpointClasses = {
     sm: { hidden: 'sm:hidden', block: 'hidden sm:inline-flex' },
@@ -279,10 +299,10 @@ export function InvoiceTabsResponsive({
     <div className={className}>
       {/* Mobile: Compact selector */}
       <div className={classes.hidden}>
-        <InvoiceTabsCompact value={value} onChange={onChange} />
+        <InvoiceTabsCompact value={value} onChange={onChange} showDeletedTab={showDeletedTab} />
       </div>
       {/* Desktop: Full tabs */}
-      <InvoiceTabs value={value} onChange={onChange} className={classes.block} />
+      <InvoiceTabs value={value} onChange={onChange} showDeletedTab={showDeletedTab} className={classes.block} />
     </div>
   );
 }

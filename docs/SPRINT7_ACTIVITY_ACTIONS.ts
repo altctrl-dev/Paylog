@@ -45,6 +45,9 @@ export const ACTIVITY_ACTION = {
   /** Invoice deleted by super_admin (hard delete, cascade to payments/attachments) */
   INVOICE_DELETED: 'invoice_deleted',
 
+  /** Invoice recovered from deleted state by super_admin (within 30-day recovery window) */
+  INVOICE_RECOVERED: 'invoice_recovered',
+
   // ============================================================================
   // PAYMENT ACTIONS
   // ============================================================================
@@ -103,6 +106,12 @@ export const ACTIVITY_ACTION = {
   /** Bulk delete operation (multiple invoices deleted by super_admin) */
   BULK_DELETE: 'bulk_delete',
 
+  /** Bulk archive operation (multiple invoices archived or archive request created) */
+  BULK_ARCHIVE: 'bulk_archive',
+
+  /** Invoice permanently purged from database (after soft delete) */
+  INVOICE_PURGED: 'invoice_purged',
+
 } as const;
 
 // ============================================================================
@@ -128,6 +137,7 @@ export const ACTIVITY_ACTION_LABELS: Record<ActivityAction, string> = {
   [ACTIVITY_ACTION.INVOICE_ARCHIVED]: 'Archived invoice',
   [ACTIVITY_ACTION.INVOICE_DUPLICATED]: 'Duplicated invoice',
   [ACTIVITY_ACTION.INVOICE_DELETED]: 'Deleted invoice',
+  [ACTIVITY_ACTION.INVOICE_RECOVERED]: 'Recovered invoice',
   [ACTIVITY_ACTION.PAYMENT_ADDED]: 'Added payment',
   [ACTIVITY_ACTION.PAYMENT_APPROVED]: 'Approved payment',
   [ACTIVITY_ACTION.PAYMENT_REJECTED]: 'Rejected payment',
@@ -142,6 +152,8 @@ export const ACTIVITY_ACTION_LABELS: Record<ActivityAction, string> = {
   [ACTIVITY_ACTION.BULK_REJECT]: 'Bulk rejected invoices',
   [ACTIVITY_ACTION.BULK_EXPORT]: 'Exported invoices to CSV',
   [ACTIVITY_ACTION.BULK_DELETE]: 'Bulk deleted invoices',
+  [ACTIVITY_ACTION.BULK_ARCHIVE]: 'Bulk archived invoices',
+  [ACTIVITY_ACTION.INVOICE_PURGED]: 'Permanently purged invoice',
 };
 
 /** Icon names for activity actions (for UI display with icon libraries like Lucide) */
@@ -155,6 +167,7 @@ export const ACTIVITY_ACTION_ICONS: Record<ActivityAction, string> = {
   [ACTIVITY_ACTION.INVOICE_ARCHIVED]: 'Archive',
   [ACTIVITY_ACTION.INVOICE_DUPLICATED]: 'Copy',
   [ACTIVITY_ACTION.INVOICE_DELETED]: 'Trash2',
+  [ACTIVITY_ACTION.INVOICE_RECOVERED]: 'RotateCcw',
   [ACTIVITY_ACTION.PAYMENT_ADDED]: 'DollarSign',
   [ACTIVITY_ACTION.PAYMENT_APPROVED]: 'CheckCircle',
   [ACTIVITY_ACTION.PAYMENT_REJECTED]: 'XCircle',
@@ -169,6 +182,8 @@ export const ACTIVITY_ACTION_ICONS: Record<ActivityAction, string> = {
   [ACTIVITY_ACTION.BULK_REJECT]: 'XSquare',
   [ACTIVITY_ACTION.BULK_EXPORT]: 'Download',
   [ACTIVITY_ACTION.BULK_DELETE]: 'Trash',
+  [ACTIVITY_ACTION.BULK_ARCHIVE]: 'Archive',
+  [ACTIVITY_ACTION.INVOICE_PURGED]: 'Trash2',
 };
 
 // ============================================================================

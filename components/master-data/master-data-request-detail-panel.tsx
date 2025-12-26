@@ -81,6 +81,10 @@ function getEntityDisplayName(entityType: MasterDataEntityType): string {
       return 'Payment Type';
     case 'invoice_archive':
       return 'Invoice Archive';
+    case 'bulk_invoice_archive':
+      return 'Bulk Invoice Archive';
+    default:
+      return entityType;
   }
 }
 

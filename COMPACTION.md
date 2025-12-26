@@ -1,8 +1,8 @@
-# Compaction Summary — 2025-12-22 23:34:13 IST
+# Compaction Summary — 2025-12-26 13:17:17 IST
 
 ## Executive Summary
 - Agents active: Main Agent (Direct Work)
-- Files modified: 11
+- Files modified: 15
 - Contracts affected: 0
 - Open questions: 0
 
@@ -14,15 +14,15 @@
 
 ## Critical Paths (for JIT retrieval)
 - `OMPACTION.md`
-- `CONTEXT_RESTORATION_GUIDE.md`
-- `IMPROVEMENT_PLAN_2024-12-12.md`
+- `app/actions/admin/master-data-approval.ts`
+- `app/actions/invoices.ts`
+- `app/actions/master-data-requests.ts`
 - `compaction-summary.json`
 - `components/invoices/invoice-detail-panel-v3/index.tsx`
-- `components/invoices/invoice-detail-panel-v3/panel-v3-hero.tsx`
-- `components/panels/shared/index.ts`
-- `components/panels/shared/panel-stat-group.tsx`
-- `components/v3/invoices/all-invoices-tab.tsx`
-- `docs/CONTEXT_RESTORE_PROMPT.md`
+- `components/master-data/admin-request-panel-renderer.tsx`
+- `components/master-data/master-data-request-detail-panel.tsx`
+- `components/payments/payment-history-list.tsx`
+- `components/v3/admin/approvals/archive-requests-tab.tsx`
 
 ## Contracts Touched (verify stability)
 - n/a

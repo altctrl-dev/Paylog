@@ -33,6 +33,7 @@ import {
   notifyInvoiceOnHold,
   notifyArchiveRequestPending,
 } from '@/app/actions/notifications';
+import { getSoftDeleteRetentionDays } from '@/app/actions/system-settings';
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -81,6 +82,12 @@ const invoiceInclude = {
     },
   },
   category: {
+    select: {
+      id: true,
+      name: true,
+    },
+  },
+  entity: {
     select: {
       id: true,
       name: true,
@@ -516,6 +523,166 @@ export async function getInvoices(
       success: false,
       error:
         error instanceof Error ? error.message : 'Failed to fetch invoices',
+    };
+  }
+}
+
+// ============================================================================
+// DELETED INVOICES (Super Admin Only)
+// ============================================================================
+
+/**
+ * Deleted invoice type with deleter information
+ */
+export interface DeletedInvoice {
+  id: number;
+  invoice_number: string;
+  invoice_name: string | null;
+  invoice_amount: number;
+  vendor: { id: number; name: string };
+  deleted_at: Date;
+  deleted_by: number;
+  deleted_reason: string | null;
+  recovery_deadline: Date | null;
+  deleter: { id: number; full_name: string; email: string } | null;
+}
+
+/**
+ * Get list of soft-deleted invoices (super admin only)
+ *
+ * @returns List of deleted invoices with recovery deadlines
+ */
+export async function getDeletedInvoices(): Promise<ServerActionResult<DeletedInvoice[]>> {
+  try {
+    const user = await getCurrentUser();
+
+    // Only super_admin can view deleted invoices
+    if (user.role !== 'super_admin') {
+      return {
+        success: false,
+        error: 'Only super admins can view deleted invoices',
+      };
+    }
+
+    const deletedInvoices = await db.invoice.findMany({
+      where: {
+        deleted_at: { not: null },
+      },
+      select: {
+        id: true,
+        invoice_number: true,
+        invoice_name: true,
+        invoice_amount: true,
+        deleted_at: true,
+        deleted_by: true,
+        deleted_reason: true,
+        recovery_deadline: true,
+        vendor: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        deleter: {
+          select: {
+            id: true,
+            full_name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: {
+        deleted_at: 'desc',
+      },
+    });
+
+    // Type assertion since we know deleted_at is not null from the where clause
+    return {
+      success: true,
+      data: deletedInvoices as DeletedInvoice[],
+    };
+  } catch (error) {
+    console.error('getDeletedInvoices error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to fetch deleted invoices',
+    };
+  }
+}
+
+/**
+ * Recover a soft-deleted invoice (super admin only)
+ *
+ * @param id - Invoice ID to recover
+ * @returns Success result
+ */
+export async function recoverInvoice(
+  id: number
+): Promise<ServerActionResult<void>> {
+  try {
+    const user = await getCurrentUser();
+
+    // Only super_admin can recover invoices
+    if (user.role !== 'super_admin') {
+      return {
+        success: false,
+        error: 'Only super admins can recover deleted invoices',
+      };
+    }
+
+    const invoice = await db.invoice.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        invoice_number: true,
+        deleted_at: true,
+      },
+    });
+
+    if (!invoice) {
+      return {
+        success: false,
+        error: 'Invoice not found',
+      };
+    }
+
+    if (!invoice.deleted_at) {
+      return {
+        success: false,
+        error: 'Invoice is not deleted',
+      };
+    }
+
+    // Clear soft delete fields
+    await db.invoice.update({
+      where: { id },
+      data: {
+        deleted_at: null,
+        deleted_by: null,
+        deleted_reason: null,
+        recovery_deadline: null,
+      },
+    });
+
+    // Log activity
+    await createActivityLog({
+      invoice_id: id,
+      action: ACTIVITY_ACTION.INVOICE_RECOVERED,
+      new_data: { message: `Invoice ${invoice.invoice_number} recovered from deleted` },
+      user_id: user.id,
+    });
+
+    revalidatePath('/invoices');
+
+    return {
+      success: true,
+      data: undefined,
+    };
+  } catch (error) {
+    console.error('recoverInvoice error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to recover invoice',
     };
   }
 }
@@ -2236,7 +2403,26 @@ export async function permanentDeleteInvoice(
       }
     }
 
-    // Log activity BEFORE deleting (to preserve invoice_id reference)
+    // Get retention days from system settings (defaults to 30 if not set)
+    const retentionResult = await getSoftDeleteRetentionDays();
+    const retentionDays = retentionResult.success ? retentionResult.data : 30;
+
+    // Calculate recovery deadline based on setting
+    const recoveryDeadline = new Date();
+    recoveryDeadline.setDate(recoveryDeadline.getDate() + retentionDays);
+
+    // Soft delete: set deleted_at, deleted_by, deleted_reason, recovery_deadline
+    await db.invoice.update({
+      where: { id },
+      data: {
+        deleted_at: new Date(),
+        deleted_by: user.id,
+        deleted_reason: reason || 'Deleted by super admin',
+        recovery_deadline: recoveryDeadline,
+      },
+    });
+
+    // Log activity
     await createActivityLog({
       invoice_id: id,
       user_id: user.id,
@@ -2246,11 +2432,88 @@ export async function permanentDeleteInvoice(
         vendor_id: existing.vendor_id,
         invoice_amount: existing.invoice_amount,
         status: existing.status,
-        deletion_reason: reason || 'Permanently deleted by super admin',
+        deletion_reason: reason || 'Soft deleted by super admin',
       },
       new_data: {
         deleted: true,
         files_moved: movedFiles.length,
+        recovery_deadline: recoveryDeadline.toISOString(),
+      },
+    });
+
+    revalidatePath('/invoices');
+
+    return {
+      success: true,
+      data: undefined,
+    };
+  } catch (error) {
+    console.error('permanentDeleteInvoice error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to delete invoice',
+    };
+  }
+}
+
+/**
+ * Permanently purge a soft-deleted invoice (super admin only)
+ *
+ * This completely removes the invoice from the database.
+ * Used by scheduled cleanup job or manual purge from Deleted tab.
+ *
+ * @param id - Invoice ID to permanently purge
+ * @returns Success result
+ */
+export async function permanentPurgeInvoice(
+  id: number
+): Promise<ServerActionResult<void>> {
+  try {
+    const user = await getCurrentUser();
+
+    // Only super_admin can permanently purge invoices
+    if (user.role !== 'super_admin') {
+      return {
+        success: false,
+        error: 'Only super admins can permanently purge invoices',
+      };
+    }
+
+    const existing = await db.invoice.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        invoice_number: true,
+        deleted_at: true,
+      },
+    });
+
+    if (!existing) {
+      return {
+        success: false,
+        error: 'Invoice not found',
+      };
+    }
+
+    // Can only purge soft-deleted invoices
+    if (!existing.deleted_at) {
+      return {
+        success: false,
+        error: 'Invoice must be soft-deleted before permanent purge. Use delete first.',
+      };
+    }
+
+    // Log activity BEFORE deleting (to preserve invoice_id reference)
+    await createActivityLog({
+      invoice_id: id,
+      user_id: user.id,
+      action: ACTIVITY_ACTION.INVOICE_PURGED,
+      old_data: {
+        invoice_number: existing.invoice_number,
+      },
+      new_data: {
+        purged: true,
+        purged_by: user.email,
       },
     });
 
@@ -2271,11 +2534,6 @@ export async function permanentDeleteInvoice(
         where: { invoice_id: id },
       });
 
-      // Delete activity logs (optional - can keep for audit trail)
-      // await tx.activityLog.deleteMany({
-      //   where: { invoice_id: id },
-      // });
-
       // Finally delete the invoice
       await tx.invoice.delete({
         where: { id },
@@ -2289,10 +2547,175 @@ export async function permanentDeleteInvoice(
       data: undefined,
     };
   } catch (error) {
-    console.error('permanentDeleteInvoice error:', error);
+    console.error('permanentPurgeInvoice error:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to permanently delete invoice',
+      error: error instanceof Error ? error.message : 'Failed to permanently purge invoice',
+    };
+  }
+}
+
+// ============================================================================
+// BULK ARCHIVE
+// ============================================================================
+
+/**
+ * Bulk archive multiple invoices
+ *
+ * For admin/super_admin: Archives all invoices directly
+ * For standard users: Creates a single MasterDataRequest for approval
+ *
+ * @param invoiceIds - Array of invoice IDs to archive
+ * @param reason - Mandatory reason for archiving (required for all users)
+ * @returns Success result with request ID or archived count
+ */
+export async function bulkArchiveInvoices(
+  invoiceIds: number[],
+  reason: string
+): Promise<ServerActionResult<{ requestId?: number; archivedCount?: number }>> {
+  try {
+    const user = await getCurrentUser();
+
+    if (!reason || reason.trim().length === 0) {
+      return {
+        success: false,
+        error: 'Archive reason is required',
+      };
+    }
+
+    if (invoiceIds.length === 0) {
+      return {
+        success: false,
+        error: 'No invoices selected for archive',
+      };
+    }
+
+    // Fetch all invoices with details for validation and request data
+    const invoices = await db.invoice.findMany({
+      where: {
+        id: { in: invoiceIds },
+        deleted_at: null, // Only non-deleted invoices
+      },
+      select: {
+        id: true,
+        invoice_number: true,
+        invoice_amount: true,
+        is_archived: true,
+        vendor: {
+          select: { name: true },
+        },
+      },
+    });
+
+    if (invoices.length === 0) {
+      return {
+        success: false,
+        error: 'No valid invoices found for archive',
+      };
+    }
+
+    // Filter out already archived invoices
+    const archivableInvoices = invoices.filter((inv) => !inv.is_archived);
+
+    if (archivableInvoices.length === 0) {
+      return {
+        success: false,
+        error: 'All selected invoices are already archived',
+      };
+    }
+
+    // For admin/super_admin, archive directly
+    if (user.role === 'admin' || user.role === 'super_admin') {
+      let archivedCount = 0;
+      const errors: string[] = [];
+
+      for (const invoice of archivableInvoices) {
+        const result = await archiveInvoice(invoice.id, reason);
+        if (result.success) {
+          archivedCount++;
+        } else {
+          errors.push(`${invoice.invoice_number}: ${result.error}`);
+        }
+      }
+
+      if (archivedCount === 0) {
+        return {
+          success: false,
+          error: `Failed to archive any invoices. Errors: ${errors.join('; ')}`,
+        };
+      }
+
+      revalidatePath('/invoices');
+
+      return {
+        success: true,
+        data: { archivedCount },
+      };
+    }
+
+    // For standard users, check for existing pending bulk archive requests
+    const existingRequest = await db.masterDataRequest.findFirst({
+      where: {
+        entity_type: 'bulk_invoice_archive',
+        status: 'pending_approval',
+        requester_id: user.id,
+      },
+    });
+
+    if (existingRequest) {
+      return {
+        success: false,
+        error: 'You already have a pending bulk archive request. Please wait for approval or cancel it first.',
+      };
+    }
+
+    // Calculate totals
+    const totalAmount = archivableInvoices.reduce((sum, inv) => sum + inv.invoice_amount, 0);
+
+    // Create bulk archive request
+    const request = await db.masterDataRequest.create({
+      data: {
+        entity_type: 'bulk_invoice_archive',
+        status: 'pending_approval',
+        requester_id: user.id,
+        request_data: JSON.stringify({
+          invoice_ids: archivableInvoices.map((inv) => inv.id),
+          invoices: archivableInvoices.map((inv) => ({
+            id: inv.id,
+            invoice_number: inv.invoice_number,
+            vendor_name: inv.vendor.name,
+            amount: inv.invoice_amount,
+          })),
+          reason: reason.trim(),
+          total_count: archivableInvoices.length,
+          total_amount: totalAmount,
+        }),
+      },
+    });
+
+    // Get user's full name for notification (reserved for future bulk notification)
+    const dbUser = await db.user.findUnique({
+      where: { id: user.id },
+      select: { full_name: true },
+    });
+    const _requesterName = dbUser?.full_name || user.email; // eslint-disable-line @typescript-eslint/no-unused-vars
+
+    // Note: Activity logging for bulk operations is handled at the individual invoice level
+    // when the bulk request is approved. We skip logging here to avoid duplicate entries.
+
+    // TODO: Add notification for bulk archive request pending using _requesterName
+
+    revalidatePath('/invoices');
+
+    return {
+      success: true,
+      data: { requestId: request.id },
+    };
+  } catch (error) {
+    console.error('bulkArchiveInvoices error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to create bulk archive request',
     };
   }
 }
