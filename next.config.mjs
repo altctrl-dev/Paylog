@@ -9,6 +9,8 @@ const nextConfig = {
       allowedOrigins: [
         'localhost:3000',
         'paylog-production.up.railway.app',
+        'paylog-production-5265.up.railway.app',
+        'paylog.servesys.co', // Custom domain
         '*.railway.app' // Allow all Railway preview deployments
       ]
     }
