@@ -454,44 +454,62 @@ export function Navbar({ user, onOpenCommandPalette, isCollapsed = false }: Navb
   }, [onOpenCommandPalette]);
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 gap-3">
-      {/* Mobile Menu Button */}
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={toggleMobileMenu}
-        className="h-10 w-10 md:hidden"
-        aria-label="Toggle menu"
-      >
-        <Menu className="h-5 w-5" />
-      </Button>
+    <header className="sticky top-0 z-30 h-16 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4">
+      {/* Mobile Layout */}
+      <div className="flex md:hidden h-full items-center gap-3">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={toggleMobileMenu}
+          className="h-10 w-10"
+          aria-label="Toggle menu"
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
+        <div className="flex-1" />
+        <div className="flex items-center gap-2">
+          <SyncButton />
+          <QuickActionsMenu invoiceCreationMode={invoiceCreationMode} />
+          <ThemeToggle />
+          <NotificationPanel />
+          <UserProfileMenu user={user} />
+        </div>
+      </div>
 
-      {/* Logo - Only when sidebar is collapsed */}
+      {/* Desktop Layout - with centering wrapper to match page content alignment */}
       <div
         className={cn(
-          'hidden md:flex items-center gap-4 pl-2 transition-all duration-300',
-          isCollapsed ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'
+          'hidden md:block h-full mx-auto',
+          isCollapsed ? 'max-w-[1500px]' : 'max-w-[1350px]'
         )}
       >
-        <span className="text-xl font-bold tracking-tight">PAYLOG</span>
-        <div className="h-6 w-px bg-border" aria-hidden="true" />
-      </div>
+        <div className="flex h-full items-center justify-between">
+          {/* Left: Logo + Search */}
+          <div className={cn('flex items-center', isCollapsed ? 'gap-3' : 'gap-0')}>
+            {/* Logo - Only when sidebar is collapsed */}
+            <div
+              className={cn(
+                'flex items-center gap-4 transition-all duration-300',
+                isCollapsed ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'
+              )}
+            >
+              <span className="text-xl font-bold tracking-tight">PAYLOG</span>
+              <div className="h-6 w-px bg-border" aria-hidden="true" />
+            </div>
 
-      {/* Search Bar */}
-      <div className="hidden md:block">
-        <SearchBar onOpenCommandPalette={onOpenCommandPalette} />
-      </div>
+            {/* Search Bar */}
+            <SearchBar onOpenCommandPalette={onOpenCommandPalette} />
+          </div>
 
-      {/* Spacer */}
-      <div className="flex-1" />
-
-      {/* Right Side Actions */}
-      <div className="flex items-center gap-2">
-        <SyncButton />
-        <QuickActionsMenu invoiceCreationMode={invoiceCreationMode} />
-        <ThemeToggle />
-        <NotificationPanel />
-        <UserProfileMenu user={user} />
+          {/* Right: Actions */}
+          <div className="flex items-center gap-2">
+            <SyncButton />
+            <QuickActionsMenu invoiceCreationMode={invoiceCreationMode} />
+            <ThemeToggle />
+            <NotificationPanel />
+            <UserProfileMenu user={user} />
+          </div>
+        </div>
       </div>
     </header>
   );
