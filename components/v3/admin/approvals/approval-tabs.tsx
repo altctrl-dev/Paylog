@@ -66,7 +66,7 @@ const tabVariants = cva(
     'px-4 py-1.5',
     'text-sm font-medium font-bold text-center',
     'transition-all duration-200',
-    'focus:outline-none focus:ring-0 focus:border-primary',
+    'focus:outline-none focus:ring-0 focus-visible:border-primary',
     'rounded-md',
     'whitespace-nowrap',
     'inline-flex items-center gap-2',

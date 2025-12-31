@@ -97,7 +97,7 @@ export function SegmentedTabs<T extends string = string>({
             className={cn(
               'font-medium text-center',
               'transition-all duration-200',
-              'focus:outline-none focus:ring-0 focus:border-primary',
+              'focus:outline-none focus:ring-0 focus-visible:border-primary',
               sizes.tab,
               isActive
                 ? 'bg-background text-foreground shadow-sm border border-border/50'

@@ -198,7 +198,7 @@ export function SmartVendorComboBox({
               className={cn(
                 'flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm',
                 'hover:bg-accent hover:text-accent-foreground',
-                'focus:outline-none focus:ring-0 focus:border-primary',
+                'focus:outline-none focus:ring-0 focus-visible:border-primary',
                 'disabled:cursor-not-allowed disabled:opacity-50',
                 error && 'border-destructive focus:ring-0',
                 pendingVendorName && 'border-yellow-500 bg-yellow-50 dark:bg-yellow-950'

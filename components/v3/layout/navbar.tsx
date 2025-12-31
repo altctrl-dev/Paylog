@@ -142,7 +142,7 @@ function SearchBar({ onOpenCommandPalette }: SearchBarProps) {
         <div
           className={cn(
             'flex items-center gap-2 rounded-full',
-            'bg-muted/50 border border-border pl-3 pr-2 py-1.5',
+            'bg-muted/50 border border-border pl-3 pr-2 h-8',
             'transition-all duration-200'
           )}
         >
@@ -157,7 +157,7 @@ function SearchBar({ onOpenCommandPalette }: SearchBarProps) {
               'bg-transparent border-none',
               'outline-none focus:outline-none focus:ring-0',
               'text-sm text-foreground placeholder:text-muted-foreground',
-              'w-[180px]'
+              'w-[220px]'
             )}
           />
           <button
@@ -180,7 +180,7 @@ function SearchBar({ onOpenCommandPalette }: SearchBarProps) {
       onClick={() => setIsExpanded(true)}
       className={cn(
         'inline-flex items-center gap-2 rounded-full',
-        'bg-muted/50 border border-border px-3 py-1.5',
+        'bg-muted/50 border border-border px-3 h-8',
         'text-sm text-muted-foreground',
         'hover:bg-muted hover:text-foreground transition-all duration-200'
       )}

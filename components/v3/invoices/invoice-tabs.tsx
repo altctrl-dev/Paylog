@@ -57,7 +57,7 @@ const tabVariants = cva(
     'w-[170px] py-1.5',
     'text-sm font-medium font-bold text-center',
     'transition-all duration-200',
-    'focus:outline-none focus:ring-0 focus:border-primary',
+    'focus:outline-none focus:ring-0 focus-visible:border-primary',
     'rounded-md',
   ],
   {
@@ -129,7 +129,7 @@ const pillTabVariants = cva(
   [
     'inline-flex items-center justify-center px-4 py-2 rounded-lg',
     'text-sm font-medium transition-all duration-200',
-    'focus:outline-none focus:ring-0 focus:border-primary',
+    'focus:outline-none focus:ring-0 focus-visible:border-primary',
   ],
   {
     variants: {

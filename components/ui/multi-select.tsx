@@ -141,7 +141,7 @@ export function MultiSelect({
         disabled={disabled}
         className={cn(
           'flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm',
-          'focus:outline-none focus:ring-0 focus:border-primary',
+          'focus:outline-none focus:ring-0 focus-visible:border-primary',
           'disabled:cursor-not-allowed disabled:opacity-50',
           isOpen && 'ring-2 ring-ring ring-offset-2'
         )}
