@@ -91,7 +91,7 @@ export function LayoutWrapper({ children, user }: LayoutWrapperProps) {
           // Only enable transitions after initial mount to prevent flash
           transitionsEnabled && 'transition-[margin] duration-300 ease-in-out',
           // Desktop: offset by sidebar width
-          'md:ml-64',
+          'md:ml-60',
           isCollapsed && 'md:ml-16'
         )}
       >

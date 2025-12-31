@@ -93,20 +93,20 @@ function NavLink({ item, isActive, isCollapsed, badgeCount }: NavLinkProps) {
       href={item.href}
       className={cn(
         // Base styles - always left-aligned, icons stay in place
-        'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium',
+        'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium no-underline hover:no-underline',
         'transition-all duration-300 ease-in-out',
         'w-full overflow-hidden',
         // Active vs inactive states
         isActive
-          ? 'bg-primary/10 text-primary'
-          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+          ? 'bg-muted/50 text-foreground text-[15px] font-semibold'
+          : 'text-muted-foreground text-[15px] hover:bg-muted/40 hover:text-foreground'
       )}
     >
       <div className="relative flex-shrink-0">
         <Icon
           className={cn(
             'h-5 w-5 transition-colors',
-            isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
+            isActive ? 'text-foreground text-semibold' : 'text-muted-foreground group-hover:text-foreground'
           )}
         />
         {/* Badge dot indicator for collapsed state */}
@@ -304,7 +304,7 @@ export function Sidebar({ userRole, badgeCounts = {} }: SidebarProps) {
           transitionsEnabled && 'transition-all duration-300 ease-in-out',
           // Desktop: fixed positioning with variable width
           'hidden md:flex fixed left-0 top-0 z-40',
-          isCollapsed ? 'w-16' : 'w-64',
+          isCollapsed ? 'w-16' : 'w-60',
           // Mobile: fixed overlay with higher z-index
           mobileMenuOpen && 'flex z-50 w-64'
         )}
