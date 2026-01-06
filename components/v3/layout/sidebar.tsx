@@ -25,7 +25,7 @@ import {
   FileText,
   BarChart3,
   Shield,
-  Settings,
+  // Settings, // TODO: Under construction
   ChevronLeft,
   ChevronRight,
   Sparkles,
@@ -71,7 +71,7 @@ const navItems: NavItem[] = [
   { icon: FileText, label: 'Invoices', href: '/invoices' },
   { icon: BarChart3, label: 'Reports', href: '/reports' },
   { icon: Shield, label: 'Admin', href: '/admin', adminOnly: true },
-  { icon: Settings, label: 'Settings', href: '/settings' },
+  // { icon: Settings, label: 'Settings', href: '/settings' }, // TODO: Under construction
 ];
 
 // ============================================================================
