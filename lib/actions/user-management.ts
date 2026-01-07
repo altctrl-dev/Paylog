@@ -64,6 +64,7 @@ export async function createUser(
     // Validate email is unique
     const existingUser = await prisma.user.findUnique({
       where: { email: data.email },
+      select: { id: true },
     });
 
     if (existingUser) {
@@ -142,9 +143,16 @@ export async function updateUser(
     await requireSuperAdmin();
     const actorId = await getCurrentUserId();
 
-    // Get existing user
+    // Get existing user (select only needed fields to avoid password_hash issues)
     const existingUser = await prisma.user.findUnique({
       where: { id },
+      select: {
+        id: true,
+        email: true,
+        full_name: true,
+        role: true,
+        is_active: true,
+      },
     });
 
     if (!existingUser) {
@@ -159,6 +167,7 @@ export async function updateUser(
     if (data.email && data.email !== existingUser.email) {
       const emailExists = await prisma.user.findUnique({
         where: { email: data.email },
+        select: { id: true },
       });
 
       if (emailExists) {
@@ -182,13 +191,22 @@ export async function updateUser(
       }
     }
 
-    // Update user
+    // Update user (use select to avoid returning password_hash for OAuth users)
     const updatedUser = await prisma.user.update({
       where: { id },
       data: {
         ...(data.email && { email: data.email }),
         ...(data.full_name && { full_name: data.full_name }),
         ...(data.role && { role: data.role }),
+      },
+      select: {
+        id: true,
+        email: true,
+        full_name: true,
+        role: true,
+        is_active: true,
+        created_at: true,
+        updated_at: true,
       },
     });
 
@@ -258,9 +276,16 @@ export async function deactivateUser(id: number): Promise<ActionResult<void>> {
     await requireSuperAdmin();
     const actorId = await getCurrentUserId();
 
-    // Get existing user
+    // Get existing user (select only needed fields)
     const existingUser = await prisma.user.findUnique({
       where: { id },
+      select: {
+        id: true,
+        email: true,
+        full_name: true,
+        role: true,
+        is_active: true,
+      },
     });
 
     if (!existingUser) {
@@ -331,9 +356,16 @@ export async function reactivateUser(id: number): Promise<ActionResult<void>> {
     await requireSuperAdmin();
     const actorId = await getCurrentUserId();
 
-    // Get existing user
+    // Get existing user (select only needed fields)
     const existingUser = await prisma.user.findUnique({
       where: { id },
+      select: {
+        id: true,
+        email: true,
+        full_name: true,
+        role: true,
+        is_active: true,
+      },
     });
 
     if (!existingUser) {
@@ -394,9 +426,14 @@ export async function resetUserPassword(id: number): Promise<ActionResult<Passwo
     await requireSuperAdmin();
     const actorId = await getCurrentUserId();
 
-    // Get existing user
+    // Get existing user (select only needed fields)
     const existingUser = await prisma.user.findUnique({
       where: { id },
+      select: {
+        id: true,
+        email: true,
+        full_name: true,
+      },
     });
 
     if (!existingUser) {
@@ -646,9 +683,13 @@ export async function validateRoleChange(
     // Permission check
     await requireSuperAdmin();
 
-    // Get existing user
+    // Get existing user (select only needed fields)
     const existingUser = await prisma.user.findUnique({
       where: { id: userId },
+      select: {
+        id: true,
+        role: true,
+      },
     });
 
     if (!existingUser) {

@@ -80,3 +80,19 @@ export interface RejectionTemplateData {
   /** Date the request was rejected */
   rejectedAt: Date;
 }
+
+/**
+ * Template data for admin login alert notification
+ */
+export interface AdminLoginAlertData {
+  /** Email of the admin who logged in */
+  email: string;
+  /** Name of the admin */
+  name: string;
+  /** Time of login */
+  loginTime: Date;
+  /** IP address (if available) */
+  ipAddress?: string;
+  /** User agent/browser (if available) */
+  userAgent?: string;
+}

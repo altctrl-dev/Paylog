@@ -11,7 +11,7 @@ model User {
   id                       Int                     @id @default(autoincrement())
   email                    String                  @unique
   full_name                String
-  password_hash            String
+  password_hash            String? // Optional - OAuth users don't have passwords
   role                     String                  @default("standard_user")
   is_active                Boolean                 @default(true)
   created_at               DateTime                @default(now())
@@ -19,6 +19,8 @@ model User {
   display_name             String?
   display_picture_url      String?
   initials                 String?
+  last_password_change     DateTime? // Track for password expiry policy
+  accounts                 Account[] // OAuth accounts (Microsoft, etc.)
   activity_logs            ActivityLog[]           @relation("ActivityLogger")
   deleted_attachments      InvoiceAttachment[]     @relation("AttachmentDeleter")
   uploaded_attachments     InvoiceAttachment[]     @relation("AttachmentUploader")
@@ -457,4 +459,37 @@ model SystemSetting {
   updated_by Int? // User ID who last updated this setting
 
   @@map("system_settings")
+}
+
+/// OAuth Account model for NextAuth
+/// Stores OAuth provider tokens and account linking
+model Account {
+  id                String  @id @default(cuid())
+  userId            Int
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId], map: "idx_accounts_user")
+  @@map("accounts")
+}
+
+/// Verification Token model for NextAuth
+/// Used for email verification flows
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
 }

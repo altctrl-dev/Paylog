@@ -1,10 +1,12 @@
 import NextAuth from 'next-auth';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import Credentials from 'next-auth/providers/credentials';
+import MicrosoftEntraId from 'next-auth/providers/microsoft-entra-id';
 import { db } from '@/lib/db';
 import { z } from 'zod';
 import { verifyPassword } from '@/lib/crypto';
 import { loginRateLimiter } from '@/lib/rate-limit';
+import { sendAdminLoginAlert } from '@/lib/email/auth-alerts';
 
 // Validate required environment variables (server-side only)
 // This check should not run in client-side contexts
@@ -29,6 +31,7 @@ const loginSchema = z.object({
 });
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  debug: process.env.NODE_ENV === 'development', // Enable debug logging
   adapter: PrismaAdapter(db),
   session: {
     strategy: 'jwt',
@@ -43,6 +46,22 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     signIn: '/login',
   },
   providers: [
+    // Microsoft Entra ID (Azure AD) - Primary authentication method
+    // Reuses the same Azure app registration as SharePoint storage
+    MicrosoftEntraId({
+      clientId: process.env.AZURE_CLIENT_ID!,
+      clientSecret: process.env.AZURE_CLIENT_SECRET!,
+      // issuer controls which tenant can sign in
+      // Single tenant: https://login.microsoftonline.com/{tenant-id}/v2.0
+      // Multi-tenant: https://login.microsoftonline.com/organizations/v2.0
+      // All accounts: https://login.microsoftonline.com/common/v2.0
+      issuer: process.env.AZURE_TENANT_ID
+        ? `https://login.microsoftonline.com/${process.env.AZURE_TENANT_ID}/v2.0`
+        : 'https://login.microsoftonline.com/common/v2.0', // default to common
+      allowDangerousEmailAccountLinking: true, // Link accounts with same email
+    }),
+
+    // Credentials - Emergency access for super_admin only
     Credentials({
       credentials: {
         email: { label: 'Email', type: 'email' },
@@ -65,10 +84,22 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         if (!user || !user.password_hash) return null;
 
+        // SECURITY: Password login restricted to super_admin only
+        if (user.role !== 'super_admin') {
+          throw new Error('Password login is only available for administrators. Please use Microsoft sign-in.');
+        }
+
         const passwordValid = await verifyPassword(password, user.password_hash);
         if (!passwordValid) return null;
 
         if (!user.is_active) throw new Error('Account is deactivated');
+
+        // Send login alert email (fire-and-forget)
+        sendAdminLoginAlert({
+          email: user.email,
+          name: user.full_name,
+          loginTime: new Date(),
+        }).catch((err) => console.error('[Auth] Failed to send login alert:', err));
 
         return {
           id: user.id.toString(),
@@ -80,6 +111,48 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   callbacks: {
+    // Handle OAuth sign-in: create user if new, check if active
+    async signIn({ user, account }) {
+      // For OAuth providers (Microsoft), handle user creation/linking
+      if (account?.provider === 'microsoft-entra-id') {
+        try {
+          const existingUser = await db.user.findUnique({
+            where: { email: user.email! },
+            select: { id: true, is_active: true },
+          });
+
+          // If user exists, check if active
+          if (existingUser) {
+            if (!existingUser.is_active) {
+              // Block sign in for deactivated users
+              return false;
+            }
+            // User exists and is active - allow sign in
+            return true;
+          }
+
+          // New OAuth user - create with default role
+          await db.user.create({
+            data: {
+              email: user.email!,
+              full_name: user.name || user.email!.split('@')[0],
+              role: 'standard_user',
+              is_active: true,
+              // password_hash is null for OAuth users
+            },
+          });
+
+          return true;
+        } catch (error) {
+          console.error('[Auth] Error in signIn callback:', error);
+          return false;
+        }
+      }
+
+      // For credentials provider, always allow (checks done in authorize)
+      return true;
+    },
+
     async session({ session, token }) {
       // If token has an error (user deleted/deactivated), return empty session
       // This forces a re-login
@@ -93,9 +166,23 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
       return session;
     },
-    async jwt({ token, user, trigger }) {
-      // Initial sign in - set role from user object
-      if (user) {
+
+    async jwt({ token, user, account, trigger }) {
+      // Handle OAuth first sign in - get user from database
+      if (account?.provider === 'microsoft-entra-id' && token.email) {
+        const dbUser = await db.user.findUnique({
+          where: { email: token.email },
+          select: { id: true, role: true, full_name: true },
+        });
+        if (dbUser) {
+          token.sub = dbUser.id.toString();
+          token.role = dbUser.role;
+          token.name = dbUser.full_name;
+        }
+      }
+
+      // Initial credentials sign in - set role from user object
+      if (user && !account) {
         token.role = user.role;
         token.email = user.email;
       }
