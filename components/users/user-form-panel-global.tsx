@@ -11,7 +11,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { updateUser, getUserById, validateRoleChange } from '@/lib/actions/user-management';
+import { updateUser, getUserById, validateRoleChange, deactivateUser, reactivateUser } from '@/lib/actions/user-management';
 import { createInvite } from '@/app/actions/invites';
 import type { UserRole } from '@/lib/types/user-management';
 import { RoleSelector, RoleChangeConfirmationDialog, LastSuperAdminWarningDialog } from '@/components/users';
@@ -21,7 +21,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Shield, Calendar, UserX, UserCheck, AlertTriangle } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import type { PanelConfig } from '@/types/panel';
 
 interface UserFormPanelGlobalProps {
@@ -38,10 +48,17 @@ export function UserFormPanelGlobal({ config, userId, onClose, onSuccess }: User
     role: 'standard_user' as UserRole,
   });
   const [originalRole, setOriginalRole] = useState<UserRole | null>(null);
+  const [userDetails, setUserDetails] = useState<{
+    created_at: Date | null;
+    is_active: boolean;
+    has_password: boolean;
+  }>({ created_at: null, is_active: true, has_password: false });
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingUser, setIsLoadingUser] = useState(false);
+  const [isTogglingStatus, setIsTogglingStatus] = useState(false);
   const [showRoleChangeConfirmation, setShowRoleChangeConfirmation] = useState(false);
   const [showLastSuperAdminWarning, setShowLastSuperAdminWarning] = useState(false);
+  const [showDeactivateConfirmation, setShowDeactivateConfirmation] = useState(false);
   const [showInviteCreatedDialog, setShowInviteCreatedDialog] = useState(false);
   const [createdInviteUrl, setCreatedInviteUrl] = useState<string>('');
   const [errors, setErrors] = useState<{
@@ -65,6 +82,12 @@ export function UserFormPanelGlobal({ config, userId, onClose, onSuccess }: User
             role,
           });
           setOriginalRole(role); // Save original role for comparison
+          setUserDetails({
+            created_at: result.data.created_at,
+            is_active: result.data.is_active,
+            // Super admins can have emergency passwords
+            has_password: role === 'super_admin',
+          });
         } else {
           toast({
             title: 'Error',
@@ -165,6 +188,35 @@ export function UserFormPanelGlobal({ config, userId, onClose, onSuccess }: User
     performSave();
   }
 
+  async function handleToggleUserStatus() {
+    if (!userId) return;
+
+    setIsTogglingStatus(true);
+    setShowDeactivateConfirmation(false);
+
+    const result = userDetails.is_active
+      ? await deactivateUser(userId)
+      : await reactivateUser(userId);
+
+    if (result.success) {
+      const newStatus = !userDetails.is_active;
+      setUserDetails((prev) => ({ ...prev, is_active: newStatus }));
+      toast({
+        title: 'Success',
+        description: `User ${newStatus ? 'reactivated' : 'deactivated'} successfully`,
+      });
+      onSuccess(); // Refresh the user list
+    } else {
+      toast({
+        title: 'Error',
+        description: result.error,
+        variant: 'destructive',
+      });
+    }
+
+    setIsTogglingStatus(false);
+  }
+
   // Footer with action buttons
   const footerContent = (
     <div className="flex gap-2 w-full">
@@ -248,6 +300,90 @@ export function UserFormPanelGlobal({ config, userId, onClose, onSuccess }: User
               />
             </div>
 
+            {/* Authentication Info (Edit Mode Only) */}
+            {userId && (
+              <div className="p-4 border rounded-lg space-y-3">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Shield className="h-4 w-4 text-muted-foreground" />
+                  Authentication
+                </div>
+                <div className="grid gap-2 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Sign-in method</span>
+                    <span className="font-medium">Microsoft Account</span>
+                  </div>
+                  {userDetails.created_at && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Member since</span>
+                      <span className="font-medium flex items-center gap-1">
+                        <Calendar className="h-3.5 w-3.5" />
+                        {new Date(userDetails.created_at).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                        })}
+                      </span>
+                    </div>
+                  )}
+                  {formData.role === 'super_admin' && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Emergency access</span>
+                      <span className="font-medium text-amber-600">Available</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Account Actions (Edit Mode Only) */}
+            {userId && (
+              <div className="p-4 border border-dashed rounded-lg space-y-3">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                  Account Actions
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">
+                      {userDetails.is_active ? 'Deactivate Account' : 'Reactivate Account'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {userDetails.is_active
+                        ? 'User will no longer be able to sign in'
+                        : 'Restore user access to the system'}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant={userDetails.is_active ? 'destructive' : 'default'}
+                    size="sm"
+                    disabled={isTogglingStatus}
+                    onClick={() => {
+                      if (userDetails.is_active) {
+                        setShowDeactivateConfirmation(true);
+                      } else {
+                        handleToggleUserStatus();
+                      }
+                    }}
+                  >
+                    {isTogglingStatus ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : userDetails.is_active ? (
+                      <>
+                        <UserX className="h-4 w-4 mr-1" />
+                        Deactivate
+                      </>
+                    ) : (
+                      <>
+                        <UserCheck className="h-4 w-4 mr-1" />
+                        Reactivate
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {/* Invite Info (Create Mode Only) */}
             {!userId && (
               <div className="p-3 bg-muted rounded-md text-sm">
@@ -289,6 +425,28 @@ export function UserFormPanelGlobal({ config, userId, onClose, onSuccess }: User
         action="demote"
         userName={formData.full_name}
       />
+
+      {/* Deactivate Confirmation Dialog */}
+      <AlertDialog open={showDeactivateConfirmation} onOpenChange={setShowDeactivateConfirmation}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Deactivate {formData.full_name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will prevent the user from signing in. They will not be able to access the system
+              until their account is reactivated. This action can be reversed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleToggleUserStatus}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Deactivate
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Invite Created Dialog */}
       <InviteCreatedDialog
