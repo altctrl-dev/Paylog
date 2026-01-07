@@ -121,27 +121,18 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             select: { id: true, is_active: true },
           });
 
-          // If user exists, check if active
-          if (existingUser) {
-            if (!existingUser.is_active) {
-              // Block sign in for deactivated users
-              return false;
-            }
-            // User exists and is active - allow sign in
-            return true;
+          // Only allow pre-existing (invited) users to sign in
+          if (!existingUser) {
+            console.warn(`[Auth] Unauthorized login attempt: ${user.email} not found in system`);
+            return '/login?error=NotInvited';
           }
 
-          // New OAuth user - create with default role
-          await db.user.create({
-            data: {
-              email: user.email!,
-              full_name: user.name || user.email!.split('@')[0],
-              role: 'standard_user',
-              is_active: true,
-              // password_hash is null for OAuth users
-            },
-          });
+          if (!existingUser.is_active) {
+            console.warn(`[Auth] Deactivated user attempted login: ${user.email}`);
+            return '/login?error=AccountDeactivated';
+          }
 
+          // User exists and is active - allow sign in
           return true;
         } catch (error) {
           console.error('[Auth] Error in signIn callback:', error);

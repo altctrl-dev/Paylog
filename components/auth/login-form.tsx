@@ -20,6 +20,10 @@ const ERROR_MESSAGES: Record<string, string> = {
   OAuthAccountNotLinked:
     'This email is already registered. Please sign in with your original method.',
   AccessDenied: 'Access denied. Your account may be deactivated.',
+  NotInvited:
+    'You are not authorized to access this application. Please contact your administrator for an invitation.',
+  AccountDeactivated:
+    'Your account has been deactivated. Please contact your administrator.',
 };
 
 export function LoginForm() {
