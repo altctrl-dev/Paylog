@@ -18,3 +18,4 @@ export { UserDetailPanelGlobal } from './user-detail-panel-global';
 export { UserDetailPanelV3 } from './user-detail-panel-v3';
 export { UserFormPanelGlobal } from './user-form-panel-global';
 export { UserSelector } from './user-selector';
+export { PendingInvitesTable } from './pending-invites-table';
