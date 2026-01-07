@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,6 +25,10 @@ const ERROR_MESSAGES: Record<string, string> = {
     'You are not authorized to access this application. Please contact your administrator for an invitation.',
   AccountDeactivated:
     'Your account has been deactivated. Please contact your administrator.',
+  EmailMismatch:
+    'Please sign in with the Microsoft account that matches your invitation email.',
+  InviteExpired:
+    'Your invitation has expired or is no longer valid. Please contact your administrator for a new invitation.',
 };
 
 export function LoginForm() {
@@ -189,6 +194,15 @@ export function LoginForm() {
               >
                 {isLoading ? 'Signing in...' : 'Sign In'}
               </Button>
+
+              <div className="text-center">
+                <Link
+                  href="/reset-password"
+                  className="text-xs text-muted-foreground hover:text-foreground underline"
+                >
+                  Forgot password? Set up emergency access
+                </Link>
+              </div>
             </form>
           </div>
         )}

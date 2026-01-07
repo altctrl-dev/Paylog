@@ -42,6 +42,7 @@ model User {
   notifications            Notification[]          @relation("UserNotifications")
   created_payments         Payment[]               @relation("PaymentCreator")
   approved_payments        Payment[]               @relation("PaymentApprover")
+  sent_invites             UserInvite[]            @relation("UserInvites")
 
   @@index([role, is_active], map: "idx_users_role_active")
   @@index([role], map: "idx_users_super_admin")
@@ -492,4 +493,22 @@ model VerificationToken {
 
   @@unique([identifier, token])
   @@map("verification_tokens")
+}
+
+/// User Invite model
+/// Stores pending invitations for new users
+model UserInvite {
+  id          String    @id @default(cuid())
+  token       String    @unique // Unique token for invite link
+  email       String // Email address of invited user
+  role        String    @default("standard_user") // Role to assign on accept
+  expires_at  DateTime // When the invite expires (48 hours from creation)
+  used_at     DateTime? // When the invite was used (null if not used)
+  invited_by  Int // User ID who created the invite
+  created_at  DateTime  @default(now())
+  inviter     User      @relation("UserInvites", fields: [invited_by], references: [id])
+
+  @@index([token], map: "idx_user_invites_token")
+  @@index([email], map: "idx_user_invites_email")
+  @@map("user_invites")
 }

@@ -2,6 +2,7 @@ import NextAuth from 'next-auth';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import Credentials from 'next-auth/providers/credentials';
 import MicrosoftEntraId from 'next-auth/providers/microsoft-entra-id';
+import { cookies } from 'next/headers';
 import { db } from '@/lib/db';
 import { z } from 'zod';
 import { verifyPassword } from '@/lib/crypto';
@@ -111,11 +112,70 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   callbacks: {
-    // Handle OAuth sign-in: create user if new, check if active
+    // Handle OAuth sign-in: check for pending invite or existing user
     async signIn({ user, account }) {
       // For OAuth providers (Microsoft), handle user creation/linking
       if (account?.provider === 'microsoft-entra-id') {
         try {
+          // Check for pending invite cookie
+          const cookieStore = await cookies();
+          const pendingInviteCookie = cookieStore.get('pending_invite');
+          let pendingInvite: { token: string; fullName: string; email: string } | null = null;
+
+          if (pendingInviteCookie?.value) {
+            try {
+              pendingInvite = JSON.parse(pendingInviteCookie.value);
+            } catch {
+              console.warn('[Auth] Failed to parse pending_invite cookie');
+            }
+          }
+
+          // If there's a pending invite, process it
+          if (pendingInvite) {
+            // Verify OAuth email matches invite email
+            if (user.email?.toLowerCase() !== pendingInvite.email.toLowerCase()) {
+              // Clear the cookie
+              cookieStore.delete('pending_invite');
+              console.warn(`[Auth] OAuth email mismatch: ${user.email} vs invited ${pendingInvite.email}`);
+              return `/login?error=EmailMismatch`;
+            }
+
+            // Validate and use the invite
+            const invite = await db.userInvite.findUnique({
+              where: { token: pendingInvite.token },
+            });
+
+            if (!invite || invite.used_at || invite.expires_at < new Date()) {
+              cookieStore.delete('pending_invite');
+              console.warn('[Auth] Invalid or expired invite during OAuth callback');
+              return '/login?error=InviteExpired';
+            }
+
+            // Create user from invite in a transaction
+            await db.$transaction(async (tx) => {
+              await tx.user.create({
+                data: {
+                  email: invite.email,
+                  full_name: pendingInvite!.fullName,
+                  role: invite.role,
+                  is_active: true,
+                },
+              });
+
+              await tx.userInvite.update({
+                where: { id: invite.id },
+                data: { used_at: new Date() },
+              });
+            });
+
+            // Clear the cookie
+            cookieStore.delete('pending_invite');
+
+            console.log(`[Auth] User created from invite: ${invite.email}`);
+            return true;
+          }
+
+          // No pending invite - check if user exists
           const existingUser = await db.user.findUnique({
             where: { email: user.email! },
             select: { id: true, is_active: true },
