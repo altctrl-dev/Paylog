@@ -3,14 +3,19 @@
  *
  * A version of UserFormPanel that works with the global panel system.
  * Accepts external PanelConfig instead of creating its own.
+ *
+ * Create mode: Sends invite (email + role only)
+ * Edit mode: Updates user details (name, role)
  */
 
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createUser, updateUser, getUserById, validateRoleChange } from '@/lib/actions/user-management';
+import { updateUser, getUserById, validateRoleChange } from '@/lib/actions/user-management';
+import { createInvite } from '@/app/actions/invites';
 import type { UserRole } from '@/lib/types/user-management';
-import { RoleSelector, RoleChangeConfirmationDialog, LastSuperAdminWarningDialog, UserCreatedConfirmationDialog } from '@/components/users';
+import { RoleSelector, RoleChangeConfirmationDialog, LastSuperAdminWarningDialog } from '@/components/users';
+import { InviteCreatedDialog } from '@/components/users/invite-created-dialog';
 import { PanelLevel } from '@/components/panels/panel-level';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,8 +42,8 @@ export function UserFormPanelGlobal({ config, userId, onClose, onSuccess }: User
   const [isLoadingUser, setIsLoadingUser] = useState(false);
   const [showRoleChangeConfirmation, setShowRoleChangeConfirmation] = useState(false);
   const [showLastSuperAdminWarning, setShowLastSuperAdminWarning] = useState(false);
-  const [showUserCreatedConfirmation, setShowUserCreatedConfirmation] = useState(false);
-  const [createdUserPassword, setCreatedUserPassword] = useState<string>('');
+  const [showInviteCreatedDialog, setShowInviteCreatedDialog] = useState(false);
+  const [createdInviteUrl, setCreatedInviteUrl] = useState<string>('');
   const [errors, setErrors] = useState<{
     email?: string;
     form?: string;
@@ -113,45 +118,43 @@ export function UserFormPanelGlobal({ config, userId, onClose, onSuccess }: User
   async function performSave() {
     setIsSaving(true);
 
-    const result = userId
-      ? await updateUser(userId, formData)
-      : await createUser(formData);
+    if (userId) {
+      // Edit mode - update existing user
+      const result = await updateUser(userId, formData);
 
-    if (result.success) {
-      // For create mode, message contains the temporary password
-      // Format: "User John Doe created successfully. Temporary password: xyz123"
-      if (!userId && result.message) {
-        const passwordMatch = result.message.match(/Temporary password: (.+)$/);
-        if (passwordMatch) {
-          // Show password confirmation dialog instead of toasts
-          setCreatedUserPassword(passwordMatch[1]);
-          setShowUserCreatedConfirmation(true);
-          setIsSaving(false);
-          // Don't call onSuccess() yet - will be called when dialog closes
-          // This prevents parent re-render from unmounting the panel before dialog shows
-          return; // Don't close the panel yet - dialog will close it
-        } else {
-          toast({
-            title: 'Success',
-            description: result.message,
-          });
-        }
-      } else {
+      if (result.success) {
         toast({
           title: 'Success',
           description: result.message,
         });
+        onSuccess();
+        onClose();
+      } else {
+        setErrors({ form: result.error });
+        toast({
+          title: 'Error',
+          description: result.error,
+          variant: 'destructive',
+        });
       }
-
-      onSuccess();
-      onClose();
     } else {
-      setErrors({ form: result.error });
-      toast({
-        title: 'Error',
-        description: result.error,
-        variant: 'destructive',
-      });
+      // Create mode - send invite instead of creating user directly
+      const result = await createInvite(formData.email, formData.role);
+
+      if (result.success && result.inviteUrl) {
+        // Show invite created dialog with the invite URL
+        setCreatedInviteUrl(result.inviteUrl);
+        setShowInviteCreatedDialog(true);
+        setIsSaving(false);
+        return; // Don't close the panel yet - dialog will close it
+      } else {
+        setErrors({ form: result.error });
+        toast({
+          title: 'Error',
+          description: result.error || 'Failed to create invite',
+          variant: 'destructive',
+        });
+      }
     }
 
     setIsSaving(false);
@@ -174,10 +177,10 @@ export function UserFormPanelGlobal({ config, userId, onClose, onSuccess }: User
         {isSaving ? (
           <>
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            {userId ? 'Updating...' : 'Creating...'}
+            {userId ? 'Updating...' : 'Sending Invite...'}
           </>
         ) : (
-          userId ? 'Update User' : 'Create User'
+          userId ? 'Update User' : 'Send Invite'
         )}
       </Button>
       <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
@@ -189,7 +192,7 @@ export function UserFormPanelGlobal({ config, userId, onClose, onSuccess }: User
   return (
     <PanelLevel
       config={config}
-      title={userId ? 'Edit User' : 'Create User'}
+      title={userId ? 'Edit User' : 'Invite User'}
       onClose={onClose}
       footer={footerContent}
     >
@@ -201,18 +204,20 @@ export function UserFormPanelGlobal({ config, userId, onClose, onSuccess }: User
       ) : (
         <form id="user-form-global" onSubmit={handleSubmit}>
           <div className="space-y-4">
-            {/* Full Name Field */}
-            <div>
-              <Label htmlFor="full_name">Full Name *</Label>
-              <Input
-                id="full_name"
-                name="full_name"
-                value={formData.full_name}
-                onChange={handleChange}
-                required
-                placeholder="John Doe"
-              />
-            </div>
+            {/* Full Name Field - Only in Edit mode */}
+            {userId && (
+              <div>
+                <Label htmlFor="full_name">Full Name *</Label>
+                <Input
+                  id="full_name"
+                  name="full_name"
+                  value={formData.full_name}
+                  onChange={handleChange}
+                  required
+                  placeholder="John Doe"
+                />
+              </div>
+            )}
 
             {/* Email Field */}
             <div>
@@ -224,7 +229,10 @@ export function UserFormPanelGlobal({ config, userId, onClose, onSuccess }: User
                 value={formData.email}
                 onChange={handleChange}
                 required
+                readOnly={!!userId}
+                disabled={!!userId}
                 placeholder="john@example.com"
+                className={userId ? 'bg-muted' : ''}
               />
               {errors.email && (
                 <p className="text-sm text-destructive mt-1">{errors.email}</p>
@@ -240,13 +248,13 @@ export function UserFormPanelGlobal({ config, userId, onClose, onSuccess }: User
               />
             </div>
 
-            {/* Password Info (Create Mode Only) */}
+            {/* Invite Info (Create Mode Only) */}
             {!userId && (
               <div className="p-3 bg-muted rounded-md text-sm">
-                <p className="font-medium mb-1">Password Generation</p>
+                <p className="font-medium mb-1">How it works</p>
                 <p className="text-muted-foreground">
-                  A secure temporary password will be automatically generated and displayed after
-                  creation.
+                  An invite link will be generated and sent to this email. The user will enter their
+                  name and sign in with Microsoft to activate their account. The link expires in 48 hours.
                 </p>
               </div>
             )}
@@ -282,18 +290,18 @@ export function UserFormPanelGlobal({ config, userId, onClose, onSuccess }: User
         userName={formData.full_name}
       />
 
-      {/* User Created Confirmation Dialog */}
-      <UserCreatedConfirmationDialog
-        open={showUserCreatedConfirmation}
+      {/* Invite Created Dialog */}
+      <InviteCreatedDialog
+        open={showInviteCreatedDialog}
         onClose={() => {
-          setShowUserCreatedConfirmation(false);
-          setCreatedUserPassword('');
-          onSuccess(); // Refresh the user list after user acknowledges
+          setShowInviteCreatedDialog(false);
+          setCreatedInviteUrl('');
+          onSuccess(); // Refresh the list after user acknowledges
           onClose(); // Close the form panel after acknowledging
         }}
-        userName={formData.full_name}
-        userEmail={formData.email}
-        temporaryPassword={createdUserPassword}
+        email={formData.email}
+        role={formData.role}
+        inviteUrl={createdInviteUrl}
       />
     </PanelLevel>
   );
