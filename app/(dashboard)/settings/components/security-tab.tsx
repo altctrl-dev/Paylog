@@ -2,6 +2,7 @@
  * Security Tab Component
  *
  * User security settings including email, password, and session info.
+ * Super admins also see password policy configuration.
  */
 
 'use client';
@@ -13,9 +14,13 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { Shield, Mail, Key, Clock, AlertCircle } from 'lucide-react';
+import { AdminSecuritySettings } from './admin-security-settings';
 
 export function SecurityTab() {
   const { data: session } = useSession();
+
+  // Check if user is super_admin
+  const isSuperAdmin = session?.user?.role === 'super_admin';
 
   // For now, these are placeholder states
   // Full implementation would require password change API, 2FA setup, etc.
@@ -166,6 +171,13 @@ export function SecurityTab() {
           </div>
         </div>
       </Card>
+
+      {/* Admin Security Settings - Super Admin Only */}
+      {isSuperAdmin && (
+        <div className="mt-8 pt-8 border-t">
+          <AdminSecuritySettings />
+        </div>
+      )}
     </div>
   );
 }
