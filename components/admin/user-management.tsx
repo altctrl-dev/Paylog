@@ -4,8 +4,11 @@
  * Super Admin only feature for managing users, roles, and permissions.
  * Renders inline within the Admin Console page.
  *
- * Sprint 11 Phase 3: User Management UI
- * Updated: Uses global panel system via PanelProvider
+ * Sprint 11 Phase 4: Unified User Management
+ * - Single list showing all user statuses (pending, active, deactivated, deleted)
+ * - Status badges with filtering
+ * - Smart delete: Hard delete (0 activities) vs Soft delete (has activities)
+ * - Restore functionality for soft-deleted users
  */
 
 'use client';
@@ -13,14 +16,25 @@
 import * as React from 'react';
 import { useState, useEffect, useCallback } from 'react';
 import type { UserWithStats } from '@/lib/types/user-management';
-import { listUsers } from '@/lib/actions/user-management';
-import { UsersDataTable, PendingInvitesTable } from '@/components/users';
+import { listUsers, deleteUser, restoreUser } from '@/lib/actions/user-management';
+import { resendInvite } from '@/app/actions/invites';
+import { UsersDataTable } from '@/components/users';
 import { PasswordResetDialog } from '@/components/users/password-reset-dialog';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Loader2, Users, Mail } from 'lucide-react';
+import { Plus, Loader2 } from 'lucide-react';
 import { usePanel } from '@/hooks/use-panel';
 import { PANEL_WIDTH } from '@/types/panel';
+import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export default function UserManagement() {
   const [users, setUsers] = useState<UserWithStats[]>([]);
@@ -31,14 +45,19 @@ export default function UserManagement() {
   const [passwordResetUserId, setPasswordResetUserId] = useState<number | null>(null);
   const [passwordResetUserName, setPasswordResetUserName] = useState<string>('');
 
+  // Delete confirmation dialog state
+  const [deleteConfirmUser, setDeleteConfirmUser] = useState<UserWithStats | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   // Panel state management - uses global panel system via PanelProvider
   const { openPanel, closeTopPanel, closeAllPanels } = usePanel();
+  const { toast } = useToast();
 
   // Fetch users on mount
   useEffect(() => {
     async function fetchUsers() {
       setIsLoading(true);
-      const result = await listUsers({ page: 1, pageSize: 50 });
+      const result = await listUsers({ page: 1, pageSize: 100 }); // Get all users
 
       if (result.success) {
         setUsers(result.data.users);
@@ -59,7 +78,7 @@ export default function UserManagement() {
   const handleRefreshData = useCallback(async () => {
     const result = await listUsers({
       page: 1,
-      pageSize: 50,
+      pageSize: 100,
     });
 
     if (result.success) {
@@ -107,6 +126,9 @@ export default function UserManagement() {
             setPasswordResetUserName(user.full_name);
           }
         },
+        onResendInvite: () => handleResendInvite(userId),
+        onDeleteUser: () => handleDeleteUser(userId),
+        onRestoreUser: () => handleRestoreUser(userId),
         onRefresh: handleRefreshData,
       },
       { width: PANEL_WIDTH.MEDIUM }
@@ -128,6 +150,86 @@ export default function UserManagement() {
       },
       { width: PANEL_WIDTH.MEDIUM }
     );
+  };
+
+  /**
+   * Handle resend invite action
+   */
+  const handleResendInvite = async (userId: number) => {
+    const result = await resendInvite(userId);
+
+    if (result.success) {
+      toast({
+        title: 'Invite Resent',
+        description: 'A new invitation email has been sent.',
+      });
+    } else {
+      toast({
+        title: 'Error',
+        description: result.error || 'Failed to resend invite',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  /**
+   * Handle delete user action - shows confirmation dialog
+   */
+  const handleDeleteUser = (userId: number) => {
+    const user = users.find(u => u.id === userId);
+    if (user) {
+      setDeleteConfirmUser(user);
+    }
+  };
+
+  /**
+   * Confirm and execute delete
+   */
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirmUser) return;
+
+    setIsDeleting(true);
+    const result = await deleteUser(deleteConfirmUser.id);
+
+    if (result.success) {
+      const action = result.data?.deleteType === 'hard' ? 'permanently deleted' : 'soft deleted';
+      toast({
+        title: 'User Deleted',
+        description: `${deleteConfirmUser.full_name} has been ${action}.`,
+      });
+      handleRefreshData();
+    } else {
+      toast({
+        title: 'Error',
+        description: result.error || 'Failed to delete user',
+        variant: 'destructive',
+      });
+    }
+
+    setIsDeleting(false);
+    setDeleteConfirmUser(null);
+  };
+
+  /**
+   * Handle restore user action
+   */
+  const handleRestoreUser = async (userId: number) => {
+    const user = users.find(u => u.id === userId);
+    const result = await restoreUser(userId);
+
+    if (result.success) {
+      toast({
+        title: 'User Restored',
+        description: `${user?.full_name || 'User'} has been restored.`,
+      });
+      handleRefreshData();
+    } else {
+      toast({
+        title: 'Error',
+        description: result.error || 'Failed to restore user',
+        variant: 'destructive',
+      });
+    }
   };
 
   if (isLoading) {
@@ -165,31 +267,15 @@ export default function UserManagement() {
         </Button>
       </div>
 
-      {/* Tabs for Users and Pending Invites */}
-      <Tabs defaultValue="users" className="w-full">
-        <TabsList>
-          <TabsTrigger value="users" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            Users
-          </TabsTrigger>
-          <TabsTrigger value="invites" className="flex items-center gap-2">
-            <Mail className="h-4 w-4" />
-            Pending Invites
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="users" className="mt-4">
-          <UsersDataTable
-            initialUsers={users}
-            onSelectUser={handleSelectUser}
-            onEditUser={handleEditUser}
-          />
-        </TabsContent>
-
-        <TabsContent value="invites" className="mt-4">
-          <PendingInvitesTable onInviteAccepted={handleRefreshData} />
-        </TabsContent>
-      </Tabs>
+      {/* Unified Users Table */}
+      <UsersDataTable
+        initialUsers={users}
+        onSelectUser={handleSelectUser}
+        onEditUser={handleEditUser}
+        onResendInvite={handleResendInvite}
+        onDeleteUser={handleDeleteUser}
+        onRestoreUser={handleRestoreUser}
+      />
 
       {/* Panels are rendered globally via PanelProvider */}
 
@@ -206,6 +292,49 @@ export default function UserManagement() {
         }}
         onSuccess={handleRefreshData}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteConfirmUser} onOpenChange={(open) => !open && setDeleteConfirmUser(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete User</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteConfirmUser && (
+                <>
+                  {deleteConfirmUser.invoice_count > 0 ? (
+                    <>
+                      <strong>{deleteConfirmUser.full_name}</strong> has {deleteConfirmUser.invoice_count} invoice(s)
+                      associated with their account. They will be <strong>soft deleted</strong> and can be restored later.
+                    </>
+                  ) : (
+                    <>
+                      <strong>{deleteConfirmUser.full_name}</strong> has no associated data.
+                      They will be <strong>permanently deleted</strong>. This action cannot be undone.
+                    </>
+                  )}
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

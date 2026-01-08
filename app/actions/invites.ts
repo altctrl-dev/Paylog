@@ -1,21 +1,39 @@
 'use server';
 
+/**
+ * User Invite Actions (Unified System)
+ *
+ * Sprint 11 Phase 3: Unified User Status System
+ *
+ * Invites are now stored directly in the User table with status='pending'.
+ * The UserInvite table is deprecated and will be removed.
+ */
+
 import { db } from '@/lib/db';
 import { auth } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { randomBytes } from 'crypto';
 import { Resend } from 'resend';
+import { logUserAudit } from '@/lib/utils/audit-logger';
+import { headers } from 'next/headers';
+import type { UserRole } from '@/lib/types/user-management';
 
-// Initialize Resend client
-const resend = process.env.RESEND_API_KEY
-  ? new Resend(process.env.RESEND_API_KEY)
-  : null;
+// Get Resend client lazily to ensure env vars are loaded
+function getResendClient() {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.warn('[Invites] RESEND_API_KEY not found in environment');
+    return null;
+  }
+  return new Resend(apiKey);
+}
 
 // Types
 export interface InviteResult {
   success: boolean;
   inviteUrl?: string;
+  userId?: number;
   error?: string;
 }
 
@@ -23,12 +41,26 @@ export interface ValidateInviteResult {
   valid: boolean;
   email?: string;
   role?: string;
+  fullName?: string;
   error?: string;
 }
 
 export interface AcceptInviteResult {
   success: boolean;
   error?: string;
+}
+
+// Helper to get request metadata for audit logging
+async function getRequestMetadata() {
+  try {
+    const headersList = await headers();
+    return {
+      ip_address: headersList.get('x-forwarded-for') || headersList.get('x-real-ip') || null,
+      user_agent: headersList.get('user-agent') || null,
+    };
+  } catch {
+    return { ip_address: null, user_agent: null };
+  }
 }
 
 // Helper to get current user and verify super_admin
@@ -56,46 +88,38 @@ function getInviteUrl(token: string): string {
 
 /**
  * Create a new user invite
+ * - Creates a User with status='pending'
  * - Generates unique token with 48hr expiry
  * - Sends email with invite link
  * - Returns invite URL for manual sharing
  */
 export async function createInvite(
   email: string,
-  role: 'standard_user' | 'admin' | 'super_admin'
+  role: UserRole
 ): Promise<InviteResult> {
   try {
+    const requestMetadata = await getRequestMetadata();
     const invitedBy = await requireSuperAdmin();
 
     // Normalize email
     const normalizedEmail = email.toLowerCase().trim();
 
-    // Check if user already exists
+    // Check if user already exists with any status
     const existingUser = await db.user.findUnique({
       where: { email: normalizedEmail },
-      select: { id: true },
+      select: { id: true, status: true },
     });
 
     if (existingUser) {
+      if (existingUser.status === 'pending') {
+        return {
+          success: false,
+          error: 'An active invite already exists for this email',
+        };
+      }
       return {
         success: false,
         error: 'A user with this email already exists',
-      };
-    }
-
-    // Check for existing pending invite
-    const existingInvite = await db.userInvite.findFirst({
-      where: {
-        email: normalizedEmail,
-        used_at: null,
-        expires_at: { gt: new Date() },
-      },
-    });
-
-    if (existingInvite) {
-      return {
-        success: false,
-        error: 'An active invite already exists for this email',
       };
     }
 
@@ -103,39 +127,70 @@ export async function createInvite(
     const token = generateToken();
     const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
 
-    // Create invite
-    await db.userInvite.create({
+    // Create user with pending status
+    const user = await db.user.create({
       data: {
-        token,
         email: normalizedEmail,
+        full_name: normalizedEmail.split('@')[0], // Temporary name from email
         role,
-        expires_at: expiresAt,
-        invited_by: invitedBy,
+        status: 'pending',
+        is_active: false,
+        invite_token: token,
+        invite_expires_at: expiresAt,
+        invited_by_id: invitedBy,
       },
     });
+
+    // Log audit event
+    await logUserAudit({
+      target_user_id: user.id,
+      actor_user_id: invitedBy,
+      event_type: 'user_invited',
+      new_data: {
+        email: normalizedEmail,
+        role,
+        invite_expires_at: expiresAt.toISOString(),
+      },
+    }, requestMetadata);
 
     const inviteUrl = getInviteUrl(token);
 
     // Send invite email (fire-and-forget, don't fail invite creation)
-    if (resend) {
+    const resendClient = getResendClient();
+    if (resendClient) {
+      const fromEmail = process.env.EMAIL_FROM || 'PayLog <noreply@servesys.co>';
+      console.log('[Invites] Attempting to send email to:', normalizedEmail, 'from:', fromEmail);
+      console.log('[Invites] RESEND_API_KEY present:', !!process.env.RESEND_API_KEY);
       try {
-        await resend.emails.send({
-          from: process.env.EMAIL_FROM || 'PayLog <noreply@paylog.app>',
+        const emailResult = await resendClient.emails.send({
+          from: fromEmail,
           to: normalizedEmail,
           subject: "You're invited to PayLog",
           html: generateInviteEmailHtml(inviteUrl, role),
         });
+
+        // Check for error in response (Resend returns { data, error })
+        if (emailResult.error) {
+          console.error('[Invites] Resend API error:', emailResult.error);
+        } else {
+          console.log('[Invites] Email sent successfully, ID:', emailResult.data?.id);
+        }
       } catch (emailError) {
-        console.error('[Invites] Failed to send email:', emailError);
+        console.error('[Invites] Failed to send email (exception):', emailError);
         // Don't fail the invite creation, just log the error
       }
+    } else {
+      console.warn('[Invites] Resend not configured - RESEND_API_KEY missing or invalid');
+      console.log('[Invites] RESEND_API_KEY exists:', !!process.env.RESEND_API_KEY);
     }
 
+    revalidatePath('/admin');
     revalidatePath('/settings');
 
     return {
       success: true,
       inviteUrl,
+      userId: user.id,
     };
   } catch (error) {
     console.error('[Invites] Error creating invite:', error);
@@ -148,41 +203,39 @@ export async function createInvite(
 
 /**
  * Validate an invite token
- * - Checks if token exists, not expired, not used
+ * - Checks if user exists with pending status
+ * - Checks if token not expired
  * - Returns invite details if valid
  */
 export async function validateInvite(token: string): Promise<ValidateInviteResult> {
   try {
-    const invite = await db.userInvite.findUnique({
-      where: { token },
+    const user = await db.user.findFirst({
+      where: {
+        invite_token: token,
+        status: 'pending',
+      },
+      select: {
+        id: true,
+        email: true,
+        full_name: true,
+        role: true,
+        invite_expires_at: true,
+      },
     });
 
-    if (!invite) {
+    if (!user) {
       return { valid: false, error: 'Invalid invite link' };
     }
 
-    if (invite.used_at) {
-      return { valid: false, error: 'This invite has already been used' };
-    }
-
-    if (invite.expires_at < new Date()) {
+    if (!user.invite_expires_at || user.invite_expires_at < new Date()) {
       return { valid: false, error: 'This invite has expired' };
-    }
-
-    // Check if user was created by another means
-    const existingUser = await db.user.findUnique({
-      where: { email: invite.email },
-      select: { id: true },
-    });
-
-    if (existingUser) {
-      return { valid: false, error: 'An account with this email already exists' };
     }
 
     return {
       valid: true,
-      email: invite.email,
-      role: invite.role,
+      email: user.email,
+      role: user.role,
+      fullName: user.full_name,
     };
   } catch (error) {
     console.error('[Invites] Error validating invite:', error);
@@ -194,10 +247,10 @@ export async function validateInvite(token: string): Promise<ValidateInviteResul
 }
 
 /**
- * Accept an invite and create user
+ * Accept an invite and activate user
  * - Called after Microsoft OAuth verification
- * - Creates user with invited email and role
- * - Marks invite as used
+ * - Updates user to active status
+ * - Clears invite token
  */
 export async function acceptInvite(
   token: string,
@@ -205,50 +258,52 @@ export async function acceptInvite(
   oauthEmail: string
 ): Promise<AcceptInviteResult> {
   try {
-    // Validate the invite
-    const invite = await db.userInvite.findUnique({
-      where: { token },
+    const requestMetadata = await getRequestMetadata();
+
+    // Find the pending user
+    const user = await db.user.findFirst({
+      where: {
+        invite_token: token,
+        status: 'pending',
+      },
     });
 
-    if (!invite) {
+    if (!user) {
       return { success: false, error: 'Invalid invite link' };
     }
 
-    if (invite.used_at) {
-      return { success: false, error: 'This invite has already been used' };
-    }
-
-    if (invite.expires_at < new Date()) {
+    if (!user.invite_expires_at || user.invite_expires_at < new Date()) {
       return { success: false, error: 'This invite has expired' };
     }
 
     // Verify OAuth email matches invite email
-    if (oauthEmail.toLowerCase() !== invite.email.toLowerCase()) {
+    if (oauthEmail.toLowerCase() !== user.email.toLowerCase()) {
       return {
         success: false,
-        error: `Please sign in with ${invite.email} to accept this invite`,
+        error: `Please sign in with ${user.email} to accept this invite`,
       };
     }
 
-    // Create user and mark invite as used in a transaction
-    await db.$transaction(async (tx) => {
-      // Create the user
-      await tx.user.create({
-        data: {
-          email: invite.email,
-          full_name: fullName.trim(),
-          role: invite.role,
-          is_active: true,
-          // password_hash is null for OAuth users
-        },
-      });
-
-      // Mark invite as used
-      await tx.userInvite.update({
-        where: { id: invite.id },
-        data: { used_at: new Date() },
-      });
+    // Update user to active status
+    await db.user.update({
+      where: { id: user.id },
+      data: {
+        full_name: fullName.trim(),
+        status: 'active',
+        is_active: true,
+        invite_token: null,
+        invite_expires_at: null,
+      },
     });
+
+    // Log audit event
+    await logUserAudit({
+      target_user_id: user.id,
+      actor_user_id: user.id, // User accepted their own invite
+      event_type: 'user_invite_accepted',
+      old_data: { status: 'pending' },
+      new_data: { status: 'active', full_name: fullName.trim() },
+    }, requestMetadata);
 
     return { success: true };
   } catch (error) {
@@ -261,32 +316,33 @@ export async function acceptInvite(
 }
 
 /**
- * Get all pending invites (for admin view)
+ * Get all pending users (invites)
+ * Returns users with status='pending'
  */
 export async function getPendingInvites() {
   try {
     await requireSuperAdmin();
 
-    const invites = await db.userInvite.findMany({
+    const pendingUsers = await db.user.findMany({
       where: {
-        used_at: null,
-        expires_at: { gt: new Date() },
+        status: 'pending',
       },
       include: {
-        inviter: {
+        invited_by: {
           select: { full_name: true },
         },
       },
       orderBy: { created_at: 'desc' },
     });
 
-    return invites.map((invite) => ({
-      id: invite.id,
-      email: invite.email,
-      role: invite.role,
-      expires_at: invite.expires_at,
-      created_at: invite.created_at,
-      invited_by: invite.inviter.full_name,
+    return pendingUsers.map((user) => ({
+      id: user.id.toString(),
+      email: user.email,
+      role: user.role,
+      expires_at: user.invite_expires_at,
+      created_at: user.created_at,
+      invited_by: user.invited_by?.full_name || 'Unknown',
+      is_expired: user.invite_expires_at ? user.invite_expires_at < new Date() : true,
     }));
   } catch (error) {
     console.error('[Invites] Error fetching invites:', error);
@@ -295,29 +351,33 @@ export async function getPendingInvites() {
 }
 
 /**
- * Revoke/cancel a pending invite
+ * Revoke/cancel a pending invite (hard delete pending user)
  */
-export async function revokeInvite(inviteId: string): Promise<{ success: boolean; error?: string }> {
+export async function revokeInvite(userId: number): Promise<{ success: boolean; error?: string }> {
   try {
     await requireSuperAdmin();
 
-    const invite = await db.userInvite.findUnique({
-      where: { id: inviteId },
+    const user = await db.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, status: true },
     });
 
-    if (!invite) {
-      return { success: false, error: 'Invite not found' };
+    if (!user) {
+      return { success: false, error: 'User not found' };
     }
 
-    if (invite.used_at) {
-      return { success: false, error: 'Cannot revoke an already used invite' };
+    if (user.status !== 'pending') {
+      return { success: false, error: 'Can only revoke pending invites' };
     }
 
-    // Delete the invite
-    await db.userInvite.delete({
-      where: { id: inviteId },
+    // Hard delete the pending user
+    await db.user.delete({
+      where: { id: userId },
     });
 
+    // Note: Can't log audit for a deleted user, so we skip it
+
+    revalidatePath('/admin');
     revalidatePath('/settings');
 
     return { success: true };
@@ -332,45 +392,83 @@ export async function revokeInvite(inviteId: string): Promise<{ success: boolean
 
 /**
  * Resend an invite email
+ * - Regenerates token and extends expiry
  */
-export async function resendInvite(inviteId: string): Promise<InviteResult> {
+export async function resendInvite(userId: number): Promise<InviteResult> {
   try {
-    await requireSuperAdmin();
+    const requestMetadata = await getRequestMetadata();
+    const actorId = await requireSuperAdmin();
 
-    const invite = await db.userInvite.findUnique({
-      where: { id: inviteId },
+    const user = await db.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, role: true, status: true },
     });
 
-    if (!invite) {
-      return { success: false, error: 'Invite not found' };
+    if (!user) {
+      return { success: false, error: 'User not found' };
     }
 
-    if (invite.used_at) {
-      return { success: false, error: 'Cannot resend an already used invite' };
+    if (user.status !== 'pending') {
+      return { success: false, error: 'Can only resend invites for pending users' };
     }
 
-    if (invite.expires_at < new Date()) {
-      return { success: false, error: 'Invite has expired. Please create a new invite.' };
-    }
+    // Generate new token and expiry (48 hours)
+    const token = generateToken();
+    const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
 
-    const inviteUrl = getInviteUrl(invite.token);
+    // Update user with new token
+    await db.user.update({
+      where: { id: userId },
+      data: {
+        invite_token: token,
+        invite_expires_at: expiresAt,
+      },
+    });
+
+    const inviteUrl = getInviteUrl(token);
+
+    // Log audit event
+    await logUserAudit({
+      target_user_id: userId,
+      actor_user_id: actorId,
+      event_type: 'user_invite_resent',
+      new_data: {
+        invite_expires_at: expiresAt.toISOString(),
+      },
+    }, requestMetadata);
 
     // Send invite email
-    if (resend) {
+    const resendClient = getResendClient();
+    if (resendClient) {
+      const fromEmail = process.env.EMAIL_FROM || 'PayLog <noreply@servesys.co>';
+      console.log('[Invites] Resending invite email to:', user.email, 'from:', fromEmail);
+      console.log('[Invites] RESEND_API_KEY present:', !!process.env.RESEND_API_KEY);
       try {
-        await resend.emails.send({
-          from: process.env.EMAIL_FROM || 'PayLog <noreply@paylog.app>',
-          to: invite.email,
+        const emailResult = await resendClient.emails.send({
+          from: fromEmail,
+          to: user.email,
           subject: "Reminder: You're invited to PayLog",
-          html: generateInviteEmailHtml(inviteUrl, invite.role),
+          html: generateInviteEmailHtml(inviteUrl, user.role as UserRole),
         });
+
+        // Check for error in response
+        if (emailResult.error) {
+          console.error('[Invites] Resend API error:', emailResult.error);
+          return { success: false, error: `Email failed: ${emailResult.error.message}` };
+        }
+
+        console.log('[Invites] Resend email sent successfully, ID:', emailResult.data?.id);
       } catch (emailError) {
-        console.error('[Invites] Failed to send email:', emailError);
-        return { success: false, error: 'Failed to send email' };
+        console.error('[Invites] Failed to send email (exception):', emailError);
+        return { success: false, error: 'Failed to send email. Check server logs for details.' };
       }
     } else {
-      return { success: false, error: 'Email service not configured' };
+      console.error('[Invites] Resend not configured - RESEND_API_KEY missing or invalid');
+      console.log('[Invites] RESEND_API_KEY exists:', !!process.env.RESEND_API_KEY);
+      return { success: false, error: 'Email service not configured (RESEND_API_KEY missing)' };
     }
+
+    revalidatePath('/admin');
 
     return { success: true, inviteUrl };
   } catch (error) {
@@ -385,7 +483,7 @@ export async function resendInvite(inviteId: string): Promise<InviteResult> {
 /**
  * Generate invite email HTML
  */
-function generateInviteEmailHtml(inviteUrl: string, role: string): string {
+function generateInviteEmailHtml(inviteUrl: string, role: UserRole): string {
   const roleName = role === 'super_admin' ? 'Super Admin' : role === 'admin' ? 'Admin' : 'Standard User';
 
   return `
@@ -443,30 +541,24 @@ export async function startInviteAcceptance(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     // Validate the invite first
-    const invite = await db.userInvite.findUnique({
-      where: { token },
+    const user = await db.user.findFirst({
+      where: {
+        invite_token: token,
+        status: 'pending',
+      },
+      select: {
+        id: true,
+        email: true,
+        invite_expires_at: true,
+      },
     });
 
-    if (!invite) {
+    if (!user) {
       return { success: false, error: 'Invalid invite link' };
     }
 
-    if (invite.used_at) {
-      return { success: false, error: 'This invite has already been used' };
-    }
-
-    if (invite.expires_at < new Date()) {
+    if (!user.invite_expires_at || user.invite_expires_at < new Date()) {
       return { success: false, error: 'This invite has expired' };
-    }
-
-    // Check if user already exists
-    const existingUser = await db.user.findUnique({
-      where: { email: invite.email },
-      select: { id: true },
-    });
-
-    if (existingUser) {
-      return { success: false, error: 'An account with this email already exists' };
     }
 
     // Set cookie with invite data for the OAuth callback
@@ -475,7 +567,7 @@ export async function startInviteAcceptance(
     cookieStore.set('pending_invite', JSON.stringify({
       token,
       fullName: fullName.trim(),
-      email: invite.email,
+      email: user.email,
     }), {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',

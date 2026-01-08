@@ -150,7 +150,7 @@ export function UserDetailPanelGlobal({
               <div>
                 <label className="text-sm text-muted-foreground">Status</label>
                 <div className="mt-1">
-                  <UserStatusBadge status={user.is_active ? 'active' : 'inactive'} />
+                  <UserStatusBadge status={user.status} />
                 </div>
               </div>
             </Card>

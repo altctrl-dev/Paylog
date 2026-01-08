@@ -28,7 +28,7 @@ import {
 } from '@/components/panels/shared';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Pencil, KeyRound, Ban, CheckCircle, Loader2, AlertCircle } from 'lucide-react';
+import { Pencil, KeyRound, Ban, CheckCircle, Loader2, AlertCircle, Mail, Trash2, RotateCcw } from 'lucide-react';
 import type { PanelConfig } from '@/types/panel';
 
 interface UserDetailPanelV3Props {
@@ -37,6 +37,9 @@ interface UserDetailPanelV3Props {
   onClose: () => void;
   onEdit: () => void;
   onPasswordReset: () => void;
+  onResendInvite?: () => void;
+  onDeleteUser?: () => void;
+  onRestoreUser?: () => void;
   onRefresh?: () => void;
 }
 
@@ -84,6 +87,9 @@ export function UserDetailPanelV3({
   onClose,
   onEdit,
   onPasswordReset,
+  onResendInvite,
+  onDeleteUser,
+  onRestoreUser,
   onRefresh,
 }: UserDetailPanelV3Props) {
   const { toast } = useToast();
@@ -161,11 +167,30 @@ export function UserDetailPanelV3({
   }
 
   // ============================================================================
-  // ACTION BAR CONFIG
+  // ACTION BAR CONFIG (Status-aware)
   // ============================================================================
 
-  const primaryActions: ActionBarAction[] = user
-    ? [
+  const primaryActions: ActionBarAction[] = React.useMemo(() => {
+    if (!user) return [];
+
+    // Pending users: Resend Invite
+    if (user.status === 'pending') {
+      const actions: ActionBarAction[] = [];
+      if (onResendInvite) {
+        actions.push({
+          id: 'resend-invite',
+          icon: <Mail />,
+          label: 'Resend Invite',
+          onClick: onResendInvite,
+          disabled: isDeactivating,
+        });
+      }
+      return actions;
+    }
+
+    // Active users: Edit + Password Reset
+    if (user.status === 'active') {
+      return [
         {
           id: 'edit',
           icon: <Pencil />,
@@ -178,23 +203,86 @@ export function UserDetailPanelV3({
           icon: <KeyRound />,
           label: 'Reset Password',
           onClick: onPasswordReset,
-          disabled: !user.is_active || isDeactivating,
+          disabled: isDeactivating,
         },
-      ]
-    : [];
+      ];
+    }
 
-  const secondaryActions: ActionBarAction[] = user
-    ? [
+    // Deactivated users: Edit only
+    if (user.status === 'deactivated') {
+      return [
         {
-          id: 'toggle-status',
-          icon: user.is_active ? <Ban /> : <CheckCircle />,
-          label: user.is_active ? 'Deactivate User' : 'Reactivate User',
+          id: 'edit',
+          icon: <Pencil />,
+          label: 'Edit User',
+          onClick: onEdit,
+          disabled: isDeactivating,
+        },
+      ];
+    }
+
+    // Deleted users: Restore
+    if (user.status === 'deleted' && onRestoreUser) {
+      return [
+        {
+          id: 'restore',
+          icon: <RotateCcw />,
+          label: 'Restore User',
+          onClick: onRestoreUser,
+          disabled: isDeactivating,
+        },
+      ];
+    }
+
+    return [];
+  }, [user, isDeactivating, onEdit, onPasswordReset, onResendInvite, onRestoreUser]);
+
+  const secondaryActions: ActionBarAction[] = React.useMemo(() => {
+    if (!user) return [];
+
+    // Pending users: Delete/Revoke invite
+    if (user.status === 'pending' && onDeleteUser) {
+      return [
+        {
+          id: 'revoke-invite',
+          icon: <Trash2 />,
+          label: 'Revoke Invite',
+          onClick: onDeleteUser,
+          disabled: isDeactivating,
+          destructive: true,
+        },
+      ];
+    }
+
+    // Active users: Deactivate
+    if (user.status === 'active') {
+      return [
+        {
+          id: 'deactivate',
+          icon: <Ban />,
+          label: 'Deactivate User',
           onClick: handleToggleStatus,
           disabled: isDeactivating,
-          destructive: user.is_active,
+          destructive: true,
         },
-      ]
-    : [];
+      ];
+    }
+
+    // Deactivated users: Reactivate
+    if (user.status === 'deactivated') {
+      return [
+        {
+          id: 'reactivate',
+          icon: <CheckCircle />,
+          label: 'Reactivate User',
+          onClick: handleToggleStatus,
+          disabled: isDeactivating,
+        },
+      ];
+    }
+
+    return [];
+  }, [user, isDeactivating, onDeleteUser, handleToggleStatus]);
 
   // ============================================================================
   // STATS CONFIG
@@ -303,7 +391,7 @@ export function UserDetailPanelV3({
               ]}
             />
             <div className="mt-2">
-              <UserStatusBadge status={user.is_active ? 'active' : 'inactive'} />
+              <UserStatusBadge status={user.status} />
             </div>
           </div>
 
@@ -334,7 +422,7 @@ export function UserDetailPanelV3({
                     Status
                   </label>
                   <div className="mt-1">
-                    <UserStatusBadge status={user.is_active ? 'active' : 'inactive'} />
+                    <UserStatusBadge status={user.status} />
                   </div>
                 </div>
               </div>

@@ -2,18 +2,35 @@
 
 import { useState, useMemo } from 'react';
 import type { UserWithStats } from '@/lib/types/user-management';
+import { USER_STATUSES } from '@/lib/types/user-management';
 import { UserStatusBadge } from '@/components/users';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Pencil, Search } from 'lucide-react';
+import { Pencil, Search, Mail, RotateCcw, Trash2, MoreHorizontal } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface UsersDataTableProps {
   initialUsers: UserWithStats[];
   onSelectUser: (userId: number) => void;
   onEditUser: (userId: number) => void;
+  onResendInvite?: (userId: number) => void;
+  onDeleteUser?: (userId: number) => void;
+  onRestoreUser?: (userId: number) => void;
 }
 
-type SortField = 'full_name' | 'email' | 'role' | 'last_activity_at';
+type SortField = 'full_name' | 'email' | 'role' | 'last_activity_at' | 'status';
 type SortOrder = 'asc' | 'desc';
 
 /**
@@ -43,6 +60,15 @@ function formatRelativeTime(date: Date | null): string {
 }
 
 /**
+ * Helper function to check if invite is expired
+ */
+function isInviteExpired(expiresAt: Date | null | undefined): boolean {
+  if (!expiresAt) return true;
+  const expiryDate = expiresAt instanceof Date ? expiresAt : new Date(expiresAt);
+  return expiryDate < new Date();
+}
+
+/**
  * Helper function to map database role values to display labels
  */
 function getRoleLabel(role: string): string {
@@ -66,15 +92,18 @@ function getRoleLabel(role: string): string {
  *
  * Features:
  * - Search by name/email
- * - Filter by role and status
- * - Sort by name, email, role, or last activity
+ * - Filter by role and status (pending, active, deactivated, deleted)
+ * - Sort by name, email, role, status, or last activity
  * - Click row to view details
- * - Edit button with event stop propagation
+ * - Context actions: Edit, Resend Invite, Delete, Restore
  */
 export function UsersDataTable({
   initialUsers,
   onSelectUser,
   onEditUser,
+  onResendInvite,
+  onDeleteUser,
+  onRestoreUser,
 }: UsersDataTableProps) {
   // Filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -114,11 +143,9 @@ export function UsersDataTable({
       const matchesRole =
         roleFilter === 'all' || user.role === roleFilter;
 
-      // Status filter
-      let matchesStatus = true;
-      if (statusFilter === 'active' && !user.is_active) matchesStatus = false;
-      if (statusFilter === 'inactive' && user.is_active)
-        matchesStatus = false;
+      // Status filter - using the new status field
+      const matchesStatus =
+        statusFilter === 'all' || user.status === statusFilter;
 
       return matchesSearch && matchesRole && matchesStatus;
     });
@@ -146,10 +173,14 @@ export function UsersDataTable({
           aVal = a.role;
           bVal = b.role;
           break;
+        case 'status':
+          aVal = a.status;
+          bVal = b.status;
+          break;
         case 'last_activity_at':
           // Convert to timestamp for proper numeric comparison
-          aVal = a.last_activity_at ? a.last_activity_at.getTime() : 0;
-          bVal = b.last_activity_at ? b.last_activity_at.getTime() : 0;
+          aVal = a.last_activity_at ? new Date(a.last_activity_at).getTime() : 0;
+          bVal = b.last_activity_at ? new Date(b.last_activity_at).getTime() : 0;
           break;
       }
 
@@ -186,15 +217,18 @@ export function UsersDataTable({
           <option value="standard_user">Standard User</option>
         </select>
 
-        {/* Status Filter - Native Select */}
+        {/* Status Filter - Updated with all statuses */}
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="flex h-10 w-[150px] items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-0 focus-visible:border-primary disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex h-10 w-[160px] items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-0 focus-visible:border-primary disabled:cursor-not-allowed disabled:opacity-50"
         >
           <option value="all">All Status</option>
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
+          {Object.entries(USER_STATUSES).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
         </select>
       </div>
 
@@ -221,8 +255,12 @@ export function UsersDataTable({
               <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
                 Role
               </th>
-              <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                Status
+              <th
+                className="h-12 px-4 text-left align-middle font-medium text-muted-foreground cursor-pointer"
+                onClick={() => handleSort('status')}
+              >
+                Status{' '}
+                {sortField === 'status' && (sortOrder === 'asc' ? '↑' : '↓')}
               </th>
               <th
                 className="h-12 px-4 text-left align-middle font-medium text-muted-foreground cursor-pointer"
@@ -254,31 +292,110 @@ export function UsersDataTable({
                   className="border-b transition-colors hover:bg-muted/50 cursor-pointer"
                   onClick={() => onSelectUser(user.id)}
                 >
-                  <td className="p-4 align-middle font-medium">
-                    {user.full_name}
+                  <td className="p-4 align-middle">
+                    <div>
+                      <span className="font-medium">{user.full_name}</span>
+                      {user.status === 'pending' && user.invited_by_name && (
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          Invited by {user.invited_by_name}
+                        </div>
+                      )}
+                    </div>
                   </td>
                   <td className="p-4 align-middle">{user.email}</td>
                   <td className="p-4 align-middle">{getRoleLabel(user.role)}</td>
                   <td className="p-4 align-middle">
-                    <UserStatusBadge
-                      status={user.is_active ? 'active' : 'inactive'}
-                    />
+                    <div className="flex items-center gap-2">
+                      <UserStatusBadge status={user.status} />
+                      {user.status === 'pending' && isInviteExpired(user.invite_expires_at) && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <span className="text-xs text-destructive">(Expired)</span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Invite has expired. Resend to generate a new link.</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                    </div>
                   </td>
                   <td className="p-4 align-middle text-muted-foreground">
-                    {formatRelativeTime(user.last_activity_at)}
+                    {user.status === 'pending'
+                      ? 'N/A'
+                      : formatRelativeTime(user.last_activity_at)}
                   </td>
                   <td className="p-4 align-middle">{user.invoice_count || 0}</td>
                   <td className="p-4 align-middle text-right">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onEditUser(user.id);
-                      }}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {/* Edit - Available for active and deactivated users */}
+                        {(user.status === 'active' || user.status === 'deactivated') && (
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onEditUser(user.id);
+                            }}
+                          >
+                            <Pencil className="h-4 w-4 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                        )}
+
+                        {/* Resend Invite - Available for pending users */}
+                        {user.status === 'pending' && onResendInvite && (
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onResendInvite(user.id);
+                            }}
+                          >
+                            <Mail className="h-4 w-4 mr-2" />
+                            Resend Invite
+                          </DropdownMenuItem>
+                        )}
+
+                        {/* Restore - Available for deleted users */}
+                        {user.status === 'deleted' && onRestoreUser && (
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onRestoreUser(user.id);
+                            }}
+                          >
+                            <RotateCcw className="h-4 w-4 mr-2" />
+                            Restore
+                          </DropdownMenuItem>
+                        )}
+
+                        {/* Delete - Available for all except already deleted */}
+                        {user.status !== 'deleted' && onDeleteUser && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDeleteUser(user.id);
+                              }}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </td>
                 </tr>
               ))

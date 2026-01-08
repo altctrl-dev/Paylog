@@ -34,7 +34,7 @@ export class EmailService {
     const apiKey = process.env.RESEND_API_KEY;
     this.resend = apiKey ? new Resend(apiKey) : null;
 
-    this.from = process.env.EMAIL_FROM || 'noreply@paylog.com';
+    this.from = process.env.EMAIL_FROM || 'PayLog <noreply@servesys.co>';
     this.adminEmails = process.env.ADMIN_EMAILS?.split(',').map((e) => e.trim()) || [];
 
     // Debug logging to verify environment variables are loaded

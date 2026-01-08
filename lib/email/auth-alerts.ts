@@ -43,7 +43,7 @@ export async function sendAdminLoginAlert(
   }
 
   const resend = new Resend(apiKey);
-  const from = process.env.EMAIL_FROM || 'noreply@paylog.com';
+  const from = process.env.EMAIL_FROM || 'PayLog <noreply@servesys.co>';
 
   const subject = `Security Alert: Admin Login - ${data.email}`;
 

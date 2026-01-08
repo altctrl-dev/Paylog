@@ -52,7 +52,8 @@ export function UserFormPanelGlobal({ config, userId, onClose, onSuccess }: User
     created_at: Date | null;
     is_active: boolean;
     has_password: boolean;
-  }>({ created_at: null, is_active: true, has_password: false });
+    status: string;
+  }>({ created_at: null, is_active: true, has_password: false, status: 'active' });
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingUser, setIsLoadingUser] = useState(false);
   const [isTogglingStatus, setIsTogglingStatus] = useState(false);
@@ -87,6 +88,7 @@ export function UserFormPanelGlobal({ config, userId, onClose, onSuccess }: User
             is_active: result.data.is_active,
             // Super admins can have emergency passwords
             has_password: role === 'super_admin',
+            status: result.data.status,
           });
         } else {
           toast({
@@ -194,16 +196,16 @@ export function UserFormPanelGlobal({ config, userId, onClose, onSuccess }: User
     setIsTogglingStatus(true);
     setShowDeactivateConfirmation(false);
 
-    const result = userDetails.is_active
+    const result = userDetails.status === 'active'
       ? await deactivateUser(userId)
       : await reactivateUser(userId);
 
     if (result.success) {
-      const newStatus = !userDetails.is_active;
-      setUserDetails((prev) => ({ ...prev, is_active: newStatus }));
+      const newStatus = userDetails.status === 'active' ? 'deactivated' : 'active';
+      setUserDetails((prev) => ({ ...prev, is_active: newStatus === 'active', status: newStatus }));
       toast({
         title: 'Success',
-        description: `User ${newStatus ? 'reactivated' : 'deactivated'} successfully`,
+        description: `User ${newStatus === 'active' ? 'reactivated' : 'deactivated'} successfully`,
       });
       onSuccess(); // Refresh the user list
     } else {
@@ -335,8 +337,8 @@ export function UserFormPanelGlobal({ config, userId, onClose, onSuccess }: User
               </div>
             )}
 
-            {/* Account Actions (Edit Mode Only) */}
-            {userId && (
+            {/* Account Actions (Edit Mode Only - Not for pending users) */}
+            {userId && userDetails.status !== 'pending' && (
               <div className="p-4 border border-dashed rounded-lg space-y-3">
                 <div className="flex items-center gap-2 text-sm font-medium">
                   <AlertTriangle className="h-4 w-4 text-muted-foreground" />
@@ -345,21 +347,21 @@ export function UserFormPanelGlobal({ config, userId, onClose, onSuccess }: User
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium">
-                      {userDetails.is_active ? 'Deactivate Account' : 'Reactivate Account'}
+                      {userDetails.status === 'active' ? 'Deactivate Account' : 'Reactivate Account'}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {userDetails.is_active
+                      {userDetails.status === 'active'
                         ? 'User will no longer be able to sign in'
                         : 'Restore user access to the system'}
                     </p>
                   </div>
                   <Button
                     type="button"
-                    variant={userDetails.is_active ? 'destructive' : 'default'}
+                    variant={userDetails.status === 'active' ? 'destructive' : 'default'}
                     size="sm"
                     disabled={isTogglingStatus}
                     onClick={() => {
-                      if (userDetails.is_active) {
+                      if (userDetails.status === 'active') {
                         setShowDeactivateConfirmation(true);
                       } else {
                         handleToggleUserStatus();
@@ -368,7 +370,7 @@ export function UserFormPanelGlobal({ config, userId, onClose, onSuccess }: User
                   >
                     {isTogglingStatus ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : userDetails.is_active ? (
+                    ) : userDetails.status === 'active' ? (
                       <>
                         <UserX className="h-4 w-4 mr-1" />
                         Deactivate
