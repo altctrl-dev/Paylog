@@ -14,10 +14,11 @@ import * as React from 'react';
 import { useState, useEffect, useCallback } from 'react';
 import type { UserWithStats } from '@/lib/types/user-management';
 import { listUsers } from '@/lib/actions/user-management';
-import { UsersDataTable } from '@/components/users';
+import { UsersDataTable, PendingInvitesTable } from '@/components/users';
 import { PasswordResetDialog } from '@/components/users/password-reset-dialog';
 import { Button } from '@/components/ui/button';
-import { Plus, Loader2 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Plus, Loader2, Users, Mail } from 'lucide-react';
 import { usePanel } from '@/hooks/use-panel';
 import { PANEL_WIDTH } from '@/types/panel';
 
@@ -160,16 +161,35 @@ export default function UserManagement() {
         </div>
         <Button onClick={handleCreateUser}>
           <Plus className="h-4 w-4 mr-2" />
-          Create User
+          Invite User
         </Button>
       </div>
 
-      {/* Users Table */}
-      <UsersDataTable
-        initialUsers={users}
-        onSelectUser={handleSelectUser}
-        onEditUser={handleEditUser}
-      />
+      {/* Tabs for Users and Pending Invites */}
+      <Tabs defaultValue="users" className="w-full">
+        <TabsList>
+          <TabsTrigger value="users" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Users
+          </TabsTrigger>
+          <TabsTrigger value="invites" className="flex items-center gap-2">
+            <Mail className="h-4 w-4" />
+            Pending Invites
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="users" className="mt-4">
+          <UsersDataTable
+            initialUsers={users}
+            onSelectUser={handleSelectUser}
+            onEditUser={handleEditUser}
+          />
+        </TabsContent>
+
+        <TabsContent value="invites" className="mt-4">
+          <PendingInvitesTable onInviteAccepted={handleRefreshData} />
+        </TabsContent>
+      </Tabs>
 
       {/* Panels are rendered globally via PanelProvider */}
 
