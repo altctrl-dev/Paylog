@@ -16,6 +16,26 @@ export const USER_ROLES: Record<UserRole, string> = {
 } as const;
 
 // ============================================================================
+// User Status Enum (Unified status system)
+// ============================================================================
+
+export type UserStatus = 'pending' | 'active' | 'deactivated' | 'deleted';
+
+export const USER_STATUSES: Record<UserStatus, string> = {
+  pending: 'Pending',
+  active: 'Active',
+  deactivated: 'Deactivated',
+  deleted: 'Deleted',
+} as const;
+
+export const USER_STATUS_COLORS: Record<UserStatus, string> = {
+  pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
+  active: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+  deactivated: 'bg-gray-100 text-gray-800 dark:bg-gray-800/50 dark:text-gray-400',
+  deleted: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+} as const;
+
+// ============================================================================
 // User CRUD Input Types
 // ============================================================================
 
@@ -37,7 +57,8 @@ export interface UserListParams {
   pageSize?: number;
   search?: string;
   role?: UserRole;
-  is_active?: boolean;
+  status?: UserStatus | UserStatus[]; // Filter by one or more statuses
+  is_active?: boolean; // DEPRECATED: Use status instead
   sortBy?: 'full_name' | 'email' | 'created_at' | 'updated_at';
   sortOrder?: 'asc' | 'desc';
 }
@@ -51,15 +72,23 @@ export interface UserBasic {
   email: string;
   full_name: string;
   role: UserRole;
-  is_active: boolean;
+  status: UserStatus;
+  is_active: boolean; // DEPRECATED: Use status instead
   created_at: Date;
   updated_at: Date;
+  deleted_at?: Date | null;
+  // Invite fields (for pending users)
+  invite_token?: string | null;
+  invite_expires_at?: Date | null;
+  invited_by_id?: number | null;
 }
 
 export interface UserWithStats extends UserBasic {
   invoice_count: number;
   last_activity_at: Date | null;
   audit_event_count: number;
+  // For pending users: show who invited them
+  invited_by_name?: string | null;
 }
 
 export interface UserDetailed extends UserBasic {
@@ -92,7 +121,13 @@ export type UserAuditEventType =
   | 'user_password_reset'
   | 'user_email_changed'
   | 'profile_access_granted'
-  | 'profile_access_revoked';
+  | 'profile_access_revoked'
+  | 'user_invited'
+  | 'user_invite_accepted'
+  | 'user_invite_resent'
+  | 'user_soft_deleted'
+  | 'user_restored'
+  | 'user_hard_deleted';
 
 export const USER_AUDIT_EVENT_LABELS: Record<UserAuditEventType, string> = {
   user_created: 'User Created',
@@ -104,6 +139,12 @@ export const USER_AUDIT_EVENT_LABELS: Record<UserAuditEventType, string> = {
   user_email_changed: 'Email Changed',
   profile_access_granted: 'Profile Access Granted',
   profile_access_revoked: 'Profile Access Revoked',
+  user_invited: 'User Invited',
+  user_invite_accepted: 'Invite Accepted',
+  user_invite_resent: 'Invite Resent',
+  user_soft_deleted: 'User Soft Deleted',
+  user_restored: 'User Restored',
+  user_hard_deleted: 'User Permanently Deleted',
 } as const;
 
 export interface UserAuditEvent {

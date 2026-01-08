@@ -140,45 +140,43 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               return `/login?error=EmailMismatch`;
             }
 
-            // Validate and use the invite
-            const invite = await db.userInvite.findUnique({
-              where: { token: pendingInvite.token },
+            // Find the pending user with this invite token
+            const pendingUser = await db.user.findFirst({
+              where: {
+                invite_token: pendingInvite.token,
+                status: 'pending',
+              },
             });
 
-            if (!invite || invite.used_at || invite.expires_at < new Date()) {
+            if (!pendingUser || !pendingUser.invite_expires_at || pendingUser.invite_expires_at < new Date()) {
               cookieStore.delete('pending_invite');
               console.warn('[Auth] Invalid or expired invite during OAuth callback');
               return '/login?error=InviteExpired';
             }
 
-            // Create user from invite in a transaction
-            await db.$transaction(async (tx) => {
-              await tx.user.create({
-                data: {
-                  email: invite.email,
-                  full_name: pendingInvite!.fullName,
-                  role: invite.role,
-                  is_active: true,
-                },
-              });
-
-              await tx.userInvite.update({
-                where: { id: invite.id },
-                data: { used_at: new Date() },
-              });
+            // Activate the user by updating their status
+            await db.user.update({
+              where: { id: pendingUser.id },
+              data: {
+                full_name: pendingInvite.fullName,
+                status: 'active',
+                is_active: true,
+                invite_token: null,
+                invite_expires_at: null,
+              },
             });
 
             // Clear the cookie
             cookieStore.delete('pending_invite');
 
-            console.log(`[Auth] User created from invite: ${invite.email}`);
+            console.log(`[Auth] User activated from invite: ${pendingUser.email}`);
             return true;
           }
 
           // No pending invite - check if user exists
           const existingUser = await db.user.findUnique({
             where: { email: user.email! },
-            select: { id: true, is_active: true },
+            select: { id: true, status: true, is_active: true },
           });
 
           // Only allow pre-existing (invited) users to sign in
@@ -187,8 +185,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             return '/login?error=NotInvited';
           }
 
-          if (!existingUser.is_active) {
-            console.warn(`[Auth] Deactivated user attempted login: ${user.email}`);
+          // Check user status
+          if (existingUser.status === 'pending') {
+            console.warn(`[Auth] Pending user attempted direct login: ${user.email}`);
+            return '/login?error=InvitePending';
+          }
+
+          if (existingUser.status === 'deactivated' || existingUser.status === 'deleted') {
+            console.warn(`[Auth] ${existingUser.status} user attempted login: ${user.email}`);
             return '/login?error=AccountDeactivated';
           }
 
@@ -244,7 +248,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         try {
           const dbUser = await db.user.findUnique({
             where: { id: parseInt(token.sub, 10) },
-            select: { role: true, is_active: true, email: true, full_name: true },
+            select: { role: true, status: true, is_active: true, email: true, full_name: true },
           });
 
           if (!dbUser) {
@@ -252,8 +256,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             return { ...token, error: 'UserNotFound' };
           }
 
-          if (!dbUser.is_active) {
-            // User was deactivated - invalidate token
+          // Check status instead of just is_active
+          if (dbUser.status !== 'active') {
+            // User was deactivated/deleted - invalidate token
             return { ...token, error: 'UserDeactivated' };
           }
 
@@ -338,7 +343,7 @@ export async function isLastSuperAdmin(userId: number): Promise<boolean> {
   const superAdminCount = await db.user.count({
     where: {
       role: 'super_admin',
-      is_active: true,
+      status: 'active', // Use status instead of is_active
     },
   });
 
@@ -350,7 +355,7 @@ export async function isLastSuperAdmin(userId: number): Promise<boolean> {
   const superAdmin = await db.user.findFirst({
     where: {
       role: 'super_admin',
-      is_active: true,
+      status: 'active',
     },
   });
 

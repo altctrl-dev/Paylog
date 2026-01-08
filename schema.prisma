@@ -13,13 +13,22 @@ model User {
   full_name                String
   password_hash            String? // Optional - OAuth users don't have passwords
   role                     String                  @default("standard_user")
-  is_active                Boolean                 @default(true)
+  status                   String                  @default("active") // 'pending' | 'active' | 'deactivated' | 'deleted'
+  is_active                Boolean                 @default(true) // DEPRECATED: Use status instead. Kept for migration compatibility.
   created_at               DateTime                @default(now())
   updated_at               DateTime                @updatedAt
+  deleted_at               DateTime? // Timestamp for soft deletes
   display_name             String?
   display_picture_url      String?
   initials                 String?
   last_password_change     DateTime? // Track for password expiry policy
+  // Invite fields (for status='pending' users)
+  invite_token             String?                 @unique // Token for invite link
+  invite_expires_at        DateTime? // When the invite expires
+  invited_by_id            Int? // User ID who sent the invite
+  invited_by               User?                   @relation("UserInviter", fields: [invited_by_id], references: [id])
+  invitees                 User[]                  @relation("UserInviter")
+  // OAuth accounts
   accounts                 Account[] // OAuth accounts (Microsoft, etc.)
   activity_logs            ActivityLog[]           @relation("ActivityLogger")
   deleted_attachments      InvoiceAttachment[]     @relation("AttachmentDeleter")
@@ -42,10 +51,12 @@ model User {
   notifications            Notification[]          @relation("UserNotifications")
   created_payments         Payment[]               @relation("PaymentCreator")
   approved_payments        Payment[]               @relation("PaymentApprover")
-  sent_invites             UserInvite[]            @relation("UserInvites")
+  sent_invites             UserInvite[]            @relation("UserInvites") // Legacy - will be deprecated
 
-  @@index([role, is_active], map: "idx_users_role_active")
+  @@index([role, status], map: "idx_users_role_status")
+  @@index([status], map: "idx_users_status")
   @@index([role], map: "idx_users_super_admin")
+  @@index([invite_token], map: "idx_users_invite_token")
   @@map("users")
 }
 

@@ -65,7 +65,7 @@ export function PendingInvitesTable({ onInviteAccepted }: PendingInvitesTablePro
 
   async function handleResend(inviteId: string) {
     setActionInProgress(inviteId);
-    const result = await resendInvite(inviteId);
+    const result = await resendInvite(parseInt(inviteId, 10));
 
     if (result.success) {
       toast({
@@ -87,7 +87,7 @@ export function PendingInvitesTable({ onInviteAccepted }: PendingInvitesTablePro
     setActionInProgress(inviteId);
     setRevokeConfirmId(null);
 
-    const result = await revokeInvite(inviteId);
+    const result = await revokeInvite(parseInt(inviteId, 10));
 
     if (result.success) {
       toast({

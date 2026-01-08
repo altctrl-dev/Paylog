@@ -22,6 +22,7 @@ import type {
   ActionResult,
   PasswordResetResult,
   RoleChangeValidation,
+  UserStatus,
 } from '@/lib/types/user-management';
 
 // ============================================================================
@@ -112,6 +113,7 @@ export async function createUser(
         email: user.email,
         full_name: user.full_name,
         role: user.role as 'standard_user' | 'admin' | 'super_admin',
+        status: user.status as UserStatus,
         is_active: user.is_active,
         created_at: user.created_at,
         updated_at: user.updated_at,
@@ -204,6 +206,7 @@ export async function updateUser(
         email: true,
         full_name: true,
         role: true,
+        status: true,
         is_active: true,
         created_at: true,
         updated_at: true,
@@ -248,6 +251,7 @@ export async function updateUser(
         email: updatedUser.email,
         full_name: updatedUser.full_name,
         role: updatedUser.role as 'standard_user' | 'admin' | 'super_admin',
+        status: updatedUser.status as UserStatus,
         is_active: updatedUser.is_active,
         created_at: updatedUser.created_at,
         updated_at: updatedUser.updated_at,
@@ -284,6 +288,7 @@ export async function deactivateUser(id: number): Promise<ActionResult<void>> {
         email: true,
         full_name: true,
         role: true,
+        status: true,
         is_active: true,
       },
     });
@@ -296,11 +301,19 @@ export async function deactivateUser(id: number): Promise<ActionResult<void>> {
       };
     }
 
-    if (!existingUser.is_active) {
+    if (existingUser.status === 'deactivated') {
       return {
         success: false,
         error: 'User is already deactivated',
         code: 'ALREADY_DEACTIVATED',
+      };
+    }
+
+    if (existingUser.status !== 'active') {
+      return {
+        success: false,
+        error: `Cannot deactivate user with status '${existingUser.status}'`,
+        code: 'INVALID_STATUS',
       };
     }
 
@@ -317,7 +330,10 @@ export async function deactivateUser(id: number): Promise<ActionResult<void>> {
     // Deactivate user
     await prisma.user.update({
       where: { id },
-      data: { is_active: false },
+      data: {
+        status: 'deactivated',
+        is_active: false, // Keep deprecated field in sync
+      },
     });
 
     // Log audit event with request metadata
@@ -325,8 +341,8 @@ export async function deactivateUser(id: number): Promise<ActionResult<void>> {
       target_user_id: id,
       actor_user_id: actorId,
       event_type: 'user_deactivated',
-      old_data: { is_active: true },
-      new_data: { is_active: false },
+      old_data: { status: 'active' },
+      new_data: { status: 'deactivated' },
     }, requestMetadata);
 
     return {
@@ -364,6 +380,7 @@ export async function reactivateUser(id: number): Promise<ActionResult<void>> {
         email: true,
         full_name: true,
         role: true,
+        status: true,
         is_active: true,
       },
     });
@@ -376,7 +393,7 @@ export async function reactivateUser(id: number): Promise<ActionResult<void>> {
       };
     }
 
-    if (existingUser.is_active) {
+    if (existingUser.status === 'active') {
       return {
         success: false,
         error: 'User is already active',
@@ -384,10 +401,21 @@ export async function reactivateUser(id: number): Promise<ActionResult<void>> {
       };
     }
 
+    if (existingUser.status !== 'deactivated') {
+      return {
+        success: false,
+        error: `Cannot reactivate user with status '${existingUser.status}'`,
+        code: 'INVALID_STATUS',
+      };
+    }
+
     // Reactivate user
     await prisma.user.update({
       where: { id },
-      data: { is_active: true },
+      data: {
+        status: 'active',
+        is_active: true, // Keep deprecated field in sync
+      },
     });
 
     // Log audit event with request metadata
@@ -395,8 +423,8 @@ export async function reactivateUser(id: number): Promise<ActionResult<void>> {
       target_user_id: id,
       actor_user_id: actorId,
       event_type: 'user_reactivated',
-      old_data: { is_active: false },
-      new_data: { is_active: true },
+      old_data: { status: 'deactivated' },
+      new_data: { status: 'active' },
     }, requestMetadata);
 
     return {
@@ -499,6 +527,7 @@ export async function listUsers(
       pageSize = 20,
       search,
       role,
+      status,
       is_active,
       sortBy = 'full_name',
       sortOrder = 'asc',
@@ -515,7 +544,12 @@ export async function listUsers(
         ],
       }),
       ...(role && { role }),
-      ...(is_active !== undefined && { is_active }),
+      // Support status filter (single or array)
+      ...(status && {
+        status: Array.isArray(status) ? { in: status } : status,
+      }),
+      // Support legacy is_active filter
+      ...(is_active !== undefined && !status && { is_active }),
     };
 
     // Get total count
@@ -529,9 +563,17 @@ export async function listUsers(
         email: true,
         full_name: true,
         role: true,
+        status: true,
         is_active: true,
         created_at: true,
         updated_at: true,
+        deleted_at: true,
+        invite_token: true,
+        invite_expires_at: true,
+        invited_by_id: true,
+        invited_by: {
+          select: { full_name: true },
+        },
         _count: {
           select: {
             created_invoices: true,
@@ -560,12 +602,18 @@ export async function listUsers(
       email: user.email,
       full_name: user.full_name,
       role: user.role as 'standard_user' | 'admin' | 'super_admin',
+      status: user.status as UserStatus,
       is_active: user.is_active,
       created_at: user.created_at,
       updated_at: user.updated_at,
+      deleted_at: user.deleted_at,
+      invite_token: user.invite_token,
+      invite_expires_at: user.invite_expires_at,
+      invited_by_id: user.invited_by_id,
       invoice_count: user._count.created_invoices,
       last_activity_at: user.audit_history[0]?.created_at || null,
       audit_event_count: user._count.audit_history,
+      invited_by_name: user.invited_by?.full_name || null,
     }));
 
     const totalPages = Math.ceil(total / pageSize);
@@ -606,9 +654,14 @@ export async function getUserById(id: number): Promise<ActionResult<UserDetailed
         email: true,
         full_name: true,
         role: true,
+        status: true,
         is_active: true,
         created_at: true,
         updated_at: true,
+        deleted_at: true,
+        invite_token: true,
+        invite_expires_at: true,
+        invited_by_id: true,
         _count: {
           select: {
             created_invoices: true,
@@ -636,9 +689,14 @@ export async function getUserById(id: number): Promise<ActionResult<UserDetailed
       email: user.email,
       full_name: user.full_name,
       role: user.role as 'standard_user' | 'admin' | 'super_admin',
+      status: user.status as UserStatus,
       is_active: user.is_active,
       created_at: user.created_at,
       updated_at: user.updated_at,
+      deleted_at: user.deleted_at,
+      invite_token: user.invite_token,
+      invite_expires_at: user.invite_expires_at,
+      invited_by_id: user.invited_by_id,
       created_invoices_count: user._count.created_invoices,
       comments_count: user._count.comments,
       attachments_count: user._count.uploaded_attachments,
@@ -750,6 +808,258 @@ export async function checkIsLastSuperAdmin(userId: number): Promise<ActionResul
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to check admin status',
+    };
+  }
+}
+
+// ============================================================================
+// Check User Activity Count
+// ============================================================================
+
+/**
+ * Check if a user has any associated activities
+ * Used to determine if soft delete or hard delete should be used
+ */
+export async function checkUserActivityCount(userId: number): Promise<ActionResult<{
+  hasActivity: boolean;
+  invoiceCount: number;
+  commentCount: number;
+  attachmentCount: number;
+  totalCount: number;
+}>> {
+  try {
+    await requireSuperAdmin();
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        _count: {
+          select: {
+            created_invoices: true,
+            comments: true,
+            uploaded_attachments: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      return {
+        success: false,
+        error: 'User not found',
+        code: 'USER_NOT_FOUND',
+      };
+    }
+
+    const totalCount =
+      user._count.created_invoices +
+      user._count.comments +
+      user._count.uploaded_attachments;
+
+    return {
+      success: true,
+      data: {
+        hasActivity: totalCount > 0,
+        invoiceCount: user._count.created_invoices,
+        commentCount: user._count.comments,
+        attachmentCount: user._count.uploaded_attachments,
+        totalCount,
+      },
+    };
+  } catch (error) {
+    console.error('Failed to check user activity:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to check user activity',
+    };
+  }
+}
+
+// ============================================================================
+// Delete User (Soft or Hard)
+// ============================================================================
+
+/**
+ * Delete a user - soft delete if they have activities, hard delete otherwise
+ * Pending users (invites) are always hard deleted
+ */
+export async function deleteUser(userId: number): Promise<ActionResult<{
+  deleteType: 'soft' | 'hard';
+}>> {
+  try {
+    const requestMetadata = await getRequestMetadata();
+    await requireSuperAdmin();
+    const actorId = await getCurrentUserId();
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        full_name: true,
+        role: true,
+        status: true,
+        _count: {
+          select: {
+            created_invoices: true,
+            comments: true,
+            uploaded_attachments: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      return {
+        success: false,
+        error: 'User not found',
+        code: 'USER_NOT_FOUND',
+      };
+    }
+
+    // Cannot delete users already deleted
+    if (user.status === 'deleted') {
+      return {
+        success: false,
+        error: 'User is already deleted',
+        code: 'ALREADY_DELETED',
+      };
+    }
+
+    // Check if this is the last super admin
+    const isLast = await isLastSuperAdmin(userId);
+    if (isLast) {
+      return {
+        success: false,
+        error: 'Cannot delete the last super admin',
+        code: 'LAST_SUPER_ADMIN',
+      };
+    }
+
+    const totalActivity =
+      user._count.created_invoices +
+      user._count.comments +
+      user._count.uploaded_attachments;
+
+    // Pending users and users with no activity get hard deleted
+    if (user.status === 'pending' || totalActivity === 0) {
+      // Hard delete
+      await prisma.user.delete({
+        where: { id: userId },
+      });
+
+      // Note: Can't log audit for hard deleted user
+
+      return {
+        success: true,
+        data: { deleteType: 'hard' },
+        message: `User ${user.full_name} permanently deleted`,
+      };
+    }
+
+    // Soft delete - user has activity
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        status: 'deleted',
+        deleted_at: new Date(),
+        is_active: false,
+      },
+    });
+
+    // Log audit event
+    await logUserAudit({
+      target_user_id: userId,
+      actor_user_id: actorId,
+      event_type: 'user_soft_deleted',
+      old_data: { status: user.status },
+      new_data: { status: 'deleted', deleted_at: new Date().toISOString() },
+    }, requestMetadata);
+
+    return {
+      success: true,
+      data: { deleteType: 'soft' },
+      message: `User ${user.full_name} soft deleted (can be restored)`,
+    };
+  } catch (error) {
+    console.error('Failed to delete user:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to delete user',
+    };
+  }
+}
+
+// ============================================================================
+// Restore Soft-Deleted User
+// ============================================================================
+
+/**
+ * Restore a soft-deleted user back to active status
+ */
+export async function restoreUser(userId: number): Promise<ActionResult<void>> {
+  try {
+    const requestMetadata = await getRequestMetadata();
+    await requireSuperAdmin();
+    const actorId = await getCurrentUserId();
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        full_name: true,
+        status: true,
+        deleted_at: true,
+      },
+    });
+
+    if (!user) {
+      return {
+        success: false,
+        error: 'User not found',
+        code: 'USER_NOT_FOUND',
+      };
+    }
+
+    if (user.status !== 'deleted') {
+      return {
+        success: false,
+        error: 'User is not deleted',
+        code: 'NOT_DELETED',
+      };
+    }
+
+    // Restore user to active status
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        status: 'active',
+        deleted_at: null,
+        is_active: true,
+      },
+    });
+
+    // Log audit event
+    await logUserAudit({
+      target_user_id: userId,
+      actor_user_id: actorId,
+      event_type: 'user_restored',
+      old_data: { status: 'deleted', deleted_at: user.deleted_at?.toISOString() },
+      new_data: { status: 'active', deleted_at: null },
+    }, requestMetadata);
+
+    return {
+      success: true,
+      data: undefined,
+      message: `User ${user.full_name} restored successfully`,
+    };
+  } catch (error) {
+    console.error('Failed to restore user:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to restore user',
     };
   }
 }
