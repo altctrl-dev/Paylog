@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-12-26 22:51:19 IST",
+  "timestamp": "2026-01-10 00:02:03 IST",
   "agents_seen": [
     "Main Agent (Direct Work)"
   ],
@@ -9,17 +9,11 @@
   "open_questions": [],
   "owned_artifacts": [
     "OMPACTION.md",
-    "app/(dashboard)/settings/components/profile-tab.tsx",
     "app/globals.css",
-    "app/layout.tsx",
     "compaction-summary.json",
-    "components/invoices-v2/smart-vendor-combobox.tsx",
-    "components/invoices-v2/vendor-text-autocomplete.tsx",
-    "components/layout/dashboard-layout-content.tsx",
-    "components/master-data/category-autocomplete.tsx",
-    "components/master-data/entity-form-panel.tsx",
-    "archived/",
-    "components/v3/layout/global-search.tsx"
+    "components/users/user-detail-panel-v3.tsx",
+    "logs/context-metrics.jsonl",
+    ".pnpm-approved-builds"
   ],
   "contracts_touched": [],
   "files_touched": [
@@ -29,17 +23,7 @@
       "anchors": []
     },
     {
-      "path": "app/(dashboard)/settings/components/profile-tab.tsx",
-      "reason": "modified",
-      "anchors": []
-    },
-    {
       "path": "app/globals.css",
-      "reason": "modified",
-      "anchors": []
-    },
-    {
-      "path": "app/layout.tsx",
       "reason": "modified",
       "anchors": []
     },
@@ -49,37 +33,17 @@
       "anchors": []
     },
     {
-      "path": "components/invoices-v2/smart-vendor-combobox.tsx",
+      "path": "components/users/user-detail-panel-v3.tsx",
       "reason": "modified",
       "anchors": []
     },
     {
-      "path": "components/invoices-v2/vendor-text-autocomplete.tsx",
+      "path": "logs/context-metrics.jsonl",
       "reason": "modified",
       "anchors": []
     },
     {
-      "path": "components/layout/dashboard-layout-content.tsx",
-      "reason": "modified",
-      "anchors": []
-    },
-    {
-      "path": "components/master-data/category-autocomplete.tsx",
-      "reason": "modified",
-      "anchors": []
-    },
-    {
-      "path": "components/master-data/entity-form-panel.tsx",
-      "reason": "modified",
-      "anchors": []
-    },
-    {
-      "path": "archived/",
-      "reason": "created",
-      "anchors": []
-    },
-    {
-      "path": "components/v3/layout/global-search.tsx",
+      "path": ".pnpm-approved-builds",
       "reason": "created",
       "anchors": []
     }

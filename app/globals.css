@@ -153,70 +153,70 @@
   /* Modern Theme - Light Mode */
   .theme-modern {
     /* Core Colors - Light */
-    --background: 0 0% 100%;
-    --foreground: 222 47% 11%;
-    --surface: 0 0% 100%;
-    --surface-foreground: 222 47% 11%;
-    --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --background: 0 0% 100%; /* White */
+    --foreground: 222 47% 11%; /* Dark Navy Blue */
+    --surface: 0 0% 100%; /* White */
+    --surface-foreground: 222 47% 11%; /* Dark Navy Blue */
+    --card: 0 0% 100%; /* White */
+    --card-foreground: 222 47% 11%; /* Dark Navy Blue */
+    --popover: 0 0% 100%; /* White */
+    --popover-foreground: 222 47% 11%; /* Dark Navy Blue */
 
     /* Navbar - Light */
-    --navbar: 0 0% 100%;
-    --navbar-foreground: 222 47% 11%;
-    --navbar-border: 220 13% 91%;
+    --navbar: 0 0% 100%; /* White */
+    --navbar-foreground: 222 47% 11%; /* Dark Navy Blue */
+    --navbar-border: 220 13% 91%; /* Light Gray */
     --navbar-alpha: 0.85;
 
     /* Sidebar - Light */
-    --sidebar: 0 0% 100%;
-    --sidebar-foreground: 222 47% 11%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-muted: 220 14% 96%;
-    --sidebar-hover: 220 14% 93%;
-    --sidebar-hover-foreground: 222 47% 11%;
-    --sidebar-active: 217 91% 95%;
-    --sidebar-active-foreground: 217 91% 45%;
+    --sidebar: 0 0% 100%; /* White */
+    --sidebar-foreground: 222 47% 11%; /* Dark Navy Blue */
+    --sidebar-border: 220 13% 91%; /* Light Gray */
+    --sidebar-muted: 220 14% 96%; /* Very Light Gray */
+    --sidebar-hover: 220 14% 93%; /* Light Gray */
+    --sidebar-hover-foreground: 222 47% 11%; /* Dark Navy Blue */
+    --sidebar-active: 217 91% 95%; /* Very Light Blue */
+    --sidebar-active-foreground: 217 91% 45%; /* Medium Blue */
 
     /* Primary - Blue for active states */
-    --primary: 217 91% 60%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 217 91% 60%; /* Bright Blue */
+    --primary-foreground: 0 0% 100%; /* White */
 
     /* Secondary */
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 222 47% 11%;
+    --secondary: 220 14% 96%; /* Very Light Gray */
+    --secondary-foreground: 222 47% 11%; /* Dark Navy Blue */
 
     /* Muted */
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 9% 46%;
+    --muted: 220 14% 96%; /* Very Light Gray */
+    --muted-foreground: 220 9% 46%; /* Medium Gray */
 
     /* Accent - Purple for AI features */
-    --accent: 263 70% 95%;
-    --accent-foreground: 263 70% 50%;
+    --accent: 263 70% 95%; /* Very Light Purple */
+    --accent-foreground: 263 70% 50%; /* Purple */
 
     /* Semantic Status Colors - Same in both themes */
-    --status-urgent: 0 100% 75%;
-    --status-warning: 27 96% 61%;
-    --status-success: 142 69% 58%;
-    --status-info: 217 91% 68%;
-    --status-accent: 263 70% 76%;
+    --status-urgent: 0 100% 75%; /* Light Red / Pink */
+    --status-warning: 27 96% 61%; /* Orange */
+    --status-success: 142 69% 58%; /* Green */
+    --status-info: 217 91% 68%; /* Light Blue */
+    --status-accent: 263 70% 76%; /* Light Purple */
 
     /* Borders & Inputs */
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 217 91% 60%;
+    --border: 220 13% 91%; /* Light Gray */
+    --input: 220 13% 91%; /* Light Gray */
+    --ring: 217 91% 60%; /* Bright Blue */
 
     /* Destructive */
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%; /* Red */
+    --destructive-foreground: 0 0% 100%; /* White */
 
     /* Info/Warning/Success */
-    --info: 217 91% 60%;
-    --info-foreground: 0 0% 100%;
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
-    --success: 142 72% 40%;
-    --success-foreground: 0 0% 100%;
+    --info: 217 91% 60%; /* Bright Blue */
+    --info-foreground: 0 0% 100%; /* White */
+    --warning: 38 92% 50%; /* Amber / Orange */
+    --warning-foreground: 0 0% 100%; /* White */
+    --success: 142 72% 40%; /* Dark Green */
+    --success-foreground: 0 0% 100%; /* White */
 
     /* Modern Layout Variables */
     --sidebar-width-expanded: 256px;
@@ -240,63 +240,63 @@
   /* Modern Theme - Dark Mode (Default) */
   .theme-modern.dark {
     /* Core Colors - Dark */
-    --background: 224 71% 4%;
-    --foreground: 0 0% 100%;
-    --surface: 222 47% 11%;
-    --surface-foreground: 0 0% 100%;
-    --card: 222 47% 11%;
-    --card-foreground: 0 0% 100%;
-    --popover: 222 47% 11%;
-    --popover-foreground: 0 0% 100%;
+    --background: 224 71% 4%; /* Very Dark Navy (Almost Black) */
+    --foreground: 0 0% 100%; /* White */
+    --surface: 222 47% 11%; /* Dark Navy Blue */
+    --surface-foreground: 0 0% 100%; /* White */
+    --card: 222 47% 11%; /* Dark Navy Blue */
+    --card-foreground: 0 0% 100%; /* White */
+    --popover: 222 47% 11%; /* Dark Navy Blue */
+    --popover-foreground: 0 0% 100%; /* White */
 
     /* Navbar - Dark */
-    --navbar: 222 47% 7%;
-    --navbar-foreground: 0 0% 100%;
-    --navbar-border: 217 19% 17%;
+    --navbar: 222 47% 7%; /* Very Dark Navy */
+    --navbar-foreground: 0 0% 100%; /* White */
+    --navbar-border: 217 19% 17%; /* Dark Gray-Blue */
     --navbar-alpha: 0.85;
 
     /* Sidebar - Dark */
-    --sidebar: 224 71% 4%;
-    --sidebar-foreground: 210 20% 98%;
-    --sidebar-border: 217 19% 17%;
-    --sidebar-muted: 217 19% 17%;
-    --sidebar-hover: 217 19% 20%;
-    --sidebar-hover-foreground: 0 0% 100%;
-    --sidebar-active: 217 91% 15%;
-    --sidebar-active-foreground: 217 91% 68%;
+    --sidebar: 224 71% 4%; /* Very Dark Navy (Almost Black) */
+    --sidebar-foreground: 210 20% 98%; /* Off-White */
+    --sidebar-border: 217 19% 17%; /* Dark Gray-Blue */
+    --sidebar-muted: 217 19% 17%; /* Dark Gray-Blue */
+    --sidebar-hover: 217 19% 20%; /* Slightly Lighter Dark Gray-Blue */
+    --sidebar-hover-foreground: 0 0% 100%; /* White */
+    --sidebar-active: 217 91% 15%; /* Very Dark Blue */
+    --sidebar-active-foreground: 217 91% 68%; /* Light Blue */
 
     /* Primary - Blue for active states */
-    --primary: 217 91% 60%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 217 91% 60%; /* Bright Blue */
+    --primary-foreground: 0 0% 100%; /* White */
 
     /* Secondary */
-    --secondary: 217 19% 17%;
-    --secondary-foreground: 210 20% 98%;
+    --secondary: 217 19% 17%; /* Dark Gray-Blue */
+    --secondary-foreground: 210 20% 98%; /* Off-White */
 
     /* Muted */
-    --muted: 217 19% 17%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 217 19% 17%; /* Dark Gray-Blue */
+    --muted-foreground: 215 20% 65%; /* Medium Gray */
 
     /* Accent - Purple for AI features */
-    --accent: 263 70% 20%;
-    --accent-foreground: 263 70% 76%;
+    --accent: 263 70% 20%; /* Dark Purple */
+    --accent-foreground: 263 70% 76%; /* Light Purple */
 
     /* Borders & Inputs */
-    --border: 217 19% 17%;
-    --input: 217 19% 17%;
-    --ring: 217 91% 60%;
+    --border: 217 19% 17%; /* Dark Gray-Blue */
+    --input: 217 19% 17%; /* Dark Gray-Blue */
+    --ring: 217 91% 60%; /* Bright Blue */
 
     /* Destructive */
-    --destructive: 0 72% 50%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 0 72% 50%; /* Dark Red */
+    --destructive-foreground: 0 0% 100%; /* White */
 
     /* Info/Warning/Success */
-    --info: 217 91% 68%;
-    --info-foreground: 0 0% 100%;
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
-    --success: 142 72% 45%;
-    --success-foreground: 0 0% 100%;
+    --info: 217 91% 68%; /* Light Blue */
+    --info-foreground: 0 0% 100%; /* White */
+    --warning: 38 92% 50%; /* Amber / Orange */
+    --warning-foreground: 0 0% 100%; /* White */
+    --success: 142 72% 45%; /* Medium Green */
+    --success-foreground: 0 0% 100%; /* White */
 
     /* Shadows - Dark Mode */
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
