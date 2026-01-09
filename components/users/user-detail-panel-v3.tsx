@@ -188,9 +188,9 @@ export function UserDetailPanelV3({
       return actions;
     }
 
-    // Active users: Edit + Password Reset
+    // Active users: Edit + Password Reset (super_admin only)
     if (user.status === 'active') {
-      return [
+      const actions: ActionBarAction[] = [
         {
           id: 'edit',
           icon: <Pencil />,
@@ -198,14 +198,20 @@ export function UserDetailPanelV3({
           onClick: onEdit,
           disabled: isDeactivating,
         },
-        {
+      ];
+
+      // Password reset only for super_admin (emergency access feature)
+      if (user.role === 'super_admin') {
+        actions.push({
           id: 'password-reset',
           icon: <KeyRound />,
           label: 'Reset Password',
           onClick: onPasswordReset,
           disabled: isDeactivating,
-        },
-      ];
+        });
+      }
+
+      return actions;
     }
 
     // Deactivated users: Edit only
