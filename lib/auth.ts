@@ -132,15 +132,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
           // If there's a pending invite, process it
           if (pendingInvite) {
-            console.log(`[Auth] Processing pending invite for ${pendingInvite.email}, token: ${pendingInvite.token.substring(0, 8)}...`);
-            console.log(`[Auth] Microsoft OAuth returned email: ${user.email}`);
-            console.log(`[Auth] Invited email: ${pendingInvite.email}`);
-
             // Verify OAuth email matches invite email
             if (user.email?.toLowerCase() !== pendingInvite.email.toLowerCase()) {
-              // Clear the cookie
               cookieStore.delete('pending_invite');
-              console.warn(`[Auth] OAuth email mismatch! Microsoft: "${user.email}" vs Invited: "${pendingInvite.email}"`);
               return `/login?error=EmailMismatch`;
             }
 
@@ -152,11 +146,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               },
             });
 
-            console.log(`[Auth] Found pending user:`, pendingUser ? { id: pendingUser.id, email: pendingUser.email } : 'NOT FOUND');
-
             if (!pendingUser || !pendingUser.invite_expires_at || pendingUser.invite_expires_at < new Date()) {
               cookieStore.delete('pending_invite');
-              console.warn('[Auth] Invalid or expired invite during OAuth callback');
               return '/login?error=InviteExpired';
             }
 
@@ -174,8 +165,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
             // Clear the cookie
             cookieStore.delete('pending_invite');
-
-            console.log(`[Auth] User activated from invite: ${pendingUser.email}`);
             return true;
           }
 
@@ -185,29 +174,21 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             select: { id: true, status: true, is_active: true },
           });
 
-          console.log(`[Auth] OAuth login attempt for ${user.email}, existing user:`, existingUser);
-
           // Only allow pre-existing (invited) users to sign in
           if (!existingUser) {
-            console.warn(`[Auth] Unauthorized login attempt: ${user.email} not found in system`);
             return '/login?error=NotInvited';
           }
 
           // Check user status
           if (existingUser.status === 'pending') {
-            // User is pending but no invite cookie - maybe they need to go through invite flow again
-            console.warn(`[Auth] Pending user attempted direct login without invite cookie: ${user.email}`);
-            console.warn(`[Auth] Cookie was present: ${!!pendingInviteCookie}, parsed: ${!!pendingInvite}`);
             return '/login?error=InvitePending';
           }
 
           if (existingUser.status === 'deactivated' || existingUser.status === 'deleted') {
-            console.warn(`[Auth] ${existingUser.status} user attempted login: ${user.email}`);
             return '/login?error=AccountDeactivated';
           }
 
           // User exists and is active - allow sign in
-          console.log(`[Auth] User ${user.email} login allowed, status: ${existingUser.status}`);
           return true;
         } catch (error) {
           console.error('[Auth] Error in signIn callback:', error);
