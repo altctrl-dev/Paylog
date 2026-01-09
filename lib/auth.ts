@@ -133,12 +133,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           // If there's a pending invite, process it
           if (pendingInvite) {
             console.log(`[Auth] Processing pending invite for ${pendingInvite.email}, token: ${pendingInvite.token.substring(0, 8)}...`);
+            console.log(`[Auth] Microsoft OAuth returned email: ${user.email}`);
+            console.log(`[Auth] Invited email: ${pendingInvite.email}`);
 
             // Verify OAuth email matches invite email
             if (user.email?.toLowerCase() !== pendingInvite.email.toLowerCase()) {
               // Clear the cookie
               cookieStore.delete('pending_invite');
-              console.warn(`[Auth] OAuth email mismatch: ${user.email} vs invited ${pendingInvite.email}`);
+              console.warn(`[Auth] OAuth email mismatch! Microsoft: "${user.email}" vs Invited: "${pendingInvite.email}"`);
               return `/login?error=EmailMismatch`;
             }
 
