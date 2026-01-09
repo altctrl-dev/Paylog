@@ -5,7 +5,7 @@
 
 export { default as UserStatusBadge } from './user-status-badge';
 export { default as RoleSelector } from './role-selector';
-export { PasswordResetDialog } from './password-reset-dialog';
+// PasswordResetDialog removed - super admins set their own emergency passwords via /reset-password
 export { LastSuperAdminWarningDialog } from './last-super-admin-warning-dialog';
 export { RoleChangeConfirmationDialog } from './role-change-confirmation-dialog';
 export { UserCreatedConfirmationDialog } from './user-created-confirmation-dialog';

@@ -48,7 +48,6 @@ export function UserPanelRendererGlobal({
           onClose={onClose}
           userId={props.userId as number}
           onEdit={props.onEdit as () => void}
-          onPasswordReset={props.onPasswordReset as () => void}
           onResendInvite={props.onResendInvite as (() => void) | undefined}
           onDeleteUser={props.onDeleteUser as (() => void) | undefined}
           onRestoreUser={props.onRestoreUser as (() => void) | undefined}

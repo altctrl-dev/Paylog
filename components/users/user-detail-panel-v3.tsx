@@ -28,7 +28,7 @@ import {
 } from '@/components/panels/shared';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Pencil, KeyRound, Ban, CheckCircle, Loader2, AlertCircle, Mail, Trash2, RotateCcw } from 'lucide-react';
+import { Pencil, Ban, CheckCircle, Loader2, AlertCircle, Mail, Trash2, RotateCcw } from 'lucide-react';
 import type { PanelConfig } from '@/types/panel';
 
 interface UserDetailPanelV3Props {
@@ -36,7 +36,6 @@ interface UserDetailPanelV3Props {
   userId: number;
   onClose: () => void;
   onEdit: () => void;
-  onPasswordReset: () => void;
   onResendInvite?: () => void;
   onDeleteUser?: () => void;
   onRestoreUser?: () => void;
@@ -86,7 +85,6 @@ export function UserDetailPanelV3({
   userId,
   onClose,
   onEdit,
-  onPasswordReset,
   onResendInvite,
   onDeleteUser,
   onRestoreUser,
@@ -188,9 +186,9 @@ export function UserDetailPanelV3({
       return actions;
     }
 
-    // Active users: Edit + Password Reset (super_admin only)
+    // Active users: Edit only
     if (user.status === 'active') {
-      const actions: ActionBarAction[] = [
+      return [
         {
           id: 'edit',
           icon: <Pencil />,
@@ -199,19 +197,6 @@ export function UserDetailPanelV3({
           disabled: isDeactivating,
         },
       ];
-
-      // Password reset only for super_admin (emergency access feature)
-      if (user.role === 'super_admin') {
-        actions.push({
-          id: 'password-reset',
-          icon: <KeyRound />,
-          label: 'Reset Password',
-          onClick: onPasswordReset,
-          disabled: isDeactivating,
-        });
-      }
-
-      return actions;
     }
 
     // Deactivated users: Edit only
@@ -241,7 +226,7 @@ export function UserDetailPanelV3({
     }
 
     return [];
-  }, [user, isDeactivating, onEdit, onPasswordReset, onResendInvite, onRestoreUser]);
+  }, [user, isDeactivating, onEdit, onResendInvite, onRestoreUser]);
 
   const secondaryActions: ActionBarAction[] = React.useMemo(() => {
     if (!user) return [];

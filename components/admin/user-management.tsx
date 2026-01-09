@@ -19,7 +19,6 @@ import type { UserWithStats } from '@/lib/types/user-management';
 import { listUsers, deleteUser, restoreUser } from '@/lib/actions/user-management';
 import { resendInvite } from '@/app/actions/invites';
 import { UsersDataTable } from '@/components/users';
-import { PasswordResetDialog } from '@/components/users/password-reset-dialog';
 import { Button } from '@/components/ui/button';
 import { Plus, Loader2 } from 'lucide-react';
 import { usePanel } from '@/hooks/use-panel';
@@ -40,10 +39,6 @@ export default function UserManagement() {
   const [users, setUsers] = useState<UserWithStats[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Password reset dialog state
-  const [passwordResetUserId, setPasswordResetUserId] = useState<number | null>(null);
-  const [passwordResetUserName, setPasswordResetUserName] = useState<string>('');
 
   // Delete confirmation dialog state
   const [deleteConfirmUser, setDeleteConfirmUser] = useState<UserWithStats | null>(null);
@@ -118,14 +113,6 @@ export default function UserManagement() {
       {
         userId,
         onEdit: () => handleEditUser(userId),
-        onPasswordReset: () => {
-          // Find user name for password reset dialog
-          const user = users.find(u => u.id === userId);
-          if (user) {
-            setPasswordResetUserId(userId);
-            setPasswordResetUserName(user.full_name);
-          }
-        },
         onResendInvite: () => handleResendInvite(userId),
         onDeleteUser: () => handleDeleteUser(userId),
         onRestoreUser: () => handleRestoreUser(userId),
@@ -278,20 +265,6 @@ export default function UserManagement() {
       />
 
       {/* Panels are rendered globally via PanelProvider */}
-
-      {/* Password Reset Dialog - Renders as modal on top of panels */}
-      <PasswordResetDialog
-        userId={passwordResetUserId || 0}
-        userName={passwordResetUserName}
-        open={passwordResetUserId !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setPasswordResetUserId(null);
-            setPasswordResetUserName('');
-          }
-        }}
-        onSuccess={handleRefreshData}
-      />
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!deleteConfirmUser} onOpenChange={(open) => !open && setDeleteConfirmUser(null)}>

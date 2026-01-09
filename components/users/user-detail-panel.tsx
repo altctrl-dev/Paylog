@@ -8,7 +8,7 @@ import { PanelLevel } from '@/components/panels/panel-level';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Pencil, KeyRound, Ban, CheckCircle, Loader2 } from 'lucide-react';
+import { Pencil, Ban, CheckCircle, Loader2 } from 'lucide-react';
 import type { PanelConfig } from '@/types/panel';
 import { PANEL_Z_INDEX } from '@/types/panel';
 
@@ -16,7 +16,6 @@ interface UserDetailPanelProps {
   userId: number;
   onClose: () => void;
   onEdit: () => void;
-  onPasswordReset: () => void;
   onRefresh?: () => void;
 }
 
@@ -24,7 +23,6 @@ export function UserDetailPanel({
   userId,
   onClose,
   onEdit,
-  onPasswordReset,
   onRefresh,
 }: UserDetailPanelProps) {
   const [user, setUser] = useState<UserDetailed | null>(null);
@@ -206,16 +204,6 @@ export function UserDetailPanel({
               >
                 <Pencil className="h-4 w-4 mr-2" />
                 Edit User
-              </Button>
-
-              <Button
-                variant="outline"
-                className="w-full justify-start"
-                onClick={onPasswordReset}
-                disabled={!user.is_active || isDeactivating}
-              >
-                <KeyRound className="h-4 w-4 mr-2" />
-                Reset Password
               </Button>
 
               <Button
