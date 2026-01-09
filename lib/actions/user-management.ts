@@ -20,7 +20,6 @@ import type {
   UserDetailed,
   UserListResponse,
   ActionResult,
-  PasswordResetResult,
   RoleChangeValidation,
   UserStatus,
 } from '@/lib/types/user-management';
@@ -437,76 +436,6 @@ export async function reactivateUser(id: number): Promise<ActionResult<void>> {
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to reactivate user',
-    };
-  }
-}
-
-// ============================================================================
-// Reset User Password
-// ============================================================================
-
-export async function resetUserPassword(id: number): Promise<ActionResult<PasswordResetResult>> {
-  try {
-    // Extract metadata at action boundary BEFORE any database/caching operations
-    const requestMetadata = await getRequestMetadata();
-
-    // Permission check
-    await requireSuperAdmin();
-    const actorId = await getCurrentUserId();
-
-    // Get existing user (select only needed fields)
-    const existingUser = await prisma.user.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        email: true,
-        full_name: true,
-      },
-    });
-
-    if (!existingUser) {
-      return {
-        success: false,
-        error: 'User not found',
-        code: 'USER_NOT_FOUND',
-      };
-    }
-
-    // Generate new password
-    const temporaryPassword = generateMemorablePassword();
-    const password_hash = await hash(temporaryPassword, 12);
-
-    // Update password
-    await prisma.user.update({
-      where: { id },
-      data: { password_hash },
-    });
-
-    // Log audit event with request metadata
-    await logUserAudit({
-      target_user_id: id,
-      actor_user_id: actorId,
-      event_type: 'user_password_reset',
-      new_data: { reset_by: actorId },
-    }, requestMetadata);
-
-    // TODO: Send password reset email (Sprint 5 integration)
-    // await sendPasswordResetEmail(existingUser.email, existingUser.full_name, temporaryPassword);
-
-    return {
-      success: true,
-      data: {
-        success: true,
-        temporary_password: temporaryPassword,
-        email_sent: false, // Will be true when email integration is complete
-      },
-      message: `Password reset for ${existingUser.full_name}. Temporary password: ${temporaryPassword}`,
-    };
-  } catch (error) {
-    console.error('Failed to reset password:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to reset password',
     };
   }
 }

@@ -219,17 +219,6 @@ export interface RoleChangeValidation {
 }
 
 // ============================================================================
-// Password Reset Types
-// ============================================================================
-
-export interface PasswordResetResult {
-  success: boolean;
-  temporary_password?: string;
-  email_sent: boolean;
-  error?: string;
-}
-
-// ============================================================================
 // Server Action Return Types
 // ============================================================================
 
