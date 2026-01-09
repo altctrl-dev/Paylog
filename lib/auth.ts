@@ -132,6 +132,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
           // If there's a pending invite, process it
           if (pendingInvite) {
+            console.log(`[Auth] Processing pending invite for ${pendingInvite.email}, token: ${pendingInvite.token.substring(0, 8)}...`);
+
             // Verify OAuth email matches invite email
             if (user.email?.toLowerCase() !== pendingInvite.email.toLowerCase()) {
               // Clear the cookie
@@ -147,6 +149,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 status: 'pending',
               },
             });
+
+            console.log(`[Auth] Found pending user:`, pendingUser ? { id: pendingUser.id, email: pendingUser.email } : 'NOT FOUND');
 
             if (!pendingUser || !pendingUser.invite_expires_at || pendingUser.invite_expires_at < new Date()) {
               cookieStore.delete('pending_invite');
@@ -179,6 +183,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             select: { id: true, status: true, is_active: true },
           });
 
+          console.log(`[Auth] OAuth login attempt for ${user.email}, existing user:`, existingUser);
+
           // Only allow pre-existing (invited) users to sign in
           if (!existingUser) {
             console.warn(`[Auth] Unauthorized login attempt: ${user.email} not found in system`);
@@ -187,7 +193,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
           // Check user status
           if (existingUser.status === 'pending') {
-            console.warn(`[Auth] Pending user attempted direct login: ${user.email}`);
+            // User is pending but no invite cookie - maybe they need to go through invite flow again
+            console.warn(`[Auth] Pending user attempted direct login without invite cookie: ${user.email}`);
+            console.warn(`[Auth] Cookie was present: ${!!pendingInviteCookie}, parsed: ${!!pendingInvite}`);
             return '/login?error=InvitePending';
           }
 
@@ -197,6 +205,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           }
 
           // User exists and is active - allow sign in
+          console.log(`[Auth] User ${user.email} login allowed, status: ${existingUser.status}`);
           return true;
         } catch (error) {
           console.error('[Auth] Error in signIn callback:', error);
