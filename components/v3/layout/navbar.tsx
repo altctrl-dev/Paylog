@@ -454,7 +454,7 @@ export function Navbar({ user, onOpenCommandPalette, isCollapsed = false }: Navb
   }, [onOpenCommandPalette]);
 
   return (
-    <header className="sticky top-0 z-30 h-16 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4">
+    <header className="sticky top-0 z-30 h-16 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 relative">
       {/* Mobile Layout */}
       <div className="flex md:hidden h-full items-center gap-3">
         <Button
@@ -476,14 +476,14 @@ export function Navbar({ user, onOpenCommandPalette, isCollapsed = false }: Navb
         </div>
       </div>
 
-      {/* Desktop Layout - with centering wrapper to match page content alignment */}
+      {/* Desktop Layout - Left side with centering wrapper */}
       <div
         className={cn(
           'hidden md:block h-full mx-auto',
           isCollapsed ? 'max-w-[1500px]' : 'max-w-[1350px]'
         )}
       >
-        <div className="flex h-full items-center justify-between">
+        <div className="flex h-full items-center">
           {/* Left: Logo + Search */}
           <div className={cn('flex items-center', isCollapsed ? 'gap-3' : 'gap-0')}>
             {/* Logo - Only when sidebar is collapsed */}
@@ -500,16 +500,16 @@ export function Navbar({ user, onOpenCommandPalette, isCollapsed = false }: Navb
             {/* Search Bar */}
             <SearchBar onOpenCommandPalette={onOpenCommandPalette} />
           </div>
-
-          {/* Right: Actions */}
-          <div className="flex items-center gap-2">
-            <SyncButton />
-            <QuickActionsMenu invoiceCreationMode={invoiceCreationMode} />
-            <ThemeToggle />
-            <NotificationPanel />
-            <UserProfileMenu user={user} />
-          </div>
         </div>
+      </div>
+
+      {/* Desktop: Right side - fixed to right edge, never moves */}
+      <div className="hidden md:flex items-center gap-2 absolute right-4 top-0 h-full">
+        <SyncButton />
+        <QuickActionsMenu invoiceCreationMode={invoiceCreationMode} />
+        <ThemeToggle />
+        <NotificationPanel />
+        <UserProfileMenu user={user} />
       </div>
     </header>
   );
