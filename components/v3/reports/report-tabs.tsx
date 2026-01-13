@@ -1,12 +1,13 @@
 'use client';
 
 /**
- * Invoice Tabs Component (v3)
+ * Report Tabs Component (v3)
  *
- * Modern tab navigation for switching between invoice views:
- * - Recurring: Shows recurring invoice cards
- * - All: Shows all invoices in a table/list
- * - TDS: Shows TDS-related invoices
+ * Modern tab navigation for switching between report views:
+ * - Consolidated: Shows all invoices in a consolidated report view
+ * - TDS: Shows TDS-related reports
+ * - Ledger: Shows ledger reports
+ * - Categorized: Shows categorized reports (coming soon)
  *
  * Design: Clean underline-style tabs with subtle hover states
  */
@@ -19,16 +20,14 @@ import { cn } from '@/lib/utils';
 // Types
 // ============================================================================
 
-export type InvoiceTab = 'recurring' | 'all' | 'deleted';
+export type ReportTab = 'consolidated' | 'tds' | 'ledger' | 'categorized';
 
-export interface InvoiceTabsProps
+export interface ReportTabsProps
   extends Omit<React.HTMLAttributes<HTMLDivElement>, 'onChange'> {
   /** Currently selected tab */
-  value: InvoiceTab;
+  value: ReportTab;
   /** Callback when tab selection changes */
-  onChange: (tab: InvoiceTab) => void;
-  /** Whether to show the Deleted tab (super admin only) */
-  showDeletedTab?: boolean;
+  onChange: (tab: ReportTab) => void;
 }
 
 // ============================================================================
@@ -36,14 +35,15 @@ export interface InvoiceTabsProps
 // ============================================================================
 
 interface TabConfig {
-  id: InvoiceTab;
+  id: ReportTab;
   label: string;
 }
 
 const TAB_CONFIG: TabConfig[] = [
-  { id: 'all', label: 'All Invoices' },
-  { id: 'recurring', label: 'Recurring' },
-  { id: 'deleted', label: 'Deleted' },
+  { id: 'consolidated', label: 'Consolidated' },
+  { id: 'tds', label: 'TDS' },
+  { id: 'ledger', label: 'Ledger' },
+  { id: 'categorized', label: 'Categorized' },
 ];
 
 // ============================================================================
@@ -52,7 +52,7 @@ const TAB_CONFIG: TabConfig[] = [
 
 const tabVariants = cva(
   [
-    'w-[170px] py-1.5',
+    'w-[140px] py-1.5',
     'text-sm font-medium font-bold text-center',
     'transition-all duration-200',
     'focus:outline-none focus:ring-0 focus-visible:border-primary',
@@ -75,22 +75,16 @@ const tabVariants = cva(
 // Component
 // ============================================================================
 
-export function InvoiceTabs({
+export function ReportTabs({
   value,
   onChange,
-  showDeletedTab = false,
   className,
   ...props
-}: InvoiceTabsProps) {
-  // Filter tabs based on showDeletedTab
-  const visibleTabs = TAB_CONFIG.filter(
-    (tab) => tab.id !== 'deleted' || showDeletedTab
-  );
-
+}: ReportTabsProps) {
   return (
     <div
       role="tablist"
-      aria-label="Invoice views"
+      aria-label="Report views"
       className={cn(
         'inline-flex items-center p-1 rounded-lg',
         'bg-muted/40',
@@ -98,7 +92,7 @@ export function InvoiceTabs({
       )}
       {...props}
     >
-      {visibleTabs.map((tab) => {
+      {TAB_CONFIG.map((tab) => {
         const isActive = value === tab.id;
 
         return (
@@ -120,108 +114,32 @@ export function InvoiceTabs({
 }
 
 // ============================================================================
-// Pill Variant - Contained tabs with background
-// ============================================================================
-
-const pillTabVariants = cva(
-  [
-    'inline-flex items-center justify-center px-4 py-2 rounded-lg',
-    'text-sm font-medium transition-all duration-200',
-    'focus:outline-none focus:ring-0 focus-visible:border-primary',
-  ],
-  {
-    variants: {
-      state: {
-        active: 'bg-primary text-primary-foreground shadow-sm',
-        inactive: 'text-muted-foreground hover:text-foreground hover:bg-muted/50',
-      },
-    },
-    defaultVariants: {
-      state: 'inactive',
-    },
-  }
-);
-
-export interface InvoiceTabsPillProps
-  extends Omit<React.HTMLAttributes<HTMLDivElement>, 'onChange'> {
-  /** Currently selected tab */
-  value: InvoiceTab;
-  /** Callback when tab selection changes */
-  onChange: (tab: InvoiceTab) => void;
-}
-
-/**
- * Pill-style tabs with contained background
- */
-export function InvoiceTabsPill({
-  value,
-  onChange,
-  className,
-  ...props
-}: InvoiceTabsPillProps) {
-  return (
-    <div
-      role="tablist"
-      aria-label="Invoice views"
-      className={cn('inline-flex items-center gap-1 p-1 rounded-lg bg-muted/30', className)}
-      {...props}
-    >
-      {TAB_CONFIG.map((tab) => {
-        const isActive = value === tab.id;
-
-        return (
-          <button
-            key={tab.id}
-            role="tab"
-            aria-selected={isActive}
-            aria-controls={`panel-${tab.id}`}
-            tabIndex={isActive ? 0 : -1}
-            className={cn(pillTabVariants({ state: isActive ? 'active' : 'inactive' }))}
-            onClick={() => onChange(tab.id)}
-          >
-            {tab.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-// ============================================================================
 // Mobile Variant - Compact Selector
 // ============================================================================
 
-export interface InvoiceTabsCompactProps {
+export interface ReportTabsCompactProps {
   /** Currently selected tab */
-  value: InvoiceTab;
+  value: ReportTab;
   /** Callback when tab selection changes */
-  onChange: (tab: InvoiceTab) => void;
+  onChange: (tab: ReportTab) => void;
   /** Additional class names */
   className?: string;
-  /** Whether to show the Deleted tab (super admin only) */
-  showDeletedTab?: boolean;
 }
 
 /**
  * Compact version for mobile - shows as a dropdown-style selector
  * Use this on smaller screens where horizontal tabs don't fit
  */
-export function InvoiceTabsCompact({
+export function ReportTabsCompact({
   value,
   onChange,
   className,
-  showDeletedTab = false,
-}: InvoiceTabsCompactProps) {
-  // Filter tabs based on showDeletedTab
-  const visibleTabs = TAB_CONFIG.filter(
-    (tab) => tab.id !== 'deleted' || showDeletedTab
-  );
-
+}: ReportTabsCompactProps) {
   return (
     <div className={cn('relative', className)}>
       <select
         value={value}
-        onChange={(e) => onChange(e.target.value as InvoiceTab)}
+        onChange={(e) => onChange(e.target.value as ReportTab)}
         className={cn(
           'appearance-none w-full',
           'px-4 pr-8 py-2 rounded-lg',
@@ -230,9 +148,9 @@ export function InvoiceTabsCompact({
           'focus:outline-none focus:ring-0',
           'cursor-pointer'
         )}
-        aria-label="Select invoice view"
+        aria-label="Select report view"
       >
-        {visibleTabs.map((tab) => (
+        {TAB_CONFIG.map((tab) => (
           <option key={tab.id} value={tab.id}>
             {tab.label}
           </option>
@@ -261,30 +179,27 @@ export function InvoiceTabsCompact({
 // Responsive Wrapper
 // ============================================================================
 
-export interface InvoiceTabsResponsiveProps {
+export interface ReportTabsResponsiveProps {
   /** Currently selected tab */
-  value: InvoiceTab;
+  value: ReportTab;
   /** Callback when tab selection changes */
-  onChange: (tab: InvoiceTab) => void;
+  onChange: (tab: ReportTab) => void;
   /** Additional class names */
   className?: string;
   /** Breakpoint to switch from compact to full tabs (default: 'sm') */
   breakpoint?: 'sm' | 'md' | 'lg';
-  /** Whether to show the Deleted tab (super admin only) */
-  showDeletedTab?: boolean;
 }
 
 /**
  * Responsive wrapper that shows compact selector on mobile
  * and full tabs on larger screens
  */
-export function InvoiceTabsResponsive({
+export function ReportTabsResponsive({
   value,
   onChange,
   className,
   breakpoint = 'sm',
-  showDeletedTab = false,
-}: InvoiceTabsResponsiveProps) {
+}: ReportTabsResponsiveProps) {
   const breakpointClasses = {
     sm: { hidden: 'sm:hidden', block: 'hidden sm:inline-flex' },
     md: { hidden: 'md:hidden', block: 'hidden md:inline-flex' },
@@ -297,12 +212,12 @@ export function InvoiceTabsResponsive({
     <div className={className}>
       {/* Mobile: Compact selector */}
       <div className={classes.hidden}>
-        <InvoiceTabsCompact value={value} onChange={onChange} showDeletedTab={showDeletedTab} />
+        <ReportTabsCompact value={value} onChange={onChange} />
       </div>
       {/* Desktop: Full tabs */}
-      <InvoiceTabs value={value} onChange={onChange} showDeletedTab={showDeletedTab} className={classes.block} />
+      <ReportTabs value={value} onChange={onChange} className={classes.block} />
     </div>
   );
 }
 
-export default InvoiceTabs;
+export default ReportTabs;

@@ -20,8 +20,6 @@ import { useSession } from 'next-auth/react';
 import { RecurringInvoiceCard, RecurringCardGrid } from './recurring-card';
 import { InvoiceTabsResponsive, type InvoiceTab } from './invoice-tabs';
 import { AllInvoicesTab } from './all-invoices-tab';
-import { TDSTab } from './tds-tab';
-import { LedgerTab } from './ledger-tab';
 import { DeletedInvoicesTab } from './deleted-invoices-tab';
 import { useInvoiceProfiles } from '@/hooks/use-invoices-v2';
 import { useInvoices } from '@/hooks/use-invoices';
@@ -527,10 +525,6 @@ export function InvoicesPage({
         )}
 
         {activeTab === 'all' && <AllInvoicesTab />}
-
-        {activeTab === 'tds' && <TDSTab />}
-
-        {activeTab === 'ledger' && <LedgerTab />}
 
         {activeTab === 'deleted' && isSuperAdmin && <DeletedInvoicesTab />}
       </div>

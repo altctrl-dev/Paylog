@@ -188,3 +188,95 @@ export function getLastYear(): { start: Date; end: Date } {
     end: new Date(year, 11, 31, 23, 59, 59, 999),
   };
 }
+
+/**
+ * Calculate date range for "This Financial Year" preset.
+ * Financial Year in India: April 1 - March 31
+ * Uses local timezone to avoid off-by-one display issues.
+ *
+ * @returns Object with start and end Date objects and label
+ */
+export function getThisFinancialYear(): { start: Date; end: Date; label: string } {
+  const now = new Date();
+  const month = now.getMonth(); // 0-11
+  const year = now.getFullYear();
+
+  // If Jan-Mar (0-2), FY started previous year
+  // If Apr-Dec (3-11), FY started this year
+  const fyStartYear = month < 3 ? year - 1 : year;
+  const fyEndYear = fyStartYear + 1;
+
+  return {
+    start: new Date(fyStartYear, 3, 1, 0, 0, 0, 0), // April 1
+    end: new Date(fyEndYear, 2, 31, 23, 59, 59, 999), // March 31
+    label: `FY ${fyStartYear}-${String(fyEndYear).slice(-2)}`, // "FY 2025-26"
+  };
+}
+
+/**
+ * Calculate date range for "Last Financial Year" preset.
+ * Financial Year in India: April 1 - March 31
+ * Uses local timezone to avoid off-by-one display issues.
+ *
+ * @returns Object with start and end Date objects and label
+ */
+export function getLastFinancialYear(): { start: Date; end: Date; label: string } {
+  const now = new Date();
+  const month = now.getMonth(); // 0-11
+  const year = now.getFullYear();
+
+  // Calculate current FY start year first
+  const currentFyStartYear = month < 3 ? year - 1 : year;
+  // Last FY is one year before current FY
+  const fyStartYear = currentFyStartYear - 1;
+  const fyEndYear = fyStartYear + 1;
+
+  return {
+    start: new Date(fyStartYear, 3, 1, 0, 0, 0, 0), // April 1
+    end: new Date(fyEndYear, 2, 31, 23, 59, 59, 999), // March 31
+    label: `FY ${fyStartYear}-${String(fyEndYear).slice(-2)}`, // "FY 2024-25"
+  };
+}
+
+/**
+ * Get date range for a specific month/year
+ *
+ * @param month - Month (0-11)
+ * @param year - Year
+ * @returns Object with start and end Date objects
+ */
+export function getMonthRange(month: number, year: number): { start: Date; end: Date } {
+  return {
+    start: new Date(year, month, 1, 0, 0, 0, 0),
+    end: new Date(year, month + 1, 0, 23, 59, 59, 999), // Last day of month
+  };
+}
+
+/**
+ * Format a period for display
+ *
+ * @param startDate - Start date
+ * @param endDate - End date
+ * @returns Human-readable period label
+ */
+export function formatPeriodLabel(startDate: Date, endDate: Date): string {
+  const startMonth = startDate.getMonth();
+  const startYear = startDate.getFullYear();
+  const endMonth = endDate.getMonth();
+  const endYear = endDate.getFullYear();
+
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  // Same month and year
+  if (startMonth === endMonth && startYear === endYear) {
+    return `${monthNames[startMonth]} ${startYear}`;
+  }
+
+  // Same year
+  if (startYear === endYear) {
+    return `${monthNames[startMonth]} - ${monthNames[endMonth]} ${startYear}`;
+  }
+
+  // Different years
+  return `${monthNames[startMonth]} ${startYear} - ${monthNames[endMonth]} ${endYear}`;
+}
