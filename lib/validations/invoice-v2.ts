@@ -741,28 +741,28 @@ export const invoicePendingSchema = z.object({
   // Vendor (mandatory)
   vendor_id: z.number().int().positive('Vendor is required'),
 
-  // Entity (mandatory, default ID=1)
-  entity_id: z.number().int().positive('Entity is required').default(1),
+  // Entity (mandatory)
+  entity_id: z.number().int().positive('Entity is required'),
 
   // Category (mandatory)
   category_id: z.number().int().positive('Category is required'),
 
   // Amount & Currency
-  currency_id: z.number().int().positive('Currency is required').default(1),
+  currency_id: z.number().int().positive('Currency is required'),
   invoice_amount: z
     .number()
     .min(0.01, 'Amount must be greater than 0')
     .max(999999999, 'Amount too large'),
 
   // TDS (optional)
-  tds_applicable: z.boolean().default(false),
+  tds_applicable: z.boolean(),
   tds_percentage: z
     .number()
     .min(0, 'TDS percentage cannot be negative')
     .max(100, 'TDS percentage cannot exceed 100')
     .nullable()
     .optional(),
-  tds_rounded: z.boolean().optional().default(false),
+  tds_rounded: z.boolean().optional(),
 
   // Payment fields (REQUIRED for invoice pending)
   paid_date: z.date({
@@ -902,7 +902,7 @@ export const completeInvoiceDetailsSchema = z.object({
     .optional(),
 
   // Optional: Update invoice amount if different from payment
-  invoice_amount_differs: z.boolean().default(false),
+  invoice_amount_differs: z.boolean(),
   new_invoice_amount: z
     .number()
     .min(0.01, 'Amount must be greater than 0')

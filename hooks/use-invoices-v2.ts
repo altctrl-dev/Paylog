@@ -11,6 +11,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createRecurringInvoice,
   createNonRecurringInvoice,
+  createInvoicePending,
+  completeInvoiceDetails,
   updateRecurringInvoice,
   updateNonRecurringInvoice,
   getInvoiceV2,
@@ -25,6 +27,8 @@ import {
   NonRecurringInvoiceSerializedData,
   UpdateRecurringInvoiceSerializedData,
   UpdateNonRecurringInvoiceSerializedData,
+  InvoicePendingSerializedData,
+  CompleteInvoiceDetailsSerializedData,
 } from '@/lib/validations/invoice-v2';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -340,6 +344,133 @@ export function useCreateNonRecurringInvoice(onSuccess?: () => void) {
       // Show error toast
       toast({
         title: 'Failed to create invoice',
+        description: error.message || 'An unknown error occurred',
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+/**
+ * Create invoice pending (payment recorded, invoice details pending)
+ *
+ * Automatically invalidates invoice caches and shows toast notifications.
+ * Redirects to invoice detail page on success.
+ *
+ * @returns Mutation object with mutate function
+ *
+ * @example
+ * ```tsx
+ * const createInvoice = useCreateInvoicePending();
+ *
+ * const handleSubmit = async (formData: FormData) => {
+ *   createInvoice.mutate(formData);
+ * };
+ * ```
+ */
+export function useCreateInvoicePending(onSuccess?: () => void) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const router = useRouter();
+
+  return useMutation({
+    mutationFn: async (data: InvoicePendingSerializedData) => {
+      console.log('[useCreateInvoicePending] Wrapper function called with data:', data);
+      const result = await createInvoicePending(data);
+      console.log('[useCreateInvoicePending] Server Action returned:', result);
+      return result;
+    },
+    onSuccess: (result) => {
+      if (result.success) {
+        // Invalidate invoice caches
+        queryClient.invalidateQueries({ queryKey: ['invoices'] });
+        queryClient.invalidateQueries({ queryKey: invoiceV2Keys.all });
+
+        toast({
+          title: 'Payment recorded',
+          description: 'Payment recorded. Invoice details can be added when the invoice is received.',
+        });
+
+        // Redirect to invoices list page
+        router.push('/invoices');
+
+        // Call optional success callback (e.g., close panel)
+        onSuccess?.();
+      } else {
+        // Show error toast
+        toast({
+          title: 'Failed to record payment',
+          description: result.error || 'An unknown error occurred',
+          variant: 'destructive',
+        });
+      }
+    },
+    onError: (error: Error) => {
+      // Show error toast
+      toast({
+        title: 'Failed to record payment',
+        description: error.message || 'An unknown error occurred',
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+/**
+ * Complete invoice details mutation
+ *
+ * Updates an invoice that has invoice_pending=true with the actual invoice details.
+ * Automatically invalidates invoice caches and shows toast notifications.
+ *
+ * @returns Mutation object with mutate function
+ *
+ * @example
+ * ```tsx
+ * const completeInvoice = useCompleteInvoiceDetails(invoiceId);
+ *
+ * const handleSubmit = async (formData: FormData) => {
+ *   completeInvoice.mutate(formData);
+ * };
+ * ```
+ */
+export function useCompleteInvoiceDetails(invoiceId: number, onSuccess?: () => void) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (data: CompleteInvoiceDetailsSerializedData) => {
+      console.log('[useCompleteInvoiceDetails] Wrapper function called with data:', data);
+      const result = await completeInvoiceDetails(invoiceId, data);
+      console.log('[useCompleteInvoiceDetails] Server Action returned:', result);
+      return result;
+    },
+    onSuccess: (result) => {
+      if (result.success) {
+        // Invalidate invoice caches
+        queryClient.invalidateQueries({ queryKey: ['invoices'] });
+        queryClient.invalidateQueries({ queryKey: invoiceV2Keys.all });
+        queryClient.invalidateQueries({ queryKey: invoiceV2Keys.detail(invoiceId) });
+
+        toast({
+          title: 'Invoice details completed',
+          description: 'The invoice has been updated with the actual invoice details.',
+        });
+
+        // Call optional success callback (e.g., close panel)
+        onSuccess?.();
+      } else {
+        // Show error toast
+        toast({
+          title: 'Failed to complete invoice details',
+          description: result.error || 'An unknown error occurred',
+          variant: 'destructive',
+        });
+      }
+    },
+    onError: (error: Error) => {
+      // Show error toast
+      toast({
+        title: 'Failed to complete invoice details',
         description: error.message || 'An unknown error occurred',
         variant: 'destructive',
       });

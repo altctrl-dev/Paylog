@@ -26,6 +26,8 @@ import { EditRecurringInvoiceForm } from '@/components/invoices-v2/edit-recurrin
 import { EditNonRecurringInvoiceForm } from '@/components/invoices-v2/edit-non-recurring-invoice-form';
 import { RecurringInvoiceFormPanel } from '@/components/invoices-v2/recurring-invoice-form-panel';
 import { NonRecurringInvoiceFormPanel } from '@/components/invoices-v2/non-recurring-invoice-form-panel';
+import { InvoicePendingFormPanel } from '@/components/invoices-v2/invoice-pending-form-panel';
+import { CompleteInvoiceDetailsPanel } from '@/components/invoices-v2/complete-invoice-details-panel';
 import { PanelLevel } from '@/components/panels/panel-level';
 
 interface InvoicePanelRendererProps {
@@ -139,6 +141,27 @@ export function InvoicePanelRenderer({
         <NonRecurringInvoiceFormPanel
           config={config}
           onClose={onClose}
+        />
+      );
+
+    case 'invoice-create-pending':
+      return (
+        <InvoicePendingFormPanel
+          config={config}
+          onClose={onClose}
+        />
+      );
+
+    case 'invoice-complete-details':
+      return (
+        <CompleteInvoiceDetailsPanel
+          config={config}
+          onClose={onClose}
+          invoiceId={props.invoiceId as number}
+          invoiceName={props.invoiceName as string}
+          vendorName={props.vendorName as string}
+          currentAmount={props.currentAmount as number}
+          currencySymbol={props.currencySymbol as string | undefined}
         />
       );
 

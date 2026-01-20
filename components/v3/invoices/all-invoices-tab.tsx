@@ -644,13 +644,22 @@ export function AllInvoicesTab() {
     filteredInvoices.length > 0 && selectedInvoices.size === filteredInvoices.length;
 
   // Action handlers
-  const handleNewInvoice = (type: 'recurring' | 'non-recurring') => {
+  const handleNewInvoice = (type: 'recurring' | 'non-recurring' | 'pending') => {
     setShowInvoiceTypeMenu(false);
     if (invoiceCreationMode === 'panel') {
-      const panelType = type === 'recurring' ? 'invoice-create-recurring' : 'invoice-create-non-recurring';
-      openPanel(panelType, {}, { width: PANEL_WIDTH.LARGE });
+      const panelTypeMap = {
+        'recurring': 'invoice-create-recurring',
+        'non-recurring': 'invoice-create-non-recurring',
+        'pending': 'invoice-create-pending',
+      };
+      openPanel(panelTypeMap[type], {}, { width: PANEL_WIDTH.LARGE });
     } else {
-      router.push(`/invoices/new/${type}`);
+      // Pending form is panel-only for now
+      if (type === 'pending') {
+        openPanel('invoice-create-pending', {}, { width: PANEL_WIDTH.LARGE });
+      } else {
+        router.push(`/invoices/new/${type}`);
+      }
     }
   };
 
@@ -1207,6 +1216,10 @@ export function AllInvoicesTab() {
             <DropdownMenuItem onClick={() => handleNewInvoice('non-recurring')}>
               <FileText className="mr-2 h-4 w-4" />
               One-time Invoice
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleNewInvoice('pending')}>
+              <CreditCard className="mr-2 h-4 w-4" />
+              Payment (Invoice Pending)
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

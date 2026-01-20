@@ -216,13 +216,20 @@ async function generateLiveReport(month: number, year: number): Promise<MonthlyR
     const currencyCode = invoice.currency?.code || 'INR';
 
     // Determine entry type based on dates
-    let entryType: 'standard' | 'late_invoice' = 'standard';
+    let entryType: 'standard' | 'late_invoice' | 'advance_payment' = 'standard';
     if (invoice.invoice_date) {
       const invoiceMonth = invoice.invoice_date.getMonth() + 1;
       const invoiceYear = invoice.invoice_date.getFullYear();
       if (invoiceMonth !== month || invoiceYear !== year) {
         entryType = 'late_invoice';
       }
+    }
+
+    // Check if this is a pending invoice (advance payment)
+    // Pending invoices are payments recorded before the invoice was received
+    const isPendingInvoice = invoice.invoice_pending === true;
+    if (isPendingInvoice) {
+      entryType = 'advance_payment';
     }
 
     if (invoice.payments.length === 0) {
@@ -305,6 +312,10 @@ async function generateLiveReport(month: number, year: number): Promise<MonthlyR
 
         const section = sectionsMap.get(payment.payment_type_id || null);
         if (section) {
+          // For pending invoices (advance payments), use ADVANCE status
+          const entryStatus = isPendingInvoice ? 'ADVANCE' as ReportEntryStatus : status;
+          const entryPercentage = isPendingInvoice ? null : percentage;
+
           section.entries.push({
             serial: section.entries.length + 1,
             invoice_id: invoice.id,
@@ -316,10 +327,10 @@ async function generateLiveReport(month: number, year: number): Promise<MonthlyR
             payment_amount: payment.amount_paid,
             payment_date: payment.payment_date.toISOString(),
             payment_reference: payment.payment_reference,
-            status,
-            status_percentage: percentage,
+            status: entryStatus,
+            status_percentage: entryPercentage,
             currency_code: currencyCode,
-            is_advance_payment: false,
+            is_advance_payment: isPendingInvoice,
             advance_payment_id: null,
             entry_type: entryType,
           });
@@ -469,6 +480,10 @@ async function generateInvoiceDateReport(month: number, year: number): Promise<M
 
     const currencyCode = invoice.currency?.code || 'INR';
 
+    // Check if this is a pending invoice (advance payment)
+    const isPendingInvoice = invoice.invoice_pending === true;
+    const entryType = isPendingInvoice ? 'advance_payment' : 'standard';
+
     if (invoice.payments.length === 0) {
       const section = sectionsMap.get(null)!;
       section.entries.push({
@@ -485,9 +500,9 @@ async function generateInvoiceDateReport(month: number, year: number): Promise<M
         status: 'UNPAID',
         status_percentage: null,
         currency_code: currencyCode,
-        is_advance_payment: false,
+        is_advance_payment: isPendingInvoice,
         advance_payment_id: null,
-        entry_type: 'standard',
+        entry_type: entryType,
       });
       section.subtotal += invoice.invoice_amount;
       section.entry_count++;
@@ -508,6 +523,10 @@ async function generateInvoiceDateReport(month: number, year: number): Promise<M
 
         const section = sectionsMap.get(payment.payment_type_id || null);
         if (section) {
+          // For pending invoices (advance payments), use ADVANCE status
+          const entryStatus = isPendingInvoice ? 'ADVANCE' as ReportEntryStatus : status;
+          const entryPercentage = isPendingInvoice ? null : percentage;
+
           section.entries.push({
             serial: section.entries.length + 1,
             invoice_id: invoice.id,
@@ -519,12 +538,12 @@ async function generateInvoiceDateReport(month: number, year: number): Promise<M
             payment_amount: payment.amount_paid,
             payment_date: payment.payment_date.toISOString(),
             payment_reference: payment.payment_reference,
-            status,
-            status_percentage: percentage,
+            status: entryStatus,
+            status_percentage: entryPercentage,
             currency_code: currencyCode,
-            is_advance_payment: false,
+            is_advance_payment: isPendingInvoice,
             advance_payment_id: null,
-            entry_type: 'standard',
+            entry_type: entryType,
           });
           section.subtotal += payment.amount_paid;
           section.entry_count++;
@@ -638,6 +657,9 @@ async function generateCombinedReport(month: number, year: number): Promise<Mont
 
     const currencyCode = invoice.currency?.code || 'INR';
 
+    // Check if this is a pending invoice (advance payment)
+    const isPendingInvoice = invoice.invoice_pending === true;
+
     if (invoice.payments.length === 0) {
       // Unpaid invoice from this month
       const section = sectionsMap.get(null)!;
@@ -655,9 +677,9 @@ async function generateCombinedReport(month: number, year: number): Promise<Mont
         status: 'UNPAID',
         status_percentage: null,
         currency_code: currencyCode,
-        is_advance_payment: false,
+        is_advance_payment: isPendingInvoice,
         advance_payment_id: null,
-        entry_type: 'standard',
+        entry_type: isPendingInvoice ? 'advance_payment' : 'standard',
       });
       section.subtotal += invoice.invoice_amount;
       section.entry_count++;
@@ -685,6 +707,18 @@ async function generateCombinedReport(month: number, year: number): Promise<Mont
           const paymentYear = payment.payment_date.getFullYear();
           const isPaidInDifferentMonth = paymentMonth !== month || paymentYear !== year;
 
+          // Determine entry type
+          let entryType: 'standard' | 'late_payment' | 'advance_payment' = 'standard';
+          if (isPendingInvoice) {
+            entryType = 'advance_payment';
+          } else if (isPaidInDifferentMonth) {
+            entryType = 'late_payment';
+          }
+
+          // For pending invoices (advance payments), use ADVANCE status
+          const entryStatus = isPendingInvoice ? 'ADVANCE' as ReportEntryStatus : status;
+          const entryPercentage = isPendingInvoice ? null : percentage;
+
           section.entries.push({
             serial: 0,
             invoice_id: invoice.id,
@@ -696,12 +730,12 @@ async function generateCombinedReport(month: number, year: number): Promise<Mont
             payment_amount: payment.amount_paid,
             payment_date: payment.payment_date.toISOString(),
             payment_reference: payment.payment_reference,
-            status,
-            status_percentage: percentage,
+            status: entryStatus,
+            status_percentage: entryPercentage,
             currency_code: currencyCode,
-            is_advance_payment: false,
+            is_advance_payment: isPendingInvoice,
             advance_payment_id: null,
-            entry_type: isPaidInDifferentMonth ? 'late_payment' : 'standard',
+            entry_type: entryType,
           });
           section.subtotal += payment.amount_paid;
           section.entry_count++;
@@ -757,6 +791,9 @@ async function generateCombinedReport(month: number, year: number): Promise<Mont
 
     const currencyCode = invoice.currency?.code || 'INR';
 
+    // Check if this is a pending invoice (advance payment)
+    const isPendingInvoice = invoice.invoice_pending === true;
+
     // Get all payments for this invoice to calculate status
     const allPayments = await db.payment.findMany({
       where: {
@@ -781,6 +818,10 @@ async function generateCombinedReport(month: number, year: number): Promise<Mont
 
     const section = sectionsMap.get(payment.payment_type_id || null);
     if (section) {
+      // For pending invoices (advance payments), use ADVANCE status
+      const entryStatus = isPendingInvoice ? 'ADVANCE' as ReportEntryStatus : status;
+      const entryPercentage = isPendingInvoice ? null : percentage;
+
       section.entries.push({
         serial: 0,
         invoice_id: invoice.id,
@@ -792,12 +833,12 @@ async function generateCombinedReport(month: number, year: number): Promise<Mont
         payment_amount: payment.amount_paid,
         payment_date: payment.payment_date.toISOString(),
         payment_reference: payment.payment_reference,
-        status,
-        status_percentage: percentage,
+        status: entryStatus,
+        status_percentage: entryPercentage,
         currency_code: currencyCode,
-        is_advance_payment: false,
+        is_advance_payment: isPendingInvoice,
         advance_payment_id: null,
-        entry_type: 'late_invoice', // Invoice from different month
+        entry_type: isPendingInvoice ? 'advance_payment' : 'late_invoice', // Invoice from different month
       });
       section.subtotal += payment.amount_paid;
       section.entry_count++;

@@ -202,6 +202,7 @@ const menuStructure = [
     items: [
       { label: 'Recurring', route: '/invoices/new/recurring' },
       { label: 'Non Recurring', route: '/invoices/new/non-recurring' },
+      { label: 'Payment (Invoice Pending)', route: '/invoices/new/pending', panelOnly: true },
     ],
   },
   {
@@ -234,9 +235,9 @@ function QuickActionsMenu({ invoiceCreationMode = 'page' }: QuickActionsMenuProp
   const { openPanel } = usePanel();
   const [open, setOpen] = React.useState(false);
 
-  const handleItemClick = (route: string) => {
+  const handleItemClick = (route: string, panelOnly?: boolean) => {
     // Check if this is an invoice creation route and user prefers panel mode
-    if (invoiceCreationMode === 'panel') {
+    if (invoiceCreationMode === 'panel' || panelOnly) {
       if (route === '/invoices/new/recurring') {
         openPanel('invoice-create-recurring', {}, { width: PANEL_WIDTH.LARGE });
         setOpen(false);
@@ -244,6 +245,11 @@ function QuickActionsMenu({ invoiceCreationMode = 'page' }: QuickActionsMenuProp
       }
       if (route === '/invoices/new/non-recurring') {
         openPanel('invoice-create-non-recurring', {}, { width: PANEL_WIDTH.LARGE });
+        setOpen(false);
+        return;
+      }
+      if (route === '/invoices/new/pending') {
+        openPanel('invoice-create-pending', {}, { width: PANEL_WIDTH.LARGE });
         setOpen(false);
         return;
       }
@@ -281,7 +287,7 @@ function QuickActionsMenu({ invoiceCreationMode = 'page' }: QuickActionsMenuProp
                   {section.items.map((item) => (
                     <DropdownMenuItem
                       key={item.route}
-                      onClick={() => handleItemClick(item.route)}
+                      onClick={() => handleItemClick(item.route, (item as { panelOnly?: boolean }).panelOnly)}
                       className="cursor-pointer"
                     >
                       <ChevronRight className="mr-2 h-4 w-4 opacity-50" />

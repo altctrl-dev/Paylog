@@ -47,7 +47,9 @@ import {
   X,
   MoreVertical,
   RefreshCw,
+  FileWarning,
 } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 // Popover import removed - using native dropdown for mobile
 import {
   Tooltip,
@@ -245,6 +247,24 @@ export function InvoiceDetailPanelV3({
       { width: PANEL_WIDTH.MEDIUM }
     );
   }, [invoice, invoiceId, paymentSummary, openPanel]);
+
+  const handleCompleteInvoiceDetails = React.useCallback(() => {
+    if (!invoice) return;
+
+    openPanel(
+      'invoice-complete-details',
+      {
+        invoiceId: invoice.id,
+        invoiceName: invoice.is_recurring
+          ? invoice.invoice_profile?.name
+          : invoice.invoice_name || invoice.description || invoice.invoice_number,
+        vendorName: invoice.vendor?.name,
+        currentAmount: invoice.invoice_amount,
+        currencySymbol: invoice.currency?.symbol,
+      },
+      { width: PANEL_WIDTH.MEDIUM }
+    );
+  }, [invoice, openPanel]);
 
   const handlePutOnHold = React.useCallback(() => {
     openPanel('invoice-hold', { invoiceId }, { width: PANEL_WIDTH.MEDIUM });
@@ -720,6 +740,28 @@ export function InvoiceDetailPanelV3({
                 isApproving={approveInvoice.isPending}
               />
             </div>
+
+            {/* Pending Invoice Banner */}
+            {invoice.invoice_pending && (
+              <div className="px-4 py-2">
+                <Alert className="bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800">
+                  <FileWarning className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                  <AlertDescription className="flex items-center justify-between gap-4">
+                    <span className="text-amber-800 dark:text-amber-200 text-sm">
+                      This is a pending invoice. Add the actual invoice details when the invoice is received.
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCompleteInvoiceDetails}
+                      className="shrink-0 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50"
+                    >
+                      Add Invoice Details
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              </div>
+            )}
 
             {/* Hero */}
             <div className="px-0 py-2 border-0 rounded-sm bg-muted/0">
