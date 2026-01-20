@@ -105,6 +105,9 @@ export interface Invoice {
   // Type fields
   is_recurring: boolean;
   invoice_profile_id: number | null;
+  // Invoice pending: Payment recorded but invoice details not yet received
+  invoice_pending: boolean;
+  invoice_completed_at: Date | null;
   entity_id: number | null;
   currency_id: number | null;
   created_by: number;
@@ -312,6 +315,9 @@ export interface InvoiceV2WithRelations {
   currency_id: number | null;
   is_recurring: boolean;
   invoice_profile_id: number | null;
+  // Invoice pending: Payment recorded but invoice details not yet received
+  invoice_pending: boolean;
+  invoice_completed_at: Date | null;
 
   // Archive fields
   is_archived: boolean;

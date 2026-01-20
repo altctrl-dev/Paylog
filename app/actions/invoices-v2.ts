@@ -19,10 +19,14 @@ import {
   nonRecurringInvoiceSerializedSchema,
   updateRecurringInvoiceSerializedSchema,
   updateNonRecurringInvoiceSerializedSchema,
+  invoicePendingSerializedSchema,
+  completeInvoiceDetailsSerializedSchema,
   type RecurringInvoiceSerializedData,
   type NonRecurringInvoiceSerializedData,
   type UpdateRecurringInvoiceSerializedData,
   type UpdateNonRecurringInvoiceSerializedData,
+  type InvoicePendingSerializedData,
+  type CompleteInvoiceDetailsSerializedData,
 } from '@/lib/validations/invoice-v2';
 import { uploadInvoiceFile } from '@/lib/file-upload-v2';
 import type { ServerActionResult } from '@/types/attachment';
@@ -1845,6 +1849,393 @@ export async function rejectInvoiceV2(
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to reject invoice',
+    };
+  }
+}
+
+// ============================================================================
+// INVOICE PENDING OPERATIONS
+// ============================================================================
+
+/**
+ * Create invoice pending (payment before invoice received)
+ *
+ * Creates an invoice record with invoice_pending=true.
+ * Invoice details (number, date, due_date, file) are auto-generated/skipped.
+ * Payment is created immediately.
+ *
+ * @param data - Serialized invoice pending data
+ * @returns Success with invoice ID, or error
+ */
+export async function createInvoicePending(
+  data: InvoicePendingSerializedData
+): Promise<ServerActionResult<{ invoiceId: number; successMessage?: string }>> {
+  console.log('[createInvoicePending] Server Action called');
+  try {
+    // 1. Authenticate user
+    const user = await getCurrentUser();
+    console.log('[createInvoicePending] User authenticated:', user.id);
+
+    // 2. Validate serialized data
+    console.log('[createInvoicePending] Validating data...');
+    const validated = invoicePendingSerializedSchema.parse(data);
+    console.log('[createInvoicePending] Data validated successfully');
+
+    // 3. Parse ISO date strings to Date objects
+    const paidDate = new Date(validated.paid_date);
+
+    // 4. Validate vendor exists
+    console.log('[createInvoicePending] Validating vendor...');
+    const vendor = await db.vendor.findUnique({
+      where: { id: validated.vendor_id },
+    });
+
+    if (!vendor || !vendor.is_active) {
+      return {
+        success: false,
+        error: 'Selected vendor does not exist or is inactive',
+      };
+    }
+
+    // 5. Validate entity exists
+    console.log('[createInvoicePending] Validating entity...');
+    const entity = await db.entity.findUnique({
+      where: { id: validated.entity_id },
+    });
+
+    if (!entity || !entity.is_active) {
+      return {
+        success: false,
+        error: 'Selected entity does not exist or is inactive',
+      };
+    }
+
+    // 6. Validate category exists
+    console.log('[createInvoicePending] Validating category...');
+    const category = await db.category.findUnique({
+      where: { id: validated.category_id },
+    });
+
+    if (!category || !category.is_active) {
+      return {
+        success: false,
+        error: 'Selected category does not exist or is inactive',
+      };
+    }
+
+    // 7. Generate unique placeholder invoice number
+    const timestamp = Date.now();
+    const placeholderInvoiceNumber = `PENDING-${timestamp}`;
+
+    // 8. Determine initial status based on user role
+    // For pending invoices with payment, status is based on payment vs amount
+    const userIsAdmin = user.role === 'admin' || user.role === 'super_admin';
+    const isPaidInFull = validated.paid_amount >= validated.invoice_amount;
+    const initialStatus = isPaidInFull ? INVOICE_STATUS.PAID : INVOICE_STATUS.PARTIAL;
+    console.log('[createInvoicePending] Initial status:', initialStatus, 'isPaidInFull:', isPaidInFull);
+
+    // 9. Create invoice and payment in transaction
+    console.log('[createInvoicePending] Creating invoice and payment records...');
+    const invoice = await db.$transaction(async (tx) => {
+      // Create invoice record with invoice_pending=true
+      const newInvoice = await tx.invoice.create({
+        data: {
+          // Core fields
+          invoice_number: placeholderInvoiceNumber,
+          vendor_id: validated.vendor_id,
+          entity_id: validated.entity_id,
+          category_id: validated.category_id,
+          currency_id: validated.currency_id,
+
+          // Invoice details - use payment date for invoice_date
+          invoice_amount: validated.invoice_amount,
+          invoice_date: paidDate, // Use payment date as invoice date
+          due_date: null, // No due date for pending invoices
+          invoice_received_date: null,
+
+          // Description and Invoice Name
+          description: validated.brief_description || null,
+          invoice_name: validated.invoice_name,
+
+          // TDS
+          tds_applicable: validated.tds_applicable,
+          tds_percentage: validated.tds_percentage || null,
+          tds_rounded: validated.tds_rounded ?? false,
+
+          // Non-recurring, pending invoice
+          is_recurring: false,
+          invoice_pending: true, // Mark as pending invoice details
+
+          // Status and metadata
+          status: initialStatus,
+          created_by: user.id,
+
+          // No pending payment data - we create the payment immediately
+          pending_payment_data: Prisma.DbNull,
+        },
+      });
+
+      console.log('[createInvoicePending] Invoice created, ID:', newInvoice.id);
+
+      // Create payment record immediately
+      const payment = await tx.payment.create({
+        data: {
+          invoice_id: newInvoice.id,
+          amount_paid: validated.paid_amount,
+          payment_date: paidDate,
+          payment_type_id: validated.payment_type_id,
+          payment_reference: validated.payment_reference || null,
+          status: 'approved', // Payment is approved immediately
+          created_by_user_id: user.id,
+          approved_by_user_id: userIsAdmin ? user.id : null,
+          approved_at: userIsAdmin ? new Date() : null,
+          // TDS applied on payment
+          tds_amount_applied: validated.tds_applicable && validated.tds_percentage
+            ? (validated.paid_amount * (validated.tds_percentage / 100))
+            : null,
+          tds_rounded: validated.tds_rounded ?? false,
+        },
+      });
+
+      console.log('[createInvoicePending] Payment created, ID:', payment.id);
+
+      return newInvoice;
+    }, {
+      maxWait: 10000,
+      timeout: 30000,
+    });
+
+    console.log('[createInvoicePending] Transaction completed successfully');
+
+    // 10. Log activity (non-blocking)
+    await createActivityLog({
+      invoice_id: invoice.id,
+      user_id: user.id,
+      action: ACTIVITY_ACTION.INVOICE_CREATED,
+      new_data: {
+        invoice_number: invoice.invoice_number,
+        vendor_id: invoice.vendor_id,
+        invoice_amount: invoice.invoice_amount,
+        status: invoice.status,
+        is_recurring: false,
+        invoice_pending: true,
+      },
+    }).catch((err) => {
+      console.error('[createInvoicePending] Failed to create activity log:', err);
+    });
+
+    // 11. Revalidate cache
+    revalidatePath('/invoices');
+    revalidatePath('/reports');
+
+    console.log('[createInvoicePending] Success! Invoice ID:', invoice.id);
+    return {
+      success: true,
+      data: {
+        invoiceId: invoice.id,
+        successMessage: 'Payment recorded. Invoice details can be added later when the invoice is received.',
+      },
+    };
+  } catch (error) {
+    console.error('[createInvoicePending] Error:', error);
+    const prismaError = getPrismaErrorMessage(error);
+    return {
+      success: false,
+      error: prismaError || (error instanceof Error ? error.message : 'Failed to create invoice pending'),
+    };
+  }
+}
+
+/**
+ * Complete invoice details for a pending invoice
+ *
+ * Updates an invoice that has invoice_pending=true with the actual invoice details.
+ * Sets invoice_pending=false and invoice_completed_at to now.
+ *
+ * @param invoiceId - Invoice ID to complete
+ * @param data - Serialized invoice details data
+ * @returns Success with invoice ID, or error
+ */
+export async function completeInvoiceDetails(
+  invoiceId: number,
+  data: CompleteInvoiceDetailsSerializedData
+): Promise<ServerActionResult<{ invoiceId: number }>> {
+  console.log('[completeInvoiceDetails] Server Action called for invoice:', invoiceId);
+  try {
+    // 1. Authenticate user (admin only)
+    const user = await getCurrentUser();
+    const userIsAdmin = user.role === 'admin' || user.role === 'super_admin';
+
+    if (!userIsAdmin) {
+      return {
+        success: false,
+        error: 'Only administrators can complete invoice details',
+      };
+    }
+    console.log('[completeInvoiceDetails] User authenticated:', user.id);
+
+    // 2. Validate serialized data
+    console.log('[completeInvoiceDetails] Validating data...');
+    const validated = completeInvoiceDetailsSerializedSchema.parse(data);
+    console.log('[completeInvoiceDetails] Data validated successfully');
+
+    // 3. Get existing invoice
+    const existingInvoice = await db.invoice.findUnique({
+      where: { id: invoiceId },
+      include: {
+        vendor: { select: { id: true, name: true } },
+        payments: { select: { amount_paid: true } },
+      },
+    });
+
+    if (!existingInvoice) {
+      return {
+        success: false,
+        error: 'Invoice not found',
+      };
+    }
+
+    if (!existingInvoice.invoice_pending) {
+      return {
+        success: false,
+        error: 'Invoice already has complete details',
+      };
+    }
+
+    // 4. Convert base64 file to File object (if provided)
+    let file: File | null = null;
+    if (validated.file) {
+      console.log('[completeInvoiceDetails] Deserializing file...');
+      file = deserializeFile(validated.file);
+      console.log('[completeInvoiceDetails] File deserialized:', file.name, file.size);
+    }
+
+    // 5. Parse ISO date strings to Date objects
+    const invoiceDate = new Date(validated.invoice_date);
+    const dueDate = new Date(validated.due_date);
+    const invoiceReceivedDate = validated.invoice_received_date
+      ? new Date(validated.invoice_received_date)
+      : new Date(); // Default to now if not provided
+
+    // 6. Check for duplicate invoice number (now that we have the real number)
+    const existing = await db.invoice.findFirst({
+      where: {
+        invoice_number: validated.invoice_number,
+        vendor_id: existingInvoice.vendor_id,
+        id: { not: invoiceId }, // Exclude current invoice
+      },
+    });
+
+    if (existing) {
+      return {
+        success: false,
+        error: `Invoice number "${validated.invoice_number}" already exists for this vendor`,
+      };
+    }
+
+    // 7. Calculate new status if invoice amount differs
+    let newInvoiceAmount = existingInvoice.invoice_amount;
+    let newStatus = existingInvoice.status;
+
+    if (validated.invoice_amount_differs && validated.new_invoice_amount) {
+      newInvoiceAmount = validated.new_invoice_amount;
+
+      // Calculate total paid
+      const totalPaid = existingInvoice.payments.reduce(
+        (sum, p) => sum + p.amount_paid,
+        0
+      );
+
+      // Determine new status
+      if (totalPaid >= newInvoiceAmount) {
+        newStatus = INVOICE_STATUS.PAID;
+      } else if (totalPaid > 0) {
+        newStatus = INVOICE_STATUS.PARTIAL;
+      } else {
+        newStatus = INVOICE_STATUS.UNPAID;
+      }
+    }
+
+    // 8. Update invoice in transaction
+    console.log('[completeInvoiceDetails] Updating invoice...');
+    const invoice = await db.$transaction(async (tx) => {
+      const updatedInvoice = await tx.invoice.update({
+        where: { id: invoiceId },
+        data: {
+          // Update with real invoice details
+          invoice_number: validated.invoice_number,
+          invoice_date: invoiceDate,
+          due_date: dueDate,
+          invoice_received_date: invoiceReceivedDate,
+
+          // Update amount if different
+          invoice_amount: newInvoiceAmount,
+          status: newStatus,
+
+          // Mark as no longer pending
+          invoice_pending: false,
+          invoice_completed_at: new Date(),
+        },
+      });
+
+      // Upload file attachment if provided
+      if (file && file.size > 0) {
+        try {
+          console.log('[completeInvoiceDetails] Uploading file...');
+          await uploadInvoiceFile(file, invoiceId, user.id, tx);
+          console.log('[completeInvoiceDetails] File uploaded successfully');
+        } catch (uploadError) {
+          console.error('[completeInvoiceDetails] File upload failed:', uploadError);
+          throw new Error(
+            `Failed to upload invoice file: ${uploadError instanceof Error ? uploadError.message : 'Unknown error'}`
+          );
+        }
+      }
+
+      return updatedInvoice;
+    }, {
+      maxWait: 10000,
+      timeout: 30000,
+    });
+
+    console.log('[completeInvoiceDetails] Transaction completed successfully');
+
+    // 9. Log activity
+    await createActivityLog({
+      invoice_id: invoice.id,
+      user_id: user.id,
+      action: ACTIVITY_ACTION.INVOICE_UPDATED,
+      old_data: {
+        invoice_number: existingInvoice.invoice_number,
+        invoice_pending: true,
+      },
+      new_data: {
+        invoice_number: invoice.invoice_number,
+        invoice_date: invoice.invoice_date,
+        due_date: invoice.due_date,
+        invoice_pending: false,
+        invoice_completed_at: invoice.invoice_completed_at,
+      },
+    }).catch((err) => {
+      console.error('[completeInvoiceDetails] Failed to create activity log:', err);
+    });
+
+    // 10. Revalidate cache
+    revalidatePath('/invoices');
+    revalidatePath(`/invoices/${invoiceId}`);
+    revalidatePath('/reports');
+
+    console.log('[completeInvoiceDetails] Success! Invoice ID:', invoice.id);
+    return {
+      success: true,
+      data: { invoiceId: invoice.id },
+    };
+  } catch (error) {
+    console.error('[completeInvoiceDetails] Error:', error);
+    const prismaError = getPrismaErrorMessage(error);
+    return {
+      success: false,
+      error: prismaError || (error instanceof Error ? error.message : 'Failed to complete invoice details'),
     };
   }
 }

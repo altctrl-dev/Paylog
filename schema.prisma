@@ -221,6 +221,10 @@ model Invoice {
   // Invoice Type
   is_recurring          Boolean             @default(false)
   invoice_profile_id    Int?
+  // Invoice Pending: Payment recorded but invoice details not yet received
+  // When true: invoice_number is placeholder (e.g., "PENDING-xxx"), invoice_date/due_date may be null
+  invoice_pending       Boolean             @default(false)
+  invoice_completed_at  DateTime?           // When invoice details were added (invoice_pending set to false)
   // Pending payment data (JSON) - stores payment details submitted during invoice creation
   // Will be processed when invoice is approved (for standard users)
   pending_payment_data  Json?
@@ -253,6 +257,7 @@ model Invoice {
   @@index([is_recurring], map: "idx_invoices_recurring")
   @@index([invoice_profile_id], map: "idx_invoices_invoice_profile")
   @@index([reporting_month], map: "idx_invoices_reporting_month")
+  @@index([invoice_pending], map: "idx_invoices_pending")
   @@map("invoices")
 }
 
