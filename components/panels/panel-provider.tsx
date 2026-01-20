@@ -14,6 +14,7 @@ import { MasterDataRequestPanelRenderer } from '@/components/master-data/master-
 import { AdminRequestPanelRenderer } from '@/components/master-data/admin-request-panel-renderer';
 import { ProfilePanelRenderer } from '@/components/master-data/profile-panel-renderer';
 import { UserPanelRendererGlobal } from '@/components/users/user-panel-renderer-global';
+import { AdvancePaymentPanelRenderer } from '@/components/advance-payments/advance-payment-panel-renderer';
 
 /**
  * Panel Provider with routing
@@ -112,6 +113,18 @@ export function PanelProvider() {
         if (type.startsWith('example-')) {
           return (
             <ExamplePanelRenderer
+              id={id}
+              type={type}
+              props={props}
+              onClose={onClose}
+            />
+          );
+        }
+
+        // Advance payment panels
+        if (type.startsWith('advance-payment-')) {
+          return (
+            <AdvancePaymentPanelRenderer
               id={id}
               type={type}
               props={props}

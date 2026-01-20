@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils';
 // Types
 // ============================================================================
 
-export type ReportTab = 'consolidated' | 'tds' | 'ledger' | 'categorized';
+export type ReportTab = 'monthly' | 'consolidated' | 'tds' | 'ledger' | 'categorized';
 
 export interface ReportTabsProps
   extends Omit<React.HTMLAttributes<HTMLDivElement>, 'onChange'> {
@@ -40,6 +40,7 @@ interface TabConfig {
 }
 
 const TAB_CONFIG: TabConfig[] = [
+  { id: 'monthly', label: 'Monthly' },
   { id: 'consolidated', label: 'Consolidated' },
   { id: 'tds', label: 'TDS' },
   { id: 'ledger', label: 'Ledger' },

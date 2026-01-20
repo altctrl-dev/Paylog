@@ -1,10 +1,15 @@
 'use client';
 
 /**
- * Consolidated Report Tab Component (EXPERIMENTAL)
+ * Monthly Report Tab Component
  *
- * Copy of Monthly Report Tab for experimenting with simplified views.
- * Original Monthly tab is preserved for safety.
+ * Payment-centric report view that groups invoices by payment type.
+ * Features:
+ * - Three views: Live (current), Submitted (frozen snapshot), Invoice-Date (pure)
+ * - Sections: Cash Payments, Bank Transfer, Credit Card, Unpaid
+ * - Advance payment support
+ * - Report finalization and submission
+ * - Export to Excel
  */
 
 import * as React from 'react';
@@ -45,9 +50,9 @@ import { PANEL_WIDTH } from '@/types/panel';
 import { MonthNavigator } from '../invoices/month-navigator';
 import { formatCurrency } from '@/lib/utils/format';
 import {
-  useConsolidatedReport,
+  useMonthlyReport,
   useReportPeriod,
-  useFinalizeConsolidatedReport,
+  useFinalizeReport,
   useSubmitReport,
   useUnfinalizeReport,
 } from '@/hooks/use-monthly-reports';
@@ -214,7 +219,7 @@ function ReportSectionView({ section, defaultOpen = true, onViewInvoice }: Repor
 // Main Component
 // ============================================================================
 
-export function ConsolidatedReportTab() {
+export function MonthlyReportTab() {
   const { data: session } = useSession();
   const userRole = session?.user?.role;
   const isAdmin = userRole === 'admin' || userRole === 'super_admin';
@@ -226,15 +231,15 @@ export function ConsolidatedReportTab() {
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1); // 1-12
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
 
-  // View selection: 'live' | 'reported' (simplified 2-view system)
-  const [view, setView] = useState<'live' | 'reported'>('live');
+  // View selection: 'live' | 'submitted' | 'invoice_date'
+  const [view, setView] = useState<'live' | 'submitted' | 'invoice_date'>('live');
 
   // Dialog states
   const [finalizeDialog, setFinalizeDialog] = useState(false);
   const [submitDialog, setSubmitDialog] = useState(false);
 
-  // Fetch data using combined report (experimental)
-  const { data: reportData, isLoading: isLoadingReport } = useConsolidatedReport(
+  // Fetch data
+  const { data: reportData, isLoading: isLoadingReport } = useMonthlyReport(
     selectedMonth,
     selectedYear,
     view
@@ -245,7 +250,7 @@ export function ConsolidatedReportTab() {
   );
 
   // Mutations
-  const finalizeReportMutation = useFinalizeConsolidatedReport();
+  const finalizeReportMutation = useFinalizeReport();
   const submitReportMutation = useSubmitReport();
   const unfinalizeReportMutation = useUnfinalizeReport();
 
@@ -358,9 +363,9 @@ export function ConsolidatedReportTab() {
 
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Consolidated Report');
+    XLSX.utils.book_append_sheet(wb, ws, 'Monthly Report');
 
-    const filename = `consolidated_report_${report_data.label.replace(/\s+/g, '_')}_${view}.xlsx`;
+    const filename = `monthly_report_${report_data.label.replace(/\s+/g, '_')}_${view}.xlsx`;
     XLSX.writeFile(wb, filename);
     toast.success('Report exported successfully');
   };
@@ -374,7 +379,7 @@ export function ConsolidatedReportTab() {
       });
       toast.success('Report finalized successfully');
       setFinalizeDialog(false);
-      setView('reported'); // Switch to reported view
+      setView('submitted'); // Switch to submitted view
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to finalize report');
     }
@@ -415,11 +420,8 @@ export function ConsolidatedReportTab() {
       <div className="flex items-center justify-between">
         <div className="pl-1">
           <h2 className="text-lg font-semibold">
-            Consolidated Report - {reportLabel}
+            Monthly Report - {reportLabel}
           </h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            🧪 Experimental - Copy of Monthly tab for testing
-          </p>
           {reportPeriod && (
             <div className="flex items-center gap-2 mt-1">
               <Badge
@@ -446,14 +448,15 @@ export function ConsolidatedReportTab() {
           onChange={handleMonthChange}
         />
 
-        {/* View Selector - 2 views only */}
+        {/* View Selector */}
         <Select
           value={view}
           onChange={(e) => setView(e.target.value as typeof view)}
           className="w-[160px]"
         >
           <option value="live">Live View</option>
-          <option value="reported" disabled={!hasSnapshot}>Reported View</option>
+          <option value="submitted" disabled={!hasSnapshot}>Submitted View</option>
+          <option value="invoice_date">Invoice-Date View</option>
         </Select>
 
         {/* Spacer */}
@@ -535,7 +538,7 @@ export function ConsolidatedReportTab() {
             'No data'
           )}
         </p>
-        {view === 'reported' && reportPeriod?.finalized_at && (
+        {view === 'submitted' && reportPeriod?.finalized_at && (
           <Badge variant="outline" className="text-xs">
             Frozen on {new Date(reportPeriod.finalized_at).toLocaleDateString('en-IN')}
           </Badge>
@@ -609,4 +612,4 @@ export function ConsolidatedReportTab() {
   );
 }
 
-export default ConsolidatedReportTab;
+export default MonthlyReportTab;

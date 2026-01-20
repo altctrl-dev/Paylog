@@ -14,6 +14,7 @@
 
 import * as React from 'react';
 import { ReportTabsResponsive, type ReportTab } from './report-tabs';
+import { MonthlyReportTab } from './monthly-report-tab';
 import { ConsolidatedReportTab } from './consolidated-report-tab';
 import { TDSTab } from '../invoices/tds-tab';
 import { LedgerTab } from '../invoices/ledger-tab';
@@ -35,7 +36,7 @@ export interface ReportsPageProps {
 // ============================================================================
 
 export function ReportsPage({
-  activeTab = 'consolidated',
+  activeTab = 'monthly',
   onTabChange,
 }: ReportsPageProps) {
   // Handle tab change
@@ -49,7 +50,7 @@ export function ReportsPage({
       <div>
         <h1 className="text-2xl font-bold text-foreground">Reports</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          View consolidated reports, TDS, and ledger data
+          Generate monthly reports, view TDS summaries, and ledger data
         </p>
       </div>
 
@@ -66,6 +67,8 @@ export function ReportsPage({
         id={`panel-${activeTab}`}
         aria-labelledby={`tab-${activeTab}`}
       >
+        {activeTab === 'monthly' && <MonthlyReportTab />}
+
         {activeTab === 'consolidated' && <ConsolidatedReportTab />}
 
         {activeTab === 'tds' && <TDSTab />}

@@ -18,4 +18,6 @@ export { CategorizedTab } from './categorized-tab';
 
 export { ConsolidatedReportTab } from './consolidated-report-tab';
 
+export { MonthlyReportTab } from './monthly-report-tab';
+
 export { ReportsPage, type ReportsPageProps } from './reports-page';

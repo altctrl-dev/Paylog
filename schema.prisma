@@ -52,6 +52,9 @@ model User {
   created_payments         Payment[]               @relation("PaymentCreator")
   approved_payments        Payment[]               @relation("PaymentApprover")
   sent_invites             UserInvite[]            @relation("UserInvites") // Legacy - will be deprecated
+  // Monthly Report System relations
+  finalized_reports        ReportPeriod[]          @relation("ReportFinalizer")
+  created_advance_payments AdvancePayment[]        @relation("AdvancePaymentCreator")
 
   @@index([role, status], map: "idx_users_role_status")
   @@index([status], map: "idx_users_status")
@@ -133,6 +136,7 @@ model Vendor {
   approved_by      User?            @relation("VendorApprovedBy", fields: [approved_by_user_id], references: [id])
   invoice_profiles InvoiceProfile[]
   invoices         Invoice[]
+  advance_payments AdvancePayment[]
 
   @@index([status], map: "idx_vendors_status")
   @@index([created_by_user_id], map: "idx_vendors_created_by")
@@ -157,14 +161,15 @@ model Category {
 // SubEntity model removed - replaced by Entity in master data
 
 model PaymentType {
-  id                 Int       @id @default(autoincrement())
+  id                 Int              @id @default(autoincrement())
   name               String
   description        String?
-  requires_reference Boolean   @default(false)
-  is_active          Boolean   @default(true)
-  created_at         DateTime  @default(now())
-  updated_at         DateTime  @updatedAt
+  requires_reference Boolean          @default(false)
+  is_active          Boolean          @default(true)
+  created_at         DateTime         @default(now())
+  updated_at         DateTime         @updatedAt
   payments           Payment[]
+  advance_payments   AdvancePayment[]
 
   @@map("payment_types")
 }
@@ -178,6 +183,9 @@ model Invoice {
   invoice_date          DateTime?
   invoice_received_date DateTime?
   due_date              DateTime?
+  // Monthly Report System: Which month's report this invoice belongs to
+  // Defaults to invoice_received_date month; can differ for late entries
+  reporting_month       DateTime?
   period_start          DateTime?
   period_end            DateTime?
   tds_applicable        Boolean             @default(false)
@@ -231,6 +239,8 @@ model Invoice {
   rejector              User?               @relation("InvoiceRejector", fields: [rejected_by], references: [id], onDelete: Restrict)
   vendor                Vendor              @relation(fields: [vendor_id], references: [id])
   payments              Payment[]
+  // Monthly Report System: Advance payment that was linked to this invoice
+  linked_advance_payment AdvancePayment?
 
   @@unique([invoice_number, vendor_id], map: "idx_invoices_number_vendor")
   @@index([status], map: "idx_invoices_status")
@@ -242,6 +252,7 @@ model Invoice {
   @@index([entity_id], map: "idx_invoices_entity")
   @@index([is_recurring], map: "idx_invoices_recurring")
   @@index([invoice_profile_id], map: "idx_invoices_invoice_profile")
+  @@index([reporting_month], map: "idx_invoices_reporting_month")
   @@map("invoices")
 }
 
@@ -522,4 +533,68 @@ model UserInvite {
   @@index([token], map: "idx_user_invites_token")
   @@index([email], map: "idx_user_invites_email")
   @@map("user_invites")
+}
+
+// ============================================================================
+// MONTHLY REPORT SYSTEM
+// ============================================================================
+
+/// Report Period model for Monthly Report System
+/// Tracks audit/finalization status for each month's report
+/// Stores frozen snapshot JSON when finalized for historical accuracy
+model ReportPeriod {
+  id              Int       @id @default(autoincrement())
+  month           Int       // 1-12
+  year            Int       // 2025, 2026, etc.
+  status          String    @default("draft") // "draft" | "finalized" | "submitted"
+  finalized_at    DateTime?
+  finalized_by_id Int?
+  submitted_at    DateTime?
+  submitted_to    String?   // Email or name of accountant
+  // Frozen snapshot of the report at finalization time
+  // Contains all invoices and payments grouped by payment type
+  snapshot_data   Json?
+  notes           String?
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+
+  finalized_by    User?     @relation("ReportFinalizer", fields: [finalized_by_id], references: [id])
+
+  @@unique([month, year], name: "unique_report_period")
+  @@index([status], map: "idx_report_periods_status")
+  @@index([year, month], map: "idx_report_periods_year_month")
+  @@map("report_periods")
+}
+
+/// Advance Payment model for Monthly Report System
+/// Records payments made before invoice is received
+/// Can be linked to an invoice later when it arrives
+model AdvancePayment {
+  id                Int       @id @default(autoincrement())
+  vendor_id         Int
+  description       String    // What the payment was for
+  amount            Float
+  payment_type_id   Int
+  payment_date      DateTime
+  payment_reference String?   // Transaction reference number
+  // Which month's report this belongs to (first of the month)
+  reporting_month   DateTime
+  // When invoice arrives, link it here
+  linked_invoice_id Int?      @unique
+  linked_at         DateTime?
+  notes             String?
+  created_by_id     Int?
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+
+  vendor          Vendor       @relation(fields: [vendor_id], references: [id])
+  payment_type    PaymentType  @relation(fields: [payment_type_id], references: [id])
+  linked_invoice  Invoice?     @relation(fields: [linked_invoice_id], references: [id])
+  created_by      User?        @relation("AdvancePaymentCreator", fields: [created_by_id], references: [id])
+
+  @@index([vendor_id], map: "idx_advance_payments_vendor")
+  @@index([reporting_month], map: "idx_advance_payments_reporting_month")
+  @@index([linked_invoice_id], map: "idx_advance_payments_linked_invoice")
+  @@index([payment_type_id], map: "idx_advance_payments_payment_type")
+  @@map("advance_payments")
 }
