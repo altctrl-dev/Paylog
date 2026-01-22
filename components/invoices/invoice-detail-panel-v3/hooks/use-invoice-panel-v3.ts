@@ -37,6 +37,7 @@ export interface UseInvoicePanelV3Props {
 export interface InvoicePanelPermissions {
   canEdit: boolean;
   canRecordPayment: boolean;
+  canAddCreditNote: boolean;
   canPutOnHold: boolean;
   canArchive: boolean;
   canDelete: boolean;
@@ -198,9 +199,16 @@ export function useInvoicePanelV3({
       hasRemainingBalance &&
       !hasPendingPayment;
 
+    // Add Credit Note: Can add if invoice is approved (not pending_approval or rejected) and not archived
+    const canAddCreditNote =
+      invoice?.status !== INVOICE_STATUS.PENDING_APPROVAL &&
+      invoice?.status !== INVOICE_STATUS.REJECTED &&
+      !invoice?.is_archived;
+
     return {
       canEdit,
       canRecordPayment,
+      canAddCreditNote,
       canPutOnHold,
       canArchive,
       canDelete,

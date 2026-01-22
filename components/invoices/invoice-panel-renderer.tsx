@@ -18,6 +18,7 @@ import { InvoiceDetailPanelV3 } from './invoice-detail-panel-v3';
 import { InvoiceHoldPanel } from './invoice-hold-panel';
 import { InvoiceRejectPanel } from './invoice-reject-panel';
 import { PaymentFormPanel } from '@/components/payments/payment-form-panel';
+import { CreditNoteFormPanel } from '@/components/credit-notes/credit-note-form-panel';
 import { VendorFormPanel } from '@/components/master-data/vendor-form-panel';
 import { CategoryFormPanel } from '@/components/master-data/category-form-panel';
 import { PaymentTypeFormPanel } from '@/components/master-data/payment-type-form-panel';
@@ -26,7 +27,6 @@ import { EditRecurringInvoiceForm } from '@/components/invoices-v2/edit-recurrin
 import { EditNonRecurringInvoiceForm } from '@/components/invoices-v2/edit-non-recurring-invoice-form';
 import { RecurringInvoiceFormPanel } from '@/components/invoices-v2/recurring-invoice-form-panel';
 import { NonRecurringInvoiceFormPanel } from '@/components/invoices-v2/non-recurring-invoice-form-panel';
-import { InvoicePendingFormPanel } from '@/components/invoices-v2/invoice-pending-form-panel';
 import { CompleteInvoiceDetailsPanel } from '@/components/invoices-v2/complete-invoice-details-panel';
 import { PanelLevel } from '@/components/panels/panel-level';
 
@@ -144,14 +144,6 @@ export function InvoicePanelRenderer({
         />
       );
 
-    case 'invoice-create-pending':
-      return (
-        <InvoicePendingFormPanel
-          config={config}
-          onClose={onClose}
-        />
-      );
-
     case 'invoice-complete-details':
       return (
         <CompleteInvoiceDetailsPanel
@@ -200,6 +192,24 @@ export function InvoicePanelRenderer({
           tdsRounded={props.tdsRounded as boolean | undefined}
           vendorName={props.vendorName as string | undefined}
           currencyCode={props.currencyCode as string | undefined}
+        />
+      );
+
+    case 'credit-note-form':
+      return (
+        <CreditNoteFormPanel
+          config={config}
+          onClose={onClose}
+          invoiceId={props.invoiceId as number}
+          invoiceNumber={props.invoiceNumber as string}
+          invoiceName={props.invoiceName as string | undefined}
+          invoiceAmount={props.invoiceAmount as number}
+          vendorName={props.vendorName as string | undefined}
+          entityName={props.entityName as string | undefined}
+          currencyCode={props.currencyCode as string | undefined}
+          currencySymbol={props.currencySymbol as string | undefined}
+          invoiceTdsApplicable={props.invoiceTdsApplicable as boolean | undefined}
+          invoiceTdsPercentage={props.invoiceTdsPercentage as number | undefined}
         />
       );
 

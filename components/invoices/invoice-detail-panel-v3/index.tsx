@@ -48,6 +48,7 @@ import {
   MoreVertical,
   RefreshCw,
   FileWarning,
+  ReceiptText,
 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 // Popover import removed - using native dropdown for mobile
@@ -247,6 +248,29 @@ export function InvoiceDetailPanelV3({
       { width: PANEL_WIDTH.MEDIUM }
     );
   }, [invoice, invoiceId, paymentSummary, openPanel]);
+
+  const handleAddCreditNote = React.useCallback(() => {
+    if (!invoice) return;
+
+    openPanel(
+      'credit-note-form',
+      {
+        invoiceId: invoice.id,
+        invoiceNumber: invoice.invoice_number,
+        invoiceName: invoice.is_recurring
+          ? invoice.invoice_profile?.name
+          : invoice.invoice_name || invoice.description,
+        invoiceAmount: invoice.invoice_amount,
+        vendorName: invoice.vendor?.name,
+        entityName: invoice.entity?.name,
+        currencyCode: invoice.currency?.code,
+        currencySymbol: invoice.currency?.symbol,
+        invoiceTdsApplicable: invoice.tds_applicable,
+        invoiceTdsPercentage: invoice.tds_percentage,
+      },
+      { width: PANEL_WIDTH.LARGE }
+    );
+  }, [invoice, openPanel]);
 
   const handleCompleteInvoiceDetails = React.useCallback(() => {
     if (!invoice) return;
@@ -634,6 +658,14 @@ export function InvoiceDetailPanelV3({
                       tooltip={getRecordPaymentTooltip()}
                     />
                   )}
+                  {permissions.canAddCreditNote && (
+                    <MobileActionButton
+                      icon={<ReceiptText className="h-4 w-4" />}
+                      label="Credit Note"
+                      onClick={handleAddCreditNote}
+                      disabled={isMutationPending}
+                    />
+                  )}
                   {permissions.canPutOnHold && (
                     <MobileActionButton
                       icon={<Pause className="h-4 w-4" />}
@@ -801,6 +833,7 @@ export function InvoiceDetailPanelV3({
                 recordPaymentBlockedReason={recordPaymentBlockedReason}
                 onEdit={handleEdit}
                 onRecordPayment={handleRecordPayment}
+                onAddCreditNote={handleAddCreditNote}
                 onPutOnHold={handlePutOnHold}
                 onArchive={handleArchive}
                 onDelete={handleDelete}

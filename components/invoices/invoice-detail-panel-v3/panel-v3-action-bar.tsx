@@ -17,6 +17,7 @@ import {
   Check,
   X,
   RefreshCw,
+  ReceiptText,
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -49,6 +50,7 @@ export interface PanelV3ActionBarProps {
   permissions: {
     canEdit: boolean;
     canRecordPayment: boolean;
+    canAddCreditNote: boolean;
     canPutOnHold: boolean;
     canArchive: boolean;
     canDelete: boolean;
@@ -60,6 +62,7 @@ export interface PanelV3ActionBarProps {
   recordPaymentBlockedReason?: RecordPaymentBlockedReason;
   onEdit: () => void;
   onRecordPayment: () => void;
+  onAddCreditNote: () => void;
   onPutOnHold: () => void;
   onArchive: () => void;
   onDelete: () => void;
@@ -75,6 +78,7 @@ export function PanelV3ActionBar({
   recordPaymentBlockedReason,
   onEdit,
   onRecordPayment,
+  onAddCreditNote,
   onPutOnHold,
   onArchive,
   onDelete,
@@ -136,6 +140,14 @@ export function PanelV3ActionBar({
       // Disabled if processing OR if there's a blocking reason
       disabled: isProcessing || !permissions.canRecordPayment,
       tooltip: recordPaymentTooltip,
+    },
+    {
+      id: 'add-credit-note',
+      icon: <ReceiptText />,
+      label: 'Credit Note',
+      onClick: onAddCreditNote,
+      hidden: !permissions.canAddCreditNote,
+      disabled: isProcessing,
     },
     {
       id: 'put-on-hold',
