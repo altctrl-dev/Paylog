@@ -112,6 +112,16 @@ export const ACTIVITY_ACTION = {
   /** Invoice permanently purged from database (after soft delete) */
   INVOICE_PURGED: 'invoice_purged',
 
+  // ============================================================================
+  // CREDIT NOTE ACTIONS
+  // ============================================================================
+
+  /** Credit note added to invoice (reduces invoice amount) */
+  CREDIT_NOTE_ADDED: 'credit_note_added',
+
+  /** Credit note soft-deleted by admin */
+  CREDIT_NOTE_DELETED: 'credit_note_deleted',
+
 } as const;
 
 // ============================================================================
@@ -154,6 +164,8 @@ export const ACTIVITY_ACTION_LABELS: Record<ActivityAction, string> = {
   [ACTIVITY_ACTION.BULK_DELETE]: 'Bulk deleted invoices',
   [ACTIVITY_ACTION.BULK_ARCHIVE]: 'Bulk archived invoices',
   [ACTIVITY_ACTION.INVOICE_PURGED]: 'Permanently purged invoice',
+  [ACTIVITY_ACTION.CREDIT_NOTE_ADDED]: 'Added credit note',
+  [ACTIVITY_ACTION.CREDIT_NOTE_DELETED]: 'Deleted credit note',
 };
 
 /** Icon names for activity actions (for UI display with icon libraries like Lucide) */
@@ -184,6 +196,8 @@ export const ACTIVITY_ACTION_ICONS: Record<ActivityAction, string> = {
   [ACTIVITY_ACTION.BULK_DELETE]: 'Trash',
   [ACTIVITY_ACTION.BULK_ARCHIVE]: 'Archive',
   [ACTIVITY_ACTION.INVOICE_PURGED]: 'Trash2',
+  [ACTIVITY_ACTION.CREDIT_NOTE_ADDED]: 'ReceiptText',
+  [ACTIVITY_ACTION.CREDIT_NOTE_DELETED]: 'ReceiptText',
 };
 
 // ============================================================================
