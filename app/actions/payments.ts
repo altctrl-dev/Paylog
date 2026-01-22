@@ -129,8 +129,24 @@ export async function getPaymentSummary(
       },
     });
 
+    // Sum all credit notes (active, not soft-deleted)
+    const creditNotesSum = await db.creditNote.aggregate({
+      where: {
+        invoice_id: invoiceId,
+        deleted_at: null,
+      },
+      _sum: {
+        amount: true,
+        tds_amount: true,
+      },
+      _count: true,
+    });
+
     const totalPaid = paymentsSum._sum.amount_paid || 0;
     const paymentCount = paymentsSum._count;
+    const totalCreditNotes = creditNotesSum._sum.amount || 0;
+    const tdsReversed = creditNotesSum._sum.tds_amount || 0;
+    const creditNoteCount = creditNotesSum._count;
 
     // BUG-006 FIX: Calculate net payable amount after TDS deduction
     // The remaining balance should be based on the net payable (invoice_amount - TDS), not gross invoice_amount
@@ -138,9 +154,13 @@ export async function getPaymentSummary(
     const tdsCalc = invoice.tds_applicable && invoice.tds_percentage
       ? calculateTds(invoice.invoice_amount, invoice.tds_percentage, invoice.tds_rounded ?? false)
       : { payableAmount: invoice.invoice_amount };
-    const remainingBalance = tdsCalc.payableAmount - totalPaid;
+
+    // Balance calculation with credit notes:
+    // Remaining = Payable Amount - Total Paid - Credit Notes + TDS Reversed
+    // Credit notes reduce payable, but TDS reversed adds back since vendor owes us less TDS
+    const remainingBalance = tdsCalc.payableAmount - totalPaid - totalCreditNotes + tdsReversed;
     const isFullyPaid = remainingBalance <= 0;
-    const isPartiallyPaid = totalPaid > 0 && !isFullyPaid;
+    const isPartiallyPaid = (totalPaid > 0 || totalCreditNotes > 0) && !isFullyPaid;
     const hasPendingPayment = pendingPaymentCount > 0;
 
     return {
@@ -155,6 +175,9 @@ export async function getPaymentSummary(
         is_fully_paid: isFullyPaid,
         is_partially_paid: isPartiallyPaid,
         has_pending_payment: hasPendingPayment,
+        total_credit_notes: totalCreditNotes,
+        tds_reversed: tdsReversed,
+        credit_note_count: creditNoteCount,
       },
     };
   } catch (error) {
@@ -924,19 +947,36 @@ export async function recalculateInvoiceStatus(
       },
     });
 
+    // Sum all credit notes (active, not soft-deleted)
+    const creditNotesSum = await db.creditNote.aggregate({
+      where: {
+        invoice_id: invoiceId,
+        deleted_at: null,
+      },
+      _sum: {
+        amount: true,
+        tds_amount: true,
+      },
+    });
+
     const totalPaid = paymentsSum._sum.amount_paid || 0;
+    const totalCreditNotes = creditNotesSum._sum.amount || 0;
+    const tdsReversed = creditNotesSum._sum.tds_amount || 0;
 
     // Calculate net payable amount after TDS deduction
     const tdsCalc = invoice.tds_applicable && invoice.tds_percentage
       ? calculateTds(invoice.invoice_amount, invoice.tds_percentage, invoice.tds_rounded ?? false)
       : { payableAmount: invoice.invoice_amount };
-    const remainingBalance = tdsCalc.payableAmount - totalPaid;
+
+    // Balance calculation with credit notes:
+    // Remaining = Payable Amount - Total Paid - Credit Notes + TDS Reversed
+    const remainingBalance = tdsCalc.payableAmount - totalPaid - totalCreditNotes + tdsReversed;
 
     // Determine new status
     let newStatus: string = INVOICE_STATUS.UNPAID;
     if (remainingBalance <= 0.01) { // Small epsilon for float comparison
       newStatus = INVOICE_STATUS.PAID;
-    } else if (totalPaid > 0) {
+    } else if (totalPaid > 0 || totalCreditNotes > 0) {
       newStatus = INVOICE_STATUS.PARTIAL;
     }
 
@@ -957,7 +997,7 @@ export async function recalculateInvoiceStatus(
         old_data: { status: oldStatus },
         new_data: {
           status: newStatus,
-          reason: 'Status recalculated based on payments and TDS'
+          reason: 'Status recalculated based on payments, credit notes, and TDS'
         },
       });
 

@@ -350,10 +350,9 @@ export const nonRecurringInvoiceSchema = z
     // Category (mandatory)
     category_id: z.number().int().positive('Category is required'),
 
-    // Invoice details
+    // Invoice details (invoice_number can be empty if invoice_pending is true)
     invoice_number: z
       .string()
-      .min(1, 'Invoice number is required')
       .max(100, 'Invoice number too long'),
     invoice_date: z
       .date({
@@ -390,7 +389,7 @@ export const nonRecurringInvoiceSchema = z
       .nullable()
       .optional(),
 
-    // Inline payment fields (optional)
+    // Inline payment fields (optional, but required if invoice_pending is true)
     is_paid: z.boolean().default(false),
     paid_date: z
       .date({
@@ -405,10 +404,14 @@ export const nonRecurringInvoiceSchema = z
 
     // TDS rounding for inline payments
     tds_rounded: z.boolean().optional().default(false),
+
+    // Invoice pending mode - payment recorded before invoice received
+    invoice_pending: z.boolean().optional().default(false),
   })
   .refine(
     (data) => {
-      // Validation: due_date must be >= invoice_date
+      // Validation: due_date must be >= invoice_date (skip for pending invoices)
+      if (data.invoice_pending) return true; // Skip for pending invoices
       return data.due_date >= data.invoice_date;
     },
     {
@@ -439,6 +442,32 @@ export const nonRecurringInvoiceSchema = z
     },
     {
       message: 'Payment details are required when invoice is marked as paid',
+      path: ['is_paid'],
+    }
+  )
+  .refine(
+    (data) => {
+      // Validation: invoice_number is required unless invoice_pending is true
+      if (!data.invoice_pending && (!data.invoice_number || data.invoice_number.trim() === '')) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: 'Invoice number is required',
+      path: ['invoice_number'],
+    }
+  )
+  .refine(
+    (data) => {
+      // Validation: if invoice_pending is true, payment is required
+      if (data.invoice_pending && !data.is_paid) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: 'Payment details are required when invoice is pending',
       path: ['is_paid'],
     }
   );
@@ -491,10 +520,9 @@ export const nonRecurringInvoiceSerializedSchema = z
     // Category (mandatory)
     category_id: z.number().int().positive('Category is required'),
 
-    // Invoice details
+    // Invoice details (invoice_number can be empty if invoice_pending is true)
     invoice_number: z
       .string()
-      .min(1, 'Invoice number is required')
       .max(100, 'Invoice number too long'),
     invoice_date: z.string().min(1, 'Invoice date is required'), // ISO string
     due_date: z.string().min(1, 'Due date is required'), // ISO string - defaults to invoice_date
@@ -516,7 +544,7 @@ export const nonRecurringInvoiceSerializedSchema = z
       .nullable()
       .optional(),
 
-    // Inline payment fields (optional)
+    // Inline payment fields (optional, but required if invoice_pending is true)
     is_paid: z.boolean().default(false),
     paid_date: z.string().nullable().optional(), // ISO string
     paid_amount: z.number().positive('Paid amount must be greater than 0').nullable().optional(),
@@ -526,10 +554,14 @@ export const nonRecurringInvoiceSerializedSchema = z
 
     // TDS rounding for inline payments
     tds_rounded: z.boolean().optional().default(false),
+
+    // Invoice pending mode - payment recorded before invoice received
+    invoice_pending: z.boolean().optional().default(false),
   })
   .refine(
     (data) => {
-      // Validation: due_date must be >= invoice_date
+      // Validation: due_date must be >= invoice_date (skip for pending invoices)
+      if (data.invoice_pending) return true; // Skip for pending invoices
       const invoiceDate = new Date(data.invoice_date);
       const dueDate = new Date(data.due_date);
       return dueDate >= invoiceDate;
@@ -562,6 +594,32 @@ export const nonRecurringInvoiceSerializedSchema = z
     },
     {
       message: 'Payment details are required when invoice is marked as paid',
+      path: ['is_paid'],
+    }
+  )
+  .refine(
+    (data) => {
+      // Validation: invoice_number is required unless invoice_pending is true
+      if (!data.invoice_pending && (!data.invoice_number || data.invoice_number.trim() === '')) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: 'Invoice number is required',
+      path: ['invoice_number'],
+    }
+  )
+  .refine(
+    (data) => {
+      // Validation: if invoice_pending is true, payment is required
+      if (data.invoice_pending && !data.is_paid) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: 'Payment details are required when invoice is pending',
       path: ['is_paid'],
     }
   );

@@ -168,6 +168,12 @@ export interface PaymentSummary {
   is_partially_paid: boolean;
   /** Whether there's a pending payment awaiting approval */
   has_pending_payment: boolean;
+  /** Total credit note amount applied */
+  total_credit_notes: number;
+  /** TDS amount reversed via credit notes */
+  tds_reversed: number;
+  /** Count of credit notes */
+  credit_note_count: number;
 }
 
 /**

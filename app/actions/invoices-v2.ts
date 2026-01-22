@@ -380,6 +380,10 @@ export async function createNonRecurringInvoice(
     const validated = nonRecurringInvoiceSerializedSchema.parse(data);
     console.log('[createNonRecurringInvoice] Data validated successfully');
 
+    // Check if this is a pending invoice (payment before invoice received)
+    const isInvoicePending = validated.invoice_pending === true;
+    console.log('[createNonRecurringInvoice] Invoice pending mode:', isInvoicePending);
+
     // 3. Convert base64 file to File object (if provided)
     let file: File | null = null;
     if (validated.file) {
@@ -393,27 +397,35 @@ export async function createNonRecurringInvoice(
     // 4. Parse ISO date strings to Date objects
     const invoiceDate = new Date(validated.invoice_date);
     const dueDate = validated.due_date ? new Date(validated.due_date) : null;
-    const invoiceReceivedDate = validated.invoice_received_date ? new Date(validated.invoice_received_date) : null; // Bug fix: Parse invoice_received_date
+    const invoiceReceivedDate = validated.invoice_received_date ? new Date(validated.invoice_received_date) : null;
 
-    // 5. Check for duplicate invoice number (vendor-specific)
-    // For non-recurring invoices: same invoice_number + vendor_id + invoice_name = duplicate
-    console.log('[createNonRecurringInvoice] Checking for duplicate invoice...');
-    const existing = await db.invoice.findFirst({
-      where: {
-        invoice_number: validated.invoice_number,
-        vendor_id: validated.vendor_id,
-        invoice_name: validated.invoice_name, // Use dedicated invoice_name field
-      },
-    });
-
-    if (existing) {
-      return {
-        success: false,
-        error: `Invoice "${validated.invoice_name}" with number "${validated.invoice_number}" already exists for this vendor`,
-      };
+    // 5. Determine invoice number (auto-generate for pending invoices if empty)
+    let invoiceNumber = validated.invoice_number;
+    if (isInvoicePending && (!invoiceNumber || invoiceNumber.trim() === '')) {
+      invoiceNumber = `PENDING-${Date.now()}`;
+      console.log('[createNonRecurringInvoice] Auto-generated invoice number:', invoiceNumber);
     }
 
-    // 6. Validate vendor exists
+    // 6. Check for duplicate invoice number (vendor-specific) - skip for auto-generated pending numbers
+    if (!isInvoicePending || !invoiceNumber.startsWith('PENDING-')) {
+      console.log('[createNonRecurringInvoice] Checking for duplicate invoice...');
+      const existing = await db.invoice.findFirst({
+        where: {
+          invoice_number: invoiceNumber,
+          vendor_id: validated.vendor_id,
+          invoice_name: validated.invoice_name,
+        },
+      });
+
+      if (existing) {
+        return {
+          success: false,
+          error: `Invoice "${validated.invoice_name}" with number "${invoiceNumber}" already exists for this vendor`,
+        };
+      }
+    }
+
+    // 7. Validate vendor exists
     console.log('[createNonRecurringInvoice] Validating vendor...');
     const vendor = await db.vendor.findUnique({
       where: { id: validated.vendor_id },
@@ -426,7 +438,7 @@ export async function createNonRecurringInvoice(
       };
     }
 
-    // 7. Validate entity exists
+    // 8. Validate entity exists
     console.log('[createNonRecurringInvoice] Validating entity...');
     const entity = await db.entity.findUnique({
       where: { id: validated.entity_id },
@@ -439,7 +451,7 @@ export async function createNonRecurringInvoice(
       };
     }
 
-    // 8. Validate category exists
+    // 9. Validate category exists
     console.log('[createNonRecurringInvoice] Validating category...');
     const category = await db.category.findUnique({
       where: { id: validated.category_id },
@@ -452,17 +464,25 @@ export async function createNonRecurringInvoice(
       };
     }
 
-    // 9. Determine initial status based on user role
-    const isAdmin = user.role === 'admin' || user.role === 'super_admin';
+    // 10. Determine initial status based on user role and invoice_pending mode
+    const userIsAdmin = user.role === 'admin' || user.role === 'super_admin';
 
-    // Initial status: admin goes straight to unpaid, standard users need approval
-    const initialStatus = isAdmin ? INVOICE_STATUS.UNPAID : INVOICE_STATUS.PENDING_APPROVAL;
-    console.log('[createNonRecurringInvoice] Initial status:', initialStatus, 'isAdmin:', isAdmin);
+    let initialStatus: string;
+    if (isInvoicePending) {
+      // For pending invoices with payment, status is based on payment vs amount
+      const isPaidInFull = validated.paid_amount && validated.paid_amount >= validated.invoice_amount;
+      initialStatus = isPaidInFull ? INVOICE_STATUS.PAID : INVOICE_STATUS.PARTIAL;
+      console.log('[createNonRecurringInvoice] Pending invoice status:', initialStatus, 'isPaidInFull:', isPaidInFull);
+    } else {
+      // Regular flow: admin goes straight to unpaid, standard users need approval
+      initialStatus = userIsAdmin ? INVOICE_STATUS.UNPAID : INVOICE_STATUS.PENDING_APPROVAL;
+      console.log('[createNonRecurringInvoice] Initial status:', initialStatus, 'isAdmin:', userIsAdmin);
+    }
 
-    // 10. Prepare pending payment data if provided (for standard users)
-    // Payment will be created when invoice is approved
+    // 11. Prepare pending payment data if provided (for standard users in normal flow)
+    // For invoice_pending mode, we create the payment immediately instead
     let pendingPaymentData: Prisma.InputJsonValue | typeof Prisma.DbNull = Prisma.DbNull;
-    if (validated.is_paid && validated.paid_date && validated.paid_amount && validated.payment_type_id) {
+    if (!isInvoicePending && validated.is_paid && validated.paid_date && validated.paid_amount && validated.payment_type_id) {
       pendingPaymentData = {
         paid_date: validated.paid_date,
         paid_amount: validated.paid_amount,
@@ -473,14 +493,14 @@ export async function createNonRecurringInvoice(
       console.log('[createNonRecurringInvoice] Storing pending payment data:', pendingPaymentData);
     }
 
-    // 11. Create invoice in transaction (extended timeout for file uploads)
+    // 12. Create invoice in transaction (extended timeout for file uploads)
     console.log('[createNonRecurringInvoice] Creating invoice record...');
     const invoice = await db.$transaction(async (tx) => {
       // Create invoice record
       const newInvoice = await tx.invoice.create({
         data: {
           // Core fields
-          invoice_number: validated.invoice_number,
+          invoice_number: invoiceNumber,
           vendor_id: validated.vendor_id,
           entity_id: validated.entity_id,
           category_id: validated.category_id,
@@ -489,12 +509,12 @@ export async function createNonRecurringInvoice(
           // Invoice details
           invoice_amount: validated.invoice_amount,
           invoice_date: invoiceDate,
-          due_date: dueDate,
-          invoice_received_date: invoiceReceivedDate, // Bug fix: Save invoice_received_date to database
+          due_date: isInvoicePending ? null : dueDate, // No due date for pending invoices
+          invoice_received_date: invoiceReceivedDate,
 
           // Description and Invoice Name (non-recurring: separate fields)
           description: validated.brief_description || null,
-          invoice_name: validated.invoice_name, // User-entered invoice name
+          invoice_name: validated.invoice_name,
 
           // TDS
           tds_applicable: validated.tds_applicable,
@@ -504,16 +524,43 @@ export async function createNonRecurringInvoice(
           // Non-recurring invoice fields
           is_recurring: false,
 
+          // Invoice pending flag - indicates payment recorded before invoice received
+          invoice_pending: isInvoicePending,
+
           // Status and metadata
           status: initialStatus,
           created_by: user.id,
 
-          // Store pending payment data for processing on approval
+          // Store pending payment data for processing on approval (only for normal flow)
           pending_payment_data: pendingPaymentData,
         },
       });
 
       console.log('[createNonRecurringInvoice] Invoice created, ID:', newInvoice.id);
+
+      // For pending invoices, create payment record immediately
+      if (isInvoicePending && validated.is_paid && validated.paid_date && validated.paid_amount && validated.payment_type_id) {
+        const paidDate = new Date(validated.paid_date);
+        const payment = await tx.payment.create({
+          data: {
+            invoice_id: newInvoice.id,
+            amount_paid: validated.paid_amount,
+            payment_date: paidDate,
+            payment_type_id: validated.payment_type_id,
+            payment_reference: validated.payment_reference || null,
+            status: 'approved', // Payment is approved immediately for pending invoices
+            created_by_user_id: user.id,
+            approved_by_user_id: userIsAdmin ? user.id : null,
+            approved_at: userIsAdmin ? new Date() : null,
+            // TDS applied on payment
+            tds_amount_applied: validated.tds_applicable && validated.tds_percentage
+              ? (validated.paid_amount * (validated.tds_percentage / 100))
+              : null,
+            tds_rounded: validated.tds_rounded ?? false,
+          },
+        });
+        console.log('[createNonRecurringInvoice] Payment created for pending invoice, ID:', payment.id);
+      }
 
       // Upload file attachment (if provided, pass transaction context for transactional integrity)
       if (file && file.size > 0) {
@@ -538,7 +585,7 @@ export async function createNonRecurringInvoice(
 
     console.log('[createNonRecurringInvoice] Transaction completed successfully');
 
-    // 12. Log activity (non-blocking)
+    // 13. Log activity (non-blocking)
     await createActivityLog({
       invoice_id: invoice.id,
       user_id: user.id,
@@ -549,13 +596,14 @@ export async function createNonRecurringInvoice(
         invoice_amount: invoice.invoice_amount,
         status: invoice.status,
         is_recurring: false,
+        invoice_pending: isInvoicePending,
       },
     }).catch((err) => {
       console.error('[createNonRecurringInvoice] Failed to create activity log:', err);
     });
 
-    // 12.5. Send notification to admins if standard user created invoice (pending approval)
-    if (!isAdmin && initialStatus === INVOICE_STATUS.PENDING_APPROVAL) {
+    // 14. Send notification to admins if standard user created invoice (pending approval)
+    if (!userIsAdmin && initialStatus === INVOICE_STATUS.PENDING_APPROVAL) {
       notifyInvoicePendingApproval(
         invoice.id,
         invoice.invoice_number,
@@ -565,18 +613,24 @@ export async function createNonRecurringInvoice(
       });
     }
 
-    // 13. Revalidate cache
+    // 15. Revalidate cache
     revalidatePath('/invoices');
+    if (isInvoicePending) {
+      revalidatePath('/reports'); // Also revalidate reports for pending invoices
+    }
 
-    // 14. Check vendor status and customize success message
+    // 16. Check vendor status and customize success message
     const vendorForMessage = await db.vendor.findUnique({
       where: { id: invoice.vendor_id },
       select: { status: true, name: true },
     });
 
-    const successMessage = vendorForMessage?.status === 'PENDING_APPROVAL'
-      ? `Invoice submitted for approval. Vendor "${vendorForMessage.name}" is pending admin approval.`
-      : undefined;
+    let successMessage: string | undefined;
+    if (isInvoicePending) {
+      successMessage = 'Payment recorded. Invoice details can be added later when the invoice is received.';
+    } else if (vendorForMessage?.status === 'PENDING_APPROVAL') {
+      successMessage = `Invoice submitted for approval. Vendor "${vendorForMessage.name}" is pending admin approval.`;
+    }
 
     console.log('[createNonRecurringInvoice] Success! Invoice ID:', invoice.id);
     return {

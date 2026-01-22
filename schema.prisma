@@ -55,6 +55,8 @@ model User {
   // Monthly Report System relations
   finalized_reports        ReportPeriod[]          @relation("ReportFinalizer")
   created_advance_payments AdvancePayment[]        @relation("AdvancePaymentCreator")
+  created_credit_notes     CreditNote[]            @relation("CreditNoteCreator")
+  deleted_credit_notes     CreditNote[]            @relation("CreditNoteDeleter")
 
   @@index([role, status], map: "idx_users_role_status")
   @@index([status], map: "idx_users_status")
@@ -243,6 +245,7 @@ model Invoice {
   rejector              User?               @relation("InvoiceRejector", fields: [rejected_by], references: [id], onDelete: Restrict)
   vendor                Vendor              @relation(fields: [vendor_id], references: [id])
   payments              Payment[]
+  credit_notes          CreditNote[]
   // Monthly Report System: Advance payment that was linked to this invoice
   linked_advance_payment AdvancePayment?
 
@@ -569,6 +572,48 @@ model ReportPeriod {
   @@index([status], map: "idx_report_periods_status")
   @@index([year, month], map: "idx_report_periods_year_month")
   @@map("report_periods")
+}
+
+/// Credit Note model
+/// Credit notes issued by vendors to reduce invoice amounts
+/// Linked to specific invoice, supports TDS reversal
+model CreditNote {
+  id                  Int       @id @default(autoincrement())
+  invoice_id          Int       // Required link to parent invoice
+  credit_note_number  String    // Vendor's credit note reference number
+  credit_note_date    DateTime  // Date on the credit note
+  amount              Float     // Credit note amount
+  reason              String    // Reason for the credit note
+  notes               String?   // Additional notes
+  // TDS reversal support
+  tds_applicable      Boolean   @default(false)
+  tds_amount          Float?    // TDS amount to be reversed
+  // File attachment (optional)
+  file_name           String?
+  file_path           String?
+  file_size           Int?
+  file_mime_type      String?
+  // Reporting
+  reporting_month     DateTime? // Which month's report this belongs to
+  // Audit fields
+  created_by_id       Int
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @updatedAt
+  // Soft delete
+  deleted_at          DateTime?
+  deleted_by_id       Int?
+  deleted_reason      String?
+
+  // Relations
+  invoice             Invoice   @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
+  created_by          User      @relation("CreditNoteCreator", fields: [created_by_id], references: [id])
+  deleted_by          User?     @relation("CreditNoteDeleter", fields: [deleted_by_id], references: [id])
+
+  @@index([invoice_id], map: "idx_credit_notes_invoice")
+  @@index([credit_note_date], map: "idx_credit_notes_date")
+  @@index([reporting_month], map: "idx_credit_notes_reporting_month")
+  @@index([deleted_at], map: "idx_credit_notes_deleted")
+  @@map("credit_notes")
 }
 
 /// Advance Payment model for Monthly Report System

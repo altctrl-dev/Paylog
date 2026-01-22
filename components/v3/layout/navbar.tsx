@@ -202,7 +202,6 @@ const menuStructure = [
     items: [
       { label: 'Recurring', route: '/invoices/new/recurring' },
       { label: 'Non Recurring', route: '/invoices/new/non-recurring' },
-      { label: 'Payment (Invoice Pending)', route: '/invoices/new/pending', panelOnly: true },
     ],
   },
   {
@@ -245,11 +244,6 @@ function QuickActionsMenu({ invoiceCreationMode = 'page' }: QuickActionsMenuProp
       }
       if (route === '/invoices/new/non-recurring') {
         openPanel('invoice-create-non-recurring', {}, { width: PANEL_WIDTH.LARGE });
-        setOpen(false);
-        return;
-      }
-      if (route === '/invoices/new/pending') {
-        openPanel('invoice-create-pending', {}, { width: PANEL_WIDTH.LARGE });
         setOpen(false);
         return;
       }

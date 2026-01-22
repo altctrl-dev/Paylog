@@ -12,13 +12,14 @@
 import * as React from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -136,6 +137,7 @@ export function NonRecurringInvoiceForm({ onSuccess, onCancel }: NonRecurringInv
       payment_type_id: null,
       payment_reference: null,
       tds_rounded: false,
+      invoice_pending: false, // Invoice pending mode - payment before invoice received
     },
   });
 
@@ -143,6 +145,7 @@ export function NonRecurringInvoiceForm({ onSuccess, onCancel }: NonRecurringInv
   const watchedTdsApplicable = watch('tds_applicable');
   const watchedRecordPayment = watch('is_paid'); // Repurposed: now means "record a new payment"
   const watchedCurrencyId = watch('currency_id');
+  const invoicePending = watch('invoice_pending'); // Invoice pending mode
 
   // Handle file selection
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -173,8 +176,18 @@ export function NonRecurringInvoiceForm({ onSuccess, onCancel }: NonRecurringInv
       return;
     }
 
-    // If no file uploaded, show warning dialog
-    if (!selectedFile) {
+    // In pending mode, payment is required (validated by schema, but double-check)
+    if (data.invoice_pending && !data.is_paid) {
+      toast({
+        title: 'Payment Required',
+        description: 'When invoice is pending, you must record the payment details.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // If no file uploaded and not in pending mode, show warning dialog
+    if (!selectedFile && !data.invoice_pending) {
       setShowFileWarning(true);
       return;
     }
@@ -197,11 +210,23 @@ export function NonRecurringInvoiceForm({ onSuccess, onCancel }: NonRecurringInv
       console.log('[NonRecurringInvoiceForm] Form values:', formValues);
 
       // Validate required fields
-      if (!formValues.invoice_date) {
+      // For pending invoices, invoice_date can use payment date as fallback
+      if (!formValues.invoice_date && !invoicePending) {
         console.error('[NonRecurringInvoiceForm] Missing required date field');
         toast({
           title: 'Error',
           description: 'Invoice date is required',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // For pending invoices, payment date is required
+      if (invoicePending && !formValues.paid_date) {
+        console.error('[NonRecurringInvoiceForm] Missing payment date for pending invoice');
+        toast({
+          title: 'Error',
+          description: 'Payment date is required for pending invoices',
           variant: 'destructive',
         });
         return;
@@ -233,7 +258,11 @@ export function NonRecurringInvoiceForm({ onSuccess, onCancel }: NonRecurringInv
 
       // Build plain object (serializable)
       // Use invoice_date as fallback for due_date if not provided
-      const dueDate = formValues.due_date || formValues.invoice_date;
+      // For pending invoices, use payment date as invoice date
+      const effectiveInvoiceDate = invoicePending && formValues.paid_date
+        ? formValues.paid_date
+        : formValues.invoice_date;
+      const dueDate = formValues.due_date || effectiveInvoiceDate;
       const data = {
         file: fileData,
         invoice_name: formValues.invoice_name,
@@ -241,8 +270,9 @@ export function NonRecurringInvoiceForm({ onSuccess, onCancel }: NonRecurringInv
         vendor_id: formValues.vendor_id,
         entity_id: formValues.entity_id,
         category_id: formValues.category_id,
-        invoice_number: formValues.invoice_number,
-        invoice_date: formValues.invoice_date.toISOString(),
+        // For pending invoices, invoice_number is auto-generated on server
+        invoice_number: invoicePending ? '' : formValues.invoice_number,
+        invoice_date: effectiveInvoiceDate.toISOString(),
         due_date: dueDate.toISOString(),
         invoice_amount: formValues.invoice_amount,
         currency_id: formValues.currency_id,
@@ -255,6 +285,8 @@ export function NonRecurringInvoiceForm({ onSuccess, onCancel }: NonRecurringInv
         paid_currency: formValues.is_paid ? formValues.paid_currency : null,
         payment_type_id: formValues.is_paid ? formValues.payment_type_id : null,
         payment_reference: formValues.is_paid ? formValues.payment_reference : null,
+        // Invoice pending flag - indicates payment recorded before invoice received
+        invoice_pending: invoicePending,
       };
 
       // Force JSON serialization to ensure truly plain object
@@ -407,7 +439,7 @@ export function NonRecurringInvoiceForm({ onSuccess, onCancel }: NonRecurringInv
               <span className="text-sm text-muted-foreground">{selectedFile.name}</span>
             )}
           </div>
-          {!selectedFile && (
+          {!selectedFile && !invoicePending && (
             <Alert variant="default" className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950">
               <AlertCircle className="h-4 w-4 text-yellow-600" />
               <AlertTitle className="text-yellow-900 dark:text-yellow-200">
@@ -419,6 +451,47 @@ export function NonRecurringInvoiceForm({ onSuccess, onCancel }: NonRecurringInv
             </Alert>
           )}
         </div>
+
+        {/* Invoice Pending Toggle */}
+        <div className="flex items-start space-x-3 p-4 rounded-lg border bg-muted/30">
+          <Checkbox
+            id="invoice_pending"
+            checked={invoicePending}
+            onCheckedChange={(checked) => {
+              setValue('invoice_pending', !!checked);
+              if (checked) {
+                // When enabling pending mode, force payment to be recorded
+                setValue('is_paid', true);
+              }
+            }}
+            className="mt-0.5"
+          />
+          <div className="space-y-1">
+            <Label
+              htmlFor="invoice_pending"
+              className="cursor-pointer font-medium flex items-center gap-2"
+            >
+              <Clock className="h-4 w-4 text-amber-500" />
+              Invoice not received yet
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Enable this if you need to record a payment before receiving the actual invoice.
+              You can add the invoice details later.
+            </p>
+          </div>
+        </div>
+
+        {/* Pending Invoice Info */}
+        {invoicePending && (
+          <Alert className="bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800">
+            <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            <AlertTitle className="text-amber-900 dark:text-amber-200">Pending Invoice Mode</AlertTitle>
+            <AlertDescription className="text-amber-800 dark:text-amber-300">
+              Invoice number, date, and file are optional. A placeholder invoice number will be generated automatically.
+              Payment details are required. You can add the actual invoice details later.
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Invoice Name */}
         <div className="space-y-2">
@@ -545,22 +618,25 @@ export function NonRecurringInvoiceForm({ onSuccess, onCancel }: NonRecurringInv
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="invoice_number">
-              Invoice Number <span className="text-destructive">*</span>
+              Invoice Number {!invoicePending && <span className="text-destructive">*</span>}
+              {invoicePending && <span className="text-muted-foreground text-xs ml-1">(auto-generated)</span>}
             </Label>
             <Input
               id="invoice_number"
               {...register('invoice_number')}
-              placeholder="INV-001"
-              className={errors.invoice_number ? 'border-destructive' : ''}
+              placeholder={invoicePending ? "Will be auto-generated" : "INV-001"}
+              disabled={invoicePending}
+              className={errors.invoice_number && !invoicePending ? 'border-destructive' : invoicePending ? 'bg-muted' : ''}
             />
-            {errors.invoice_number && (
+            {errors.invoice_number && !invoicePending && (
               <p className="text-xs text-destructive">{String(errors.invoice_number.message || "")}</p>
             )}
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="invoice_date">
-              Invoice Date <span className="text-destructive">*</span>
+              Invoice Date {!invoicePending && <span className="text-destructive">*</span>}
+              {invoicePending && <span className="text-muted-foreground text-xs ml-1">(uses payment date)</span>}
             </Label>
             <Controller
               name="invoice_date"
@@ -571,11 +647,12 @@ export function NonRecurringInvoiceForm({ onSuccess, onCancel }: NonRecurringInv
                   type="date"
                   value={formatDateForInput(field.value)}
                   onChange={(e) => field.onChange(parseDateFromInput(e.target.value))}
-                  className={errors.invoice_date ? 'border-destructive' : ''}
+                  disabled={invoicePending}
+                  className={errors.invoice_date && !invoicePending ? 'border-destructive' : invoicePending ? 'bg-muted' : ''}
                 />
               )}
             />
-            {errors.invoice_date && (
+            {errors.invoice_date && !invoicePending && (
               <p className="text-xs text-destructive">{String(errors.invoice_date.message || "")}</p>
             )}
           </div>
