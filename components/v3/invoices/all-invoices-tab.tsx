@@ -3,14 +3,15 @@
 /**
  * All Invoices Tab Component (v3)
  *
- * Displays all invoices in a table format with:
+ * Displays unified entries (Invoices, Credit Notes, Advance Payments) in a table format with:
+ * - Entry type filter with count badges
  * - Month navigation with calendar picker (monthly view)
  * - Search bar for quick filtering
  * - Comprehensive filter popover (status, vendor, category, profile, payment type,
  *   entity, invoice type, TDS, archived, date range, sort)
  * - Export button (Excel)
  * - New Invoice button (recurring/non-recurring)
- * - Table with: checkbox, Invoice Details, Date, Amount, Status, Actions, Remaining
+ * - Table with: checkbox, Entry Details, Date, Amount, Status, Actions, Remaining
  */
 
 import * as React from 'react';
@@ -30,6 +31,8 @@ import {
   ChevronUp,
   ChevronDown,
   ArrowUpDown,
+  Link2,
+  Eye,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Button } from '@/components/ui/button';
@@ -51,8 +54,26 @@ import {
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import { useInvoices, useInvoiceFormOptions } from '@/hooks/use-invoices';
+import { useInvoiceFormOptions } from '@/hooks/use-invoices';
 import { useActivePaymentTypes } from '@/hooks/use-payment-types';
+import {
+  useUnifiedEntries,
+  useApproveCreditNote,
+  useRejectCreditNote,
+  useApproveAdvancePayment,
+  useRejectAdvancePayment,
+} from '@/hooks/use-unified-entries';
+import type {
+  UnifiedEntry,
+  UnifiedEntryFilters,
+  EntryType,
+  InvoiceEntry,
+} from '@/types/unified-entry';
+import {
+  isInvoiceEntry,
+  isCreditNoteEntry,
+  isAdvancePaymentEntry,
+} from '@/types/unified-entry';
 import { createInvoiceArchiveRequest, permanentDeleteInvoice, approveInvoice, rejectInvoice, bulkArchiveInvoices } from '@/app/actions/invoices';
 import { approveVendorRequest } from '@/app/actions/admin/master-data-approval';
 import {
@@ -70,12 +91,12 @@ import {
   InputDialog,
 } from '@/components/ui/confirmation-dialog';
 import {
-  InvoiceFilterPopover,
   PENDING_ACTIONS_STATUS,
   type InvoiceFilterState,
   type FilterOptions,
 } from './invoice-filter-popover';
 import { InvoiceFilterSheet } from './invoice-filter-sheet';
+import { UnifiedFilterPopover } from './unified-filter-popover';
 import { SlidersHorizontal } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
@@ -84,12 +105,23 @@ import { PANEL_WIDTH } from '@/types/panel';
 import { useUIVersion } from '@/lib/stores/ui-version-store';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { type InvoiceStatus, INVOICE_STATUS, type InvoiceFilters } from '@/types/invoice';
+import { INVOICE_STATUS, type InvoiceFilters } from '@/types/invoice';
 import { MonthNavigator } from './month-navigator';
 import { FloatingActionBar } from './floating-action-bar';
 import { calculateTds } from '@/lib/utils/tds';
 import { formatCurrency } from '@/lib/utils/format';
 import { bulkExportInvoices } from '@/app/actions/bulk-operations';
+
+// ============================================================================
+// Entry Type Filter Constants
+// ============================================================================
+
+const ENTRY_TYPE_OPTIONS: { value: EntryType | 'all'; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'invoice', label: 'Invoices' },
+  { value: 'credit_note', label: 'Credit Notes' },
+  { value: 'advance_payment', label: 'Advance Payments' },
+];
 
 // ============================================================================
 // Sortable Table Head Component
@@ -135,6 +167,42 @@ function SortableTableHead({
         )}
       </div>
     </TableHead>
+  );
+}
+
+// ============================================================================
+// Entry Type Badge Component
+// ============================================================================
+
+interface EntryTypeBadgeProps {
+  entryType: EntryType;
+}
+
+/**
+ * Badge showing entry type with appropriate color coding
+ */
+function EntryTypeBadge({ entryType }: EntryTypeBadgeProps) {
+  const variants: Record<EntryType, string> = {
+    invoice: 'bg-muted text-muted-foreground border-border',
+    credit_note: 'bg-cyan-500/20 text-cyan-500 border-cyan-500/30',
+    advance_payment: 'bg-purple-500/20 text-purple-500 border-purple-500/30',
+  };
+
+  const labels: Record<EntryType, string> = {
+    invoice: 'Invoice',
+    credit_note: 'Credit Note',
+    advance_payment: 'Advance Payment',
+  };
+
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center px-1.5 py-0 rounded text-[10px] font-medium border h-4',
+        variants[entryType]
+      )}
+    >
+      {labels[entryType]}
+    </span>
   );
 }
 
@@ -203,6 +271,7 @@ function getFilterLabel(
 
 /**
  * Status labels for display
+ * Note: pending_approval and rejected are shared between invoice, credit note, and advance payment
  */
 const STATUS_LABELS: Record<string, string> = {
   [INVOICE_STATUS.PAID]: 'Paid',
@@ -212,6 +281,8 @@ const STATUS_LABELS: Record<string, string> = {
   [INVOICE_STATUS.UNPAID]: 'Unpaid',
   [INVOICE_STATUS.ON_HOLD]: 'On Hold',
   [INVOICE_STATUS.REJECTED]: 'Rejected',
+  // Credit note and advance payment specific status (not in INVOICE_STATUS)
+  approved: 'Approved',
 };
 
 interface StatusBadgeProps {
@@ -221,12 +292,12 @@ interface StatusBadgeProps {
 }
 
 /**
- * Status badge for invoice table rows
+ * Status badge for table rows
  *
  * Color scheme:
  * - Invoice Pending Approval: Amber/Yellow (bg-amber-500/20)
  * - Payment Pending: Purple (bg-purple-500/20)
- * - Paid: Green
+ * - Paid/Approved: Green
  * - Overdue/Rejected: Red
  * - Partial: Blue
  * - Unpaid: Orange
@@ -255,6 +326,8 @@ function StatusBadge({ status, hasPendingPayment }: StatusBadgeProps) {
     [INVOICE_STATUS.UNPAID]: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
     [INVOICE_STATUS.ON_HOLD]: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
     [INVOICE_STATUS.REJECTED]: 'bg-red-500/20 text-red-400 border-red-500/30',
+    // Credit note and advance payment specific status (not in INVOICE_STATUS)
+    approved: 'bg-green-500/20 text-green-400 border-green-500/30',
   };
 
   const defaultVariant = 'bg-gray-500/20 text-gray-400 border-gray-500/30';
@@ -296,7 +369,7 @@ function calculateTdsAmount(invoiceAmount: number, tdsPercentage: number | null,
 }
 
 /**
- * Get month/year group key for an invoice date
+ * Get month/year group key for an entry date
  * Returns: "Dec 2024" or "Dec" (if current year)
  */
 function getMonthGroupKey(dateString: string | Date | null, currentYear: number): string {
@@ -319,30 +392,24 @@ function getMonthSortKey(dateString: string | Date | null): number {
 }
 
 /**
- * Group invoices by month/year
+ * Group entries by month/year
  * @param sortOrder - 'asc' for oldest month first, 'desc' for newest month first (used when sorting by date)
  */
-interface GroupableInvoice {
-  id: number;
-  invoice_date: string | Date | null;
-  invoice_number: string;
-}
-
-function groupInvoicesByMonth<T extends GroupableInvoice>(
-  invoices: T[],
+function groupEntriesByMonth(
+  entries: UnifiedEntry[],
   currentYear: number,
   sortOrder: 'asc' | 'desc' = 'desc'
-): Array<{ key: string; sortKey: number; invoices: T[] }> {
-  const groups = new Map<string, { sortKey: number; invoices: T[] }>();
+): Array<{ key: string; sortKey: number; entries: UnifiedEntry[] }> {
+  const groups = new Map<string, { sortKey: number; entries: UnifiedEntry[] }>();
 
-  for (const invoice of invoices) {
-    const groupKey = getMonthGroupKey(invoice.invoice_date, currentYear);
-    const sortKey = getMonthSortKey(invoice.invoice_date);
+  for (const entry of entries) {
+    const groupKey = getMonthGroupKey(entry.date, currentYear);
+    const sortKey = getMonthSortKey(entry.date);
 
     if (!groups.has(groupKey)) {
-      groups.set(groupKey, { sortKey, invoices: [] });
+      groups.set(groupKey, { sortKey, entries: [] });
     }
-    groups.get(groupKey)!.invoices.push(invoice);
+    groups.get(groupKey)!.entries.push(entry);
   }
 
   // Convert to array and sort by sortKey
@@ -366,8 +433,11 @@ export function AllInvoicesTab() {
   const { invoiceCreationMode } = useUIVersion();
   const [searchQuery, setSearchQuery] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
-  const [selectedInvoices, setSelectedInvoices] = useState<Set<number>>(new Set());
+  const [selectedEntries, setSelectedEntries] = useState<Set<string>>(new Set()); // Using composite key: `${entry_type}-${id}`
   const [showInvoiceTypeMenu, setShowInvoiceTypeMenu] = useState(false);
+
+  // Entry type filter state
+  const [entryTypeFilter, setEntryTypeFilter] = useState<EntryType | 'all'>('all');
 
   // BUG-007 FIX: Vendor pending approval dialog state
   const [isVendorPendingDialogOpen, setIsVendorPendingDialogOpen] = useState(false);
@@ -403,8 +473,9 @@ export function AllInvoicesTab() {
     invoiceNumber: string;
   } | null>(null);
   const [rejectReasonDialog, setRejectReasonDialog] = useState<{
-    invoiceId: number;
-    invoiceNumber: string;
+    entryId: number;
+    entryType: EntryType;
+    referenceNumber: string;
   } | null>(null);
   const [isRejecting, setIsRejecting] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
@@ -413,6 +484,12 @@ export function AllInvoicesTab() {
   const [bulkArchiveDialog, setBulkArchiveDialog] = useState(false);
   const [bulkDeleteDialog, setBulkDeleteDialog] = useState(false);
   const [isBulkOperationLoading, setIsBulkOperationLoading] = useState(false);
+
+  // Credit note and advance payment mutations
+  const approveCreditNoteMutation = useApproveCreditNote();
+  const rejectCreditNoteMutation = useRejectCreditNote();
+  const approveAdvancePaymentMutation = useApproveAdvancePayment();
+  const rejectAdvancePaymentMutation = useRejectAdvancePayment();
 
   // Unified filter state for InvoiceFilterPopover
   const [filters, setFilters] = useState<InvoiceFilterState>({
@@ -454,6 +531,46 @@ export function AllInvoicesTab() {
     paymentTypes: paymentTypes,
   }), [formOptions?.vendors, formOptions?.categories, formOptions?.profiles, formOptions?.entities, paymentTypes]);
 
+  // Build unified entry filters
+  const unifiedFilters: UnifiedEntryFilters = useMemo(() => {
+    const entryTypes = entryTypeFilter === 'all' ? undefined : [entryTypeFilter];
+
+    // Check if pending actions filter is active
+    const isPendingActions = filters.status === PENDING_ACTIONS_STATUS;
+
+    // Map filter status to array for unified entries (only if not pending_actions)
+    let statusArray: string[] | undefined;
+    if (!isPendingActions && filters.status) {
+      statusArray = [filters.status];
+    }
+
+    return {
+      entry_types: entryTypes,
+      status: statusArray,
+      pending_actions: isPendingActions, // Use the new pending_actions flag
+      vendor_id: filters.vendorId,
+      category_id: filters.categoryId,
+      entity_id: filters.entityId,
+      is_recurring: filters.isRecurring,
+      tds_applicable: filters.tdsApplicable,
+      show_archived: filters.showArchived,
+      date_from: filters.showArchived || filters.viewMode === 'pending'
+        ? filters.startDate
+        : (filters.startDate ?? start),
+      date_to: filters.showArchived || filters.viewMode === 'pending'
+        ? filters.endDate
+        : (filters.endDate ?? end),
+      search: searchQuery || undefined,
+      page: 1,
+      per_page: 500,
+    };
+  }, [entryTypeFilter, filters, searchQuery, start, end]);
+
+  // Fetch unified entries
+  const { data, isLoading } = useUnifiedEntries(unifiedFilters);
+  const entries = data?.entries ?? [];
+  const counts = data?.counts ?? { invoice: 0, credit_note: 0, advance_payment: 0 };
+
   // Compute active filter count
   const activeFilterCount = useMemo(() => {
     let count = 0;
@@ -467,13 +584,18 @@ export function AllInvoicesTab() {
     if (filters.tdsApplicable !== undefined) count++;
     if (filters.showArchived) count++;
     if (filters.startDate || filters.endDate) count++;
+    if (entryTypeFilter !== 'all') count++;
     return count;
-  }, [filters]);
+  }, [filters, entryTypeFilter]);
 
   // Build list of active filter pills for display
   const activeFilterPills = useMemo(() => {
-    const pills: Array<{ key: keyof InvoiceFilterState; label: string }> = [];
+    const pills: Array<{ key: keyof InvoiceFilterState | 'entryType'; label: string }> = [];
 
+    if (entryTypeFilter !== 'all') {
+      const label = ENTRY_TYPE_OPTIONS.find(o => o.value === entryTypeFilter)?.label || entryTypeFilter;
+      pills.push({ key: 'entryType', label: `Type: ${label}` });
+    }
     if (filters.status) {
       const label = getFilterLabel('status', filters.status, filterOptions);
       if (label) pills.push({ key: 'status', label });
@@ -517,10 +639,15 @@ export function AllInvoicesTab() {
     }
 
     return pills;
-  }, [filters, filterOptions]);
+  }, [filters, filterOptions, entryTypeFilter]);
 
   // Remove single filter handler
-  const handleRemoveFilter = (key: keyof InvoiceFilterState) => {
+  const handleRemoveFilter = (key: keyof InvoiceFilterState | 'entryType') => {
+    if (key === 'entryType') {
+      setEntryTypeFilter('all');
+      return;
+    }
+
     setFilters(prev => {
       const next = { ...prev };
       if (key === 'startDate') {
@@ -541,6 +668,7 @@ export function AllInvoicesTab() {
 
   // Clear all filters handler
   const handleClearAllFilters = () => {
+    setEntryTypeFilter('all');
     setFilters({
       viewMode: filters.viewMode, // Keep view mode
       showArchived: false,
@@ -557,91 +685,35 @@ export function AllInvoicesTab() {
     }));
   };
 
-  // Determine which statuses to exclude for "pending" view (everything except paid)
-  const pendingStatuses: InvoiceStatus[] = [
-    INVOICE_STATUS.PENDING_APPROVAL as InvoiceStatus,
-    INVOICE_STATUS.UNPAID as InvoiceStatus,
-    INVOICE_STATUS.PARTIAL as InvoiceStatus,
-    INVOICE_STATUS.OVERDUE as InvoiceStatus,
-    INVOICE_STATUS.ON_HOLD as InvoiceStatus,
-  ];
-
-  // Determine the status to send to API (undefined for composite 'pending_actions' filter)
-  // 'pending_actions' is a client-side composite filter, not a valid API status
-  const apiStatus = filters.showArchived ? undefined :
-    (filters.status === PENDING_ACTIONS_STATUS ? undefined : filters.status as InvoiceStatus | undefined);
-
-  // Fetch invoices based on filter state
-  const { data, isLoading } = useInvoices({
-    page: 1,
-    per_page: 500, // Fetch more for pending view since no date filter
-    status: apiStatus,
-    vendor_id: filters.vendorId,
-    category_id: filters.categoryId,
-    entity_id: filters.entityId,
-    invoice_profile_id: filters.profileId,
-    payment_type_id: filters.paymentTypeId,
-    is_recurring: filters.isRecurring,
-    tds_applicable: filters.tdsApplicable,
-    // Use date range from filters if provided, otherwise use month range in monthly view
-    start_date: filters.showArchived || filters.viewMode === 'pending'
-      ? filters.startDate
-      : (filters.startDate ?? start),
-    end_date: filters.showArchived || filters.viewMode === 'pending'
-      ? filters.endDate
-      : (filters.endDate ?? end),
-    sort_by: filters.sortBy,
-    sort_order: filters.sortOrder,
-    show_archived: filters.showArchived,
-  });
-
   const handleMonthChange = (month: number, year: number) => {
     setSelectedMonth(month);
     setSelectedYear(year);
   };
 
-  // Filter invoices based on view mode and status
-  const rawInvoices = data?.invoices ?? [];
-  // Apply pending statuses filter ONLY when 'pending_actions' is explicitly selected
-  // "All Statuses" (undefined) shows ALL invoices including paid, rejected, etc.
-  const shouldFilterPendingStatuses = filters.status === PENDING_ACTIONS_STATUS;
-  const invoices = shouldFilterPendingStatuses
-    ? rawInvoices.filter(inv => pendingStatuses.includes(inv.status as InvoiceStatus))
-    : rawInvoices;
+  // Selection handlers using composite keys
+  const getEntryKey = (entry: UnifiedEntry) => `${entry.entry_type}-${entry.id}`;
 
-  // Filter by search query
-  const filteredInvoices = invoices.filter((invoice) => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      invoice.invoice_number?.toLowerCase().includes(query) ||
-      invoice.vendor?.name?.toLowerCase().includes(query) ||
-      invoice.invoice_name?.toLowerCase().includes(query) ||
-      invoice.invoice_profile?.name?.toLowerCase().includes(query)
-    );
-  });
-
-  // Selection handlers
   const toggleSelectAll = () => {
-    if (selectedInvoices.size === filteredInvoices.length) {
-      setSelectedInvoices(new Set());
+    if (selectedEntries.size === entries.length) {
+      setSelectedEntries(new Set());
     } else {
-      setSelectedInvoices(new Set(filteredInvoices.map((inv) => inv.id)));
+      setSelectedEntries(new Set(entries.map(getEntryKey)));
     }
   };
 
-  const toggleSelect = (id: number) => {
-    const newSelected = new Set(selectedInvoices);
-    if (newSelected.has(id)) {
-      newSelected.delete(id);
+  const toggleSelect = (entry: UnifiedEntry) => {
+    const key = getEntryKey(entry);
+    const newSelected = new Set(selectedEntries);
+    if (newSelected.has(key)) {
+      newSelected.delete(key);
     } else {
-      newSelected.add(id);
+      newSelected.add(key);
     }
-    setSelectedInvoices(newSelected);
+    setSelectedEntries(newSelected);
   };
 
   const isAllSelected =
-    filteredInvoices.length > 0 && selectedInvoices.size === filteredInvoices.length;
+    entries.length > 0 && selectedEntries.size === entries.length;
 
   // Action handlers
   const handleNewInvoice = (type: 'recurring' | 'non-recurring') => {
@@ -657,8 +729,22 @@ export function AllInvoicesTab() {
     }
   };
 
-  const handleViewInvoice = (id: number) => {
-    openPanel('invoice-v3-detail', { invoiceId: id }, { width: PANEL_WIDTH.LARGE });
+  // Row click handlers - open appropriate panel based on entry type
+  const handleRowClick = (entry: UnifiedEntry) => {
+    if (isInvoiceEntry(entry)) {
+      openPanel('invoice-v3-detail', { invoiceId: entry.invoice_id }, { width: PANEL_WIDTH.LARGE });
+    } else if (isCreditNoteEntry(entry)) {
+      // Open invoice detail panel with the parent invoice
+      // Credit notes are viewed in context of their parent invoice
+      openPanel('invoice-v3-detail', { invoiceId: entry.parent_invoice_id }, { width: PANEL_WIDTH.LARGE });
+    } else if (isAdvancePaymentEntry(entry)) {
+      // If linked to an invoice, open that invoice; otherwise show a toast
+      if (entry.linked_invoice_id) {
+        openPanel('invoice-v3-detail', { invoiceId: entry.linked_invoice_id }, { width: PANEL_WIDTH.LARGE });
+      } else {
+        toast.info('Advance payment is not linked to any invoice yet');
+      }
+    }
   };
 
   const handleEditInvoice = (id: number, isRecurring: boolean) => {
@@ -667,55 +753,62 @@ export function AllInvoicesTab() {
   };
 
   const handleExport = () => {
-    if (filteredInvoices.length === 0) {
-      alert('No invoices to export');
+    if (entries.length === 0) {
+      alert('No entries to export');
       return;
     }
 
-    // Prepare data for export with new column structure
-    const exportData = filteredInvoices.map((invoice) => {
-      // Calculate TDS and pending amounts
-      // Use invoice's tds_rounded preference for consistent TDS calculation
-      const tdsAmount = invoice.tds_applicable && invoice.tds_percentage
-        ? calculateTdsAmount(invoice.invoice_amount, invoice.tds_percentage, invoice.tds_rounded ?? false)
-        : 0;
-      const netPayable = invoice.invoice_amount - tdsAmount;
-      const totalPaid = invoice.totalPaid ?? 0;
-      const pendingAmount = Math.max(0, netPayable - totalPaid);
-
-      // Get invoice details (profile name or invoice name)
-      const inv = invoice as typeof invoice & {
-        invoice_profile?: { name: string } | null;
-        invoice_name?: string | null;
-        description?: string | null;
+    // Prepare data for export with entry type information
+    const exportData = entries.map((entry) => {
+      const baseData = {
+        'Entry Type': entry.entry_type === 'invoice' ? 'Invoice' :
+          entry.entry_type === 'credit_note' ? 'Credit Note' : 'Advance Payment',
+        'Reference Number': entry.reference_number,
+        'Name/Description': entry.name,
+        'Vendor': entry.vendor_name,
+        'Date': formatDate(entry.date),
+        'Amount': entry.amount,
+        'Status': entry.status,
       };
-      const invoiceDetails = inv.is_recurring
-        ? (inv.invoice_profile?.name || 'Unknown Profile')
-        : (inv.invoice_name || inv.description || inv.notes || 'Unnamed Invoice');
 
-      return {
-        'Invoice Details': invoiceDetails,
-        'Invoice Number': invoice.invoice_number || '',
-        'Type': invoice.is_recurring ? 'Recurring' : 'One-time',
-        'Invoice Date': formatDate(invoice.invoice_date),
-        'Invoice Amount': invoice.invoice_amount,
-        'TDS %': invoice.tds_percentage || 0,
-        'TDS Amount': tdsAmount,
-        'Net Payable': netPayable,
-        'Total Paid': totalPaid,
-        'Pending Amount': pendingAmount,
-        'Status': invoice.status,
-        'Vendor': invoice.vendor?.name || '',
-      };
+      if (isInvoiceEntry(entry)) {
+        return {
+          ...baseData,
+          'Type': entry.is_recurring ? 'Recurring' : 'One-time',
+          'TDS %': entry.tds_percentage || 0,
+          'Entity': entry.entity_name || '',
+          'Category': entry.category_name || '',
+        };
+      }
+
+      if (isCreditNoteEntry(entry)) {
+        return {
+          ...baseData,
+          'Parent Invoice': entry.parent_invoice_number,
+          'TDS Amount': entry.tds_amount || 0,
+          'Reason': entry.reason,
+        };
+      }
+
+      if (isAdvancePaymentEntry(entry)) {
+        return {
+          ...baseData,
+          'Payment Type': entry.payment_type_name,
+          'Payment Reference': entry.payment_reference || '',
+          'Linked Invoice': entry.linked_invoice_number || 'Not Linked',
+        };
+      }
+
+      return baseData;
     });
 
     // Create workbook and worksheet
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Invoices');
+    XLSX.utils.book_append_sheet(wb, ws, 'Entries');
 
     // Generate filename with month/year
-    const filename = `invoices_${monthNames[selectedMonth]}_${selectedYear}.xlsx`;
+    const filename = `unified_entries_${monthNames[selectedMonth]}_${selectedYear}.xlsx`;
 
     // Download
     XLSX.writeFile(wb, filename);
@@ -791,29 +884,25 @@ export function AllInvoicesTab() {
   };
 
   // Record payment handler - opens payment panel for the invoice
-  const handleRecordPayment = (invoice: (typeof invoices)[0]) => {
-    // Calculate remaining balance accounting for TDS using invoice's tds_rounded preference
-    const tdsAmount = invoice.tds_applicable && invoice.tds_percentage
-      ? calculateTdsAmount(invoice.invoice_amount, invoice.tds_percentage, invoice.tds_rounded ?? false)
+  const handleRecordPayment = (entry: InvoiceEntry) => {
+    // Calculate remaining balance accounting for TDS
+    const tdsAmount = entry.tds_applicable && entry.tds_percentage
+      ? calculateTdsAmount(entry.amount, entry.tds_percentage, false)
       : 0;
-    const netPayable = invoice.invoice_amount - tdsAmount;
-    const totalPaid = invoice.totalPaid ?? 0;
-    const remainingBalance = Math.max(0, netPayable - totalPaid);
+    const netPayable = entry.amount - tdsAmount;
 
     openPanel('payment-record', {
-      invoiceId: invoice.id,
-      invoiceNumber: invoice.invoice_number,
-      invoiceName: invoice.is_recurring
-        ? invoice.invoice_profile?.name
-        : invoice.invoice_name || invoice.description,
-      invoiceStatus: invoice.status,
-      invoiceAmount: invoice.invoice_amount,
-      remainingBalance,
-      tdsApplicable: invoice.tds_applicable,
-      tdsPercentage: invoice.tds_percentage,
-      tdsRounded: invoice.tds_rounded ?? false,
-      vendorName: invoice.vendor?.name,
-      currencyCode: invoice.currency?.code,
+      invoiceId: entry.invoice_id,
+      invoiceNumber: entry.reference_number,
+      invoiceName: entry.name,
+      invoiceStatus: entry.status,
+      invoiceAmount: entry.amount,
+      remainingBalance: netPayable, // TODO: Should calculate actual remaining from payments
+      tdsApplicable: entry.tds_applicable,
+      tdsPercentage: entry.tds_percentage,
+      tdsRounded: false,
+      vendorName: entry.vendor_name,
+      currencyCode: entry.currency_code,
     });
   };
 
@@ -828,9 +917,9 @@ export function AllInvoicesTab() {
     setIsVendorPendingDialogOpen(false);
     setVendorDialogStep('details');
 
-    // Get invoice details to determine if recurring
-    const invoice = filteredInvoices.find(inv => inv.id === vendorPendingData.invoiceId);
-    const isRecurring = invoice?.is_recurring ?? false;
+    // Get invoice details to determine if recurring - find the invoice entry
+    const invoiceEntry = entries.find(e => isInvoiceEntry(e) && e.invoice_id === vendorPendingData.invoiceId) as InvoiceEntry | undefined;
+    const isRecurring = invoiceEntry?.is_recurring ?? false;
 
     // Open edit panel
     handleEditInvoice(vendorPendingData.invoiceId, isRecurring);
@@ -894,24 +983,56 @@ export function AllInvoicesTab() {
     }
   };
 
-  // Reject invoice handler
-  const handleRejectInvoice = (id: number, invoiceNumber: string) => {
-    // Open input dialog to get rejection reason
-    setRejectReasonDialog({ invoiceId: id, invoiceNumber });
+  // Approve entry handler (for all entry types)
+  const handleApproveEntry = async (entry: UnifiedEntry) => {
+    if (isInvoiceEntry(entry)) {
+      try {
+        const result = await approveInvoice(entry.invoice_id);
+        if (result.success) {
+          toast.success(`Invoice ${entry.reference_number} approved`);
+        } else {
+          toast.error(result.error || 'Failed to approve invoice');
+        }
+      } catch (error) {
+        console.error('Approve invoice error:', error);
+        toast.error('An unexpected error occurred');
+      }
+    } else if (isCreditNoteEntry(entry)) {
+      approveCreditNoteMutation.mutate(entry.credit_note_id);
+    } else if (isAdvancePaymentEntry(entry)) {
+      approveAdvancePaymentMutation.mutate(entry.advance_payment_id);
+    }
+  };
+
+  // Reject entry handler - opens reason dialog
+  const handleRejectEntry = (entry: UnifiedEntry) => {
+    setRejectReasonDialog({
+      entryId: entry.id,
+      entryType: entry.entry_type,
+      referenceNumber: entry.reference_number,
+    });
   };
 
   const handleRejectReasonConfirm = async (reason: string) => {
     if (!rejectReasonDialog) return;
 
+    const { entryId, entryType, referenceNumber } = rejectReasonDialog;
     setIsRejecting(true);
+
     try {
-      const result = await rejectInvoice(rejectReasonDialog.invoiceId, reason);
-      if (result.success) {
-        toast.success(`Invoice ${rejectReasonDialog.invoiceNumber} has been rejected`);
-        setRejectReasonDialog(null);
-      } else {
-        toast.error(result.error || 'Failed to reject invoice');
+      if (entryType === 'invoice') {
+        const result = await rejectInvoice(entryId, reason);
+        if (result.success) {
+          toast.success(`Invoice ${referenceNumber} rejected`);
+        } else {
+          toast.error(result.error || 'Failed to reject invoice');
+        }
+      } else if (entryType === 'credit_note') {
+        rejectCreditNoteMutation.mutate({ id: entryId, reason });
+      } else if (entryType === 'advance_payment') {
+        rejectAdvancePaymentMutation.mutate({ id: entryId, reason });
       }
+      setRejectReasonDialog(null);
     } catch (error) {
       console.error('Reject error:', error);
       toast.error('An unexpected error occurred');
@@ -925,10 +1046,20 @@ export function AllInvoicesTab() {
   // ============================================================================
 
   /**
-   * Handle bulk export - exports selected invoices to CSV
+   * Handle bulk export - exports selected entries to CSV
    */
   const handleBulkExport = async () => {
-    if (selectedInvoices.size === 0) return;
+    if (selectedEntries.size === 0) return;
+
+    // For now, only support bulk export of invoices
+    const invoiceIds = Array.from(selectedEntries)
+      .filter(key => key.startsWith('invoice-'))
+      .map(key => parseInt(key.split('-')[1]));
+
+    if (invoiceIds.length === 0) {
+      toast.info('Bulk export is currently only supported for invoices');
+      return;
+    }
 
     setIsBulkOperationLoading(true);
     try {
@@ -944,10 +1075,7 @@ export function AllInvoicesTab() {
         'remaining_balance',
       ];
 
-      const result = await bulkExportInvoices(
-        Array.from(selectedInvoices),
-        defaultColumns
-      );
+      const result = await bulkExportInvoices(invoiceIds, defaultColumns);
 
       if (!result.success) {
         toast.error(result.error || 'Failed to export invoices');
@@ -966,8 +1094,8 @@ export function AllInvoicesTab() {
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
 
-        toast.success(`Exported ${selectedInvoices.size} invoice(s)`);
-        setSelectedInvoices(new Set());
+        toast.success(`Exported ${invoiceIds.length} invoice(s)`);
+        setSelectedEntries(new Set());
       } else {
         toast.error('Failed to export invoices');
       }
@@ -983,7 +1111,7 @@ export function AllInvoicesTab() {
    * Handle bulk archive - opens archive dialog
    */
   const handleBulkArchive = () => {
-    if (selectedInvoices.size === 0) return;
+    if (selectedEntries.size === 0) return;
     setBulkArchiveDialog(true);
   };
 
@@ -991,11 +1119,19 @@ export function AllInvoicesTab() {
    * Handle bulk archive confirmation with reason
    */
   const handleBulkArchiveConfirm = async (reason: string) => {
-    if (selectedInvoices.size === 0) return;
+    // Only support bulk archive for invoices
+    const invoiceIds = Array.from(selectedEntries)
+      .filter(key => key.startsWith('invoice-'))
+      .map(key => parseInt(key.split('-')[1]));
+
+    if (invoiceIds.length === 0) {
+      toast.info('Bulk archive is currently only supported for invoices');
+      setBulkArchiveDialog(false);
+      return;
+    }
 
     setIsBulkOperationLoading(true);
     try {
-      const invoiceIds = Array.from(selectedInvoices);
       const result = await bulkArchiveInvoices(invoiceIds, reason);
 
       if (!result.success) {
@@ -1007,11 +1143,11 @@ export function AllInvoicesTab() {
       if (result.data.archivedCount !== undefined) {
         toast.success(`${result.data.archivedCount} invoice(s) archived successfully`);
       } else if (result.data.requestId !== undefined) {
-        toast.success(`Archive request submitted for ${selectedInvoices.size} invoice(s). Pending admin approval.`);
+        toast.success(`Archive request submitted for ${invoiceIds.length} invoice(s). Pending admin approval.`);
       }
 
       setBulkArchiveDialog(false);
-      setSelectedInvoices(new Set());
+      setSelectedEntries(new Set());
     } catch (error) {
       console.error('Bulk archive error:', error);
       toast.error('An unexpected error occurred');
@@ -1024,7 +1160,7 @@ export function AllInvoicesTab() {
    * Handle bulk delete - opens delete dialog (super admin only)
    */
   const handleBulkDelete = () => {
-    if (selectedInvoices.size === 0 || !isSuperAdmin) return;
+    if (selectedEntries.size === 0 || !isSuperAdmin) return;
     setBulkDeleteDialog(true);
   };
 
@@ -1032,16 +1168,24 @@ export function AllInvoicesTab() {
    * Handle bulk delete confirmation with reason
    */
   const handleBulkDeleteConfirm = async (reason: string) => {
-    if (selectedInvoices.size === 0 || !isSuperAdmin) return;
+    // Only support bulk delete for invoices
+    const invoiceIds = Array.from(selectedEntries)
+      .filter(key => key.startsWith('invoice-'))
+      .map(key => parseInt(key.split('-')[1]));
+
+    if (invoiceIds.length === 0 || !isSuperAdmin) {
+      toast.info('Bulk delete is currently only supported for invoices');
+      setBulkDeleteDialog(false);
+      return;
+    }
 
     setIsBulkOperationLoading(true);
     try {
       // For now, delete invoices one by one using existing soft delete
-      // TODO: Implement bulkSoftDeleteInvoices server action in Phase 3
       let successCount = 0;
       let failCount = 0;
 
-      for (const invoiceId of selectedInvoices) {
+      for (const invoiceId of invoiceIds) {
         const result = await permanentDeleteInvoice(invoiceId, reason);
         if (result.success) {
           successCount++;
@@ -1058,7 +1202,7 @@ export function AllInvoicesTab() {
       }
 
       setBulkDeleteDialog(false);
-      setSelectedInvoices(new Set());
+      setSelectedEntries(new Set());
     } catch (error) {
       console.error('Bulk delete error:', error);
       toast.error('An unexpected error occurred');
@@ -1068,42 +1212,265 @@ export function AllInvoicesTab() {
   };
 
   /**
-   * Get invoice details text:
-   * - For recurring: invoice profile name
-   * - For non-recurring: invoice name (stored in description or notes)
+   * Get entry details text for display
    */
-  function getInvoiceDetails(invoice: (typeof invoices)[0]): string {
-    // Cast to access additional fields that may exist from API
-    const inv = invoice as typeof invoice & {
-      invoice_profile?: { name: string } | null;
-      invoice_name?: string | null;
-      description?: string | null;
-    };
-
-    if (inv.is_recurring) {
-      return inv.invoice_profile?.name || 'Unknown Profile';
+  function getEntryDetails(entry: UnifiedEntry): { primary: string; secondary: string } {
+    if (isInvoiceEntry(entry)) {
+      return {
+        primary: entry.name,
+        secondary: entry.reference_number,
+      };
     }
-    // Non-recurring: use invoice_name field (fallback to description for backwards compatibility)
-    return inv.invoice_name || inv.description || inv.notes || 'Unnamed Invoice';
+    if (isCreditNoteEntry(entry)) {
+      return {
+        primary: `Against: ${entry.parent_invoice_number}`,
+        secondary: entry.reference_number,
+      };
+    }
+    // isAdvancePaymentEntry - last case
+    return {
+      primary: entry.description,
+      secondary: entry.reference_number,
+    };
   }
 
   // Format month name for title
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const titleMonth = `${monthNames[selectedMonth]} ${selectedYear}`;
 
-  // Group invoices by month when in pending view mode
+  // Group entries by month when in pending view mode
   // Pass sort order so month groups are also sorted correctly when sorting by date
   const currentYear = now.getFullYear();
   const groupSortOrder = filters.sortBy === 'invoice_date' ? filters.sortOrder : 'desc';
-  const groupedInvoices = filters.viewMode === 'pending' && !filters.showArchived
-    ? groupInvoicesByMonth(filteredInvoices, currentYear, groupSortOrder)
+  const groupedEntries = filters.viewMode === 'pending' && !filters.showArchived
+    ? groupEntriesByMonth(entries, currentYear, groupSortOrder)
     : null;
 
   // Get title based on view mode
   const getTitle = () => {
-    if (filters.showArchived) return 'Archived Invoices';
-    if (filters.viewMode === 'pending') return 'Invoices Overview';
-    return `All Invoices - ${titleMonth}`;
+    if (filters.showArchived) return 'Archived Entries';
+    if (filters.viewMode === 'pending') return 'Entries Overview';
+    return `All Entries - ${titleMonth}`;
+  };
+
+  // Helper to get amount color class
+  const getAmountColorClass = (entry: UnifiedEntry): string => {
+    if (isCreditNoteEntry(entry)) return 'text-cyan-500';
+    if (isAdvancePaymentEntry(entry)) return 'text-purple-500';
+    return '';
+  };
+
+  // Helper to get link icon color class
+  const getLinkIconColorClass = (entry: UnifiedEntry): string => {
+    if (isCreditNoteEntry(entry)) return 'text-cyan-500';
+    if (isAdvancePaymentEntry(entry)) return 'text-purple-500';
+    return 'text-cyan-500';
+  };
+
+  // Check if entry has links to show
+  const hasLinks = (entry: UnifiedEntry): boolean => {
+    if (isInvoiceEntry(entry)) return entry.linked_credit_note_count > 0;
+    if (isCreditNoteEntry(entry)) return !!entry.parent_invoice_id;
+    if (isAdvancePaymentEntry(entry)) return !!entry.linked_invoice_id;
+    return false;
+  };
+
+  // Render a single entry row
+  const renderEntryRow = (entry: UnifiedEntry) => {
+    const entryKey = getEntryKey(entry);
+    const details = getEntryDetails(entry);
+    const isPendingApproval = entry.status === 'pending_approval';
+    const canApproveReject = isAdmin && isPendingApproval;
+
+    // Invoice-specific permissions
+    const isInvoice = isInvoiceEntry(entry);
+    const canRecordPayment = isInvoice &&
+      !isPendingApproval &&
+      entry.status !== 'paid' &&
+      entry.status !== 'rejected' &&
+      entry.status !== 'on_hold';
+
+    return (
+      <TableRow
+        key={entryKey}
+        data-state={selectedEntries.has(entryKey) ? 'selected' : undefined}
+        className="border-b border-border/50 cursor-pointer hover:bg-muted/50 transition-colors"
+        onClick={() => handleRowClick(entry)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleRowClick(entry);
+          }
+        }}
+      >
+        {/* Checkbox */}
+        <TableCell className="pl-4" onClick={(e) => e.stopPropagation()}>
+          <Checkbox
+            checked={selectedEntries.has(entryKey)}
+            onCheckedChange={() => toggleSelect(entry)}
+            aria-label={`Select ${entry.reference_number}`}
+          />
+        </TableCell>
+
+        {/* Entry Details: Name + Reference Number + Type Badge */}
+        <TableCell>
+          <div className="space-y-0.5">
+            <div className="font-medium text-sm">{details.primary}</div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">{details.secondary}</span>
+              {isInvoiceEntry(entry) && entry.is_recurring && (
+                <Badge
+                  variant="outline"
+                  className="text-[10px] px-1.5 py-0 h-4 border-orange-500/50 text-orange-500"
+                >
+                  Recurring
+                </Badge>
+              )}
+              {!isInvoiceEntry(entry) && (
+                <EntryTypeBadge entryType={entry.entry_type} />
+              )}
+              {hasLinks(entry) && (
+                <Link2 className={cn('h-3.5 w-3.5', getLinkIconColorClass(entry))} />
+              )}
+            </div>
+          </div>
+        </TableCell>
+
+        {/* Date */}
+        <TableCell className="text-muted-foreground text-sm">
+          {formatDate(entry.date)}
+        </TableCell>
+
+        {/* Amount */}
+        <TableCell>
+          <div className="space-y-0.5">
+            <div className={cn('font-medium text-sm', getAmountColorClass(entry))}>
+              {formatCurrency(entry.amount, isInvoiceEntry(entry) ? entry.currency_code : 'INR')}
+            </div>
+            {isInvoiceEntry(entry) && entry.tds_applicable && entry.tds_percentage && (
+              <div className="text-[10px] text-muted-foreground">
+                TDS {entry.tds_percentage}%
+              </div>
+            )}
+            {isCreditNoteEntry(entry) && entry.tds_amount && entry.tds_amount > 0 && (
+              <div className="text-[10px] text-muted-foreground">
+                TDS reversal {formatCurrency(entry.tds_amount, entry.currency_code)}
+              </div>
+            )}
+          </div>
+        </TableCell>
+
+        {/* Status */}
+        <TableCell>
+          <StatusBadge status={entry.status} />
+        </TableCell>
+
+        {/* Actions */}
+        <TableCell className="pl-4" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center gap-2">
+            {/* View - for all types */}
+            <button
+              className="text-muted-foreground hover:text-foreground transition-colors"
+              onClick={() => handleRowClick(entry)}
+              title="View"
+            >
+              <Eye className="h-4 w-4" />
+              <span className="sr-only">View</span>
+            </button>
+
+            {/* Edit - invoices only, hide when archived */}
+            {isInvoice && !filters.showArchived && (
+              <button
+                className="text-muted-foreground hover:text-foreground transition-colors"
+                onClick={() => handleEditInvoice(entry.invoice_id, (entry as InvoiceEntry).is_recurring)}
+                title="Edit"
+              >
+                <Pencil className="h-4 w-4" />
+                <span className="sr-only">Edit</span>
+              </button>
+            )}
+
+            {/* Record Payment - invoices only */}
+            {canRecordPayment && (
+              <button
+                className="text-muted-foreground hover:text-primary transition-colors"
+                onClick={() => handleRecordPayment(entry as InvoiceEntry)}
+                title="Record Payment"
+              >
+                <CreditCard className="h-4 w-4" />
+                <span className="sr-only">Record Payment</span>
+              </button>
+            )}
+
+            {/* Approve - admin only for pending entries */}
+            {canApproveReject && (
+              <button
+                className="text-muted-foreground hover:text-green-500 transition-colors"
+                onClick={() => handleApproveEntry(entry)}
+                title="Approve"
+                disabled={
+                  approveCreditNoteMutation.isPending ||
+                  approveAdvancePaymentMutation.isPending
+                }
+              >
+                <Check className="h-4 w-4" />
+                <span className="sr-only">Approve</span>
+              </button>
+            )}
+
+            {/* Reject - admin only for pending entries */}
+            {canApproveReject && (
+              <button
+                className="text-muted-foreground hover:text-destructive transition-colors"
+                onClick={() => handleRejectEntry(entry)}
+                title="Reject"
+              >
+                <X className="h-4 w-4" />
+                <span className="sr-only">Reject</span>
+              </button>
+            )}
+
+            {/* Archive - invoices only, hide when archived */}
+            {isInvoice && !filters.showArchived && (
+              <button
+                className="text-muted-foreground hover:text-amber-500 transition-colors"
+                onClick={() => handleArchiveInvoice(entry.invoice_id, entry.reference_number)}
+                title="Archive"
+              >
+                <Archive className="h-4 w-4" />
+                <span className="sr-only">Archive</span>
+              </button>
+            )}
+
+            {/* Delete - invoices only, super admin only */}
+            {isInvoice && isSuperAdmin && (
+              <button
+                className="text-muted-foreground hover:text-destructive transition-colors"
+                onClick={() => handleDeleteInvoice(entry.invoice_id, entry.reference_number)}
+                disabled={isDeleting}
+                title="Permanently Delete"
+              >
+                <Trash2 className="h-4 w-4" />
+                <span className="sr-only">Delete</span>
+              </button>
+            )}
+          </div>
+        </TableCell>
+
+        {/* Remaining - only meaningful for invoices */}
+        <TableCell className="pr-6">
+          {isInvoiceEntry(entry) ? (
+            <span className="text-muted-foreground text-sm">
+              -
+            </span>
+          ) : (
+            <span className="text-muted-foreground text-sm">-</span>
+          )}
+        </TableCell>
+      </TableRow>
+    );
   };
 
   return (
@@ -1121,12 +1488,53 @@ export function AllInvoicesTab() {
         <div className="relative flex-1 min-w-[120px] max-w-[220px] sm:max-w-[320px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search invoices..."
+            placeholder="Search entries..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full min-w-0 pl-9 bg-background"
           />
         </div>
+
+        {/* Entry Type Filter */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 shrink-0"
+            >
+              <span className="hidden sm:inline">
+                {ENTRY_TYPE_OPTIONS.find(o => o.value === entryTypeFilter)?.label || 'All'}
+              </span>
+              <span className="sm:hidden">Type</span>
+              {entryTypeFilter === 'all' && (
+                <span className="text-xs text-muted-foreground">
+                  ({counts.invoice + counts.credit_note + counts.advance_payment})
+                </span>
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            {ENTRY_TYPE_OPTIONS.map((option) => {
+              const count = option.value === 'all'
+                ? counts.invoice + counts.credit_note + counts.advance_payment
+                : counts[option.value];
+
+              return (
+                <DropdownMenuItem
+                  key={option.value}
+                  onClick={() => setEntryTypeFilter(option.value)}
+                  className="flex items-center justify-between"
+                >
+                  <span>{option.label}</span>
+                  <Badge variant="secondary" className="ml-2 text-xs">
+                    {count}
+                  </Badge>
+                </DropdownMenuItem>
+              );
+            })}
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {/* Filters - Popover on desktop, Sheet on mobile */}
         {isMobile ? (
@@ -1156,12 +1564,15 @@ export function AllInvoicesTab() {
             />
           </>
         ) : (
-          <InvoiceFilterPopover
+          <UnifiedFilterPopover
             filters={filters}
             onFiltersChange={setFilters}
+            entryTypeFilter={entryTypeFilter}
+            onEntryTypeFilterChange={setEntryTypeFilter}
             options={filterOptions}
             isLoading={isLoadingOptions}
             activeFilterCount={activeFilterCount}
+            counts={counts}
           />
         )}
 
@@ -1254,7 +1665,7 @@ export function AllInvoicesTab() {
           {isLoading ? (
             <span className="animate-pulse">Loading...</span>
           ) : (
-            `${filteredInvoices.length} invoice${filteredInvoices.length !== 1 ? 's' : ''}`
+            `${entries.length} entr${entries.length !== 1 ? 'ies' : 'y'}`
           )}
         </p>
       </div>
@@ -1273,9 +1684,9 @@ export function AllInvoicesTab() {
                 />
               </TableHead>
 
-              {/* Invoice Details - not sortable (composite field) */}
+              {/* Entry Details - not sortable (composite field) */}
               <TableHead className="w-[22%] text-xs font-medium text-muted-foreground uppercase tracking-wider text-left">
-                Invoice Details
+                Entry Details
               </TableHead>
 
               {/* Date - sortable */}
@@ -1286,7 +1697,7 @@ export function AllInvoicesTab() {
                 onSort={handleColumnSort}
                 className="w-[12%]"
               >
-                Inv Date
+                Date
               </SortableTableHead>
 
               {/* Amount - sortable */}
@@ -1297,7 +1708,7 @@ export function AllInvoicesTab() {
                 onSort={handleColumnSort}
                 className="w-[14%]"
               >
-                Inv Amount
+                Amount
               </SortableTableHead>
 
               {/* Status - sortable */}
@@ -1345,13 +1756,13 @@ export function AllInvoicesTab() {
                   <TableCell className="pr-6"><Skeleton className="h-4 w-20" /></TableCell>
                 </TableRow>
               ))
-            ) : filteredInvoices.length === 0 ? (
+            ) : entries.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="h-32 text-center">
                   <div className="flex flex-col items-center justify-center gap-2">
                     {activeFilterCount > 0 ? (
                       <>
-                        <p className="text-muted-foreground">No invoices match your filters</p>
+                        <p className="text-muted-foreground">No entries match your filters</p>
                         <Button
                           variant="outline"
                           size="sm"
@@ -1363,18 +1774,18 @@ export function AllInvoicesTab() {
                       </>
                     ) : filters.viewMode === 'pending' ? (
                       <>
-                        <p className="text-muted-foreground">No pending invoices</p>
+                        <p className="text-muted-foreground">No pending entries</p>
                         <p className="text-xs text-muted-foreground/70">All caught up!</p>
                       </>
                     ) : (
-                      <p className="text-muted-foreground">No invoices found for {titleMonth}</p>
+                      <p className="text-muted-foreground">No entries found for {titleMonth}</p>
                     )}
                   </div>
                 </TableCell>
               </TableRow>
-            ) : groupedInvoices ? (
+            ) : groupedEntries ? (
               // Grouped view (pending mode)
-              groupedInvoices.map((group) => (
+              groupedEntries.map((group) => (
                 <React.Fragment key={group.key}>
                   {/* Month Group Header */}
                   <TableRow className="bg-muted/50 hover:bg-muted/50">
@@ -1383,300 +1794,17 @@ export function AllInvoicesTab() {
                         {group.key}
                       </span>
                       <span className="ml-2 text-xs text-muted-foreground">
-                        ({group.invoices.length} invoice{group.invoices.length !== 1 ? 's' : ''})
+                        ({group.entries.length} entr{group.entries.length !== 1 ? 'ies' : 'y'})
                       </span>
                     </TableCell>
                   </TableRow>
-                  {/* Invoices in this group */}
-                  {group.invoices.map((invoice) => {
-                    // Calculate TDS and pending amounts using invoice's tds_rounded preference
-                    const tdsAmount = invoice.tds_applicable && invoice.tds_percentage
-                      ? calculateTdsAmount(invoice.invoice_amount, invoice.tds_percentage, invoice.tds_rounded ?? false)
-                      : 0;
-                    const netPayable = invoice.invoice_amount - tdsAmount;
-                    const totalPaid = invoice.totalPaid ?? 0;
-                    const pendingAmount = Math.max(0, netPayable - totalPaid);
-
-                    // Permission checks for actions
-                    const isPendingApproval = invoice.status === INVOICE_STATUS.PENDING_APPROVAL;
-                    const canRecordPayment = !isPendingApproval &&
-                      invoice.status !== INVOICE_STATUS.PAID &&
-                      invoice.status !== INVOICE_STATUS.REJECTED &&
-                      invoice.status !== INVOICE_STATUS.ON_HOLD;
-                    const canApproveReject = isAdmin && isPendingApproval;
-
-                    return (
-                      <TableRow
-                        key={invoice.id}
-                        data-state={selectedInvoices.has(invoice.id) ? 'selected' : undefined}
-                        className="border-b border-border/50 cursor-pointer hover:bg-muted/50 transition-colors"
-                        onClick={() => handleViewInvoice(invoice.id)}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            handleViewInvoice(invoice.id);
-                          }
-                        }}
-                      >
-                        <TableCell className="pl-4" onClick={(e) => e.stopPropagation()}>
-                          <Checkbox
-                            checked={selectedInvoices.has(invoice.id)}
-                            onCheckedChange={() => toggleSelect(invoice.id)}
-                            aria-label={`Select ${invoice.invoice_number}`}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-0.5">
-                            <div className="font-medium text-sm">{getInvoiceDetails(invoice)}</div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs text-muted-foreground">{invoice.invoice_number}</span>
-                              {invoice.is_recurring && (
-                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-orange-500/50 text-orange-500">
-                                  Recurring
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground text-sm">{formatDate(invoice.invoice_date)}</TableCell>
-                        <TableCell>
-                          <div className="space-y-0.5">
-                            <div className="font-medium text-sm">{formatCurrency(invoice.invoice_amount, invoice.currency?.code)}</div>
-                            {invoice.tds_applicable && invoice.tds_percentage && tdsAmount > 0 && (
-                              <div className="text-[10px] text-muted-foreground">
-                                TDS {formatCurrency(tdsAmount, invoice.currency?.code)} ({invoice.tds_percentage}%)
-                              </div>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell><StatusBadge status={invoice.status as InvoiceStatus} hasPendingPayment={invoice.has_pending_payment} /></TableCell>
-                        <TableCell className="pl-4" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex items-center gap-2">
-                            {!filters.showArchived && (
-                              <button className="text-muted-foreground hover:text-foreground transition-colors" onClick={() => handleEditInvoice(invoice.id, invoice.is_recurring)} title="Edit">
-                                <Pencil className="h-4 w-4" /><span className="sr-only">Edit</span>
-                              </button>
-                            )}
-                            {canRecordPayment && (
-                              <button className="text-muted-foreground hover:text-primary transition-colors" onClick={() => handleRecordPayment(invoice)} title="Record Payment">
-                                <CreditCard className="h-4 w-4" /><span className="sr-only">Record Payment</span>
-                              </button>
-                            )}
-                            {canApproveReject && (
-                              <button className="text-muted-foreground hover:text-green-500 transition-colors" onClick={() => handleViewInvoice(invoice.id)} title="Review & Approve">
-                                <Check className="h-4 w-4" /><span className="sr-only">Review & Approve</span>
-                              </button>
-                            )}
-                            {canApproveReject && (
-                              <button className="text-muted-foreground hover:text-destructive transition-colors" onClick={() => handleRejectInvoice(invoice.id, invoice.invoice_number)} title="Reject">
-                                <X className="h-4 w-4" /><span className="sr-only">Reject</span>
-                              </button>
-                            )}
-                            {!filters.showArchived && (
-                              <button className="text-muted-foreground hover:text-amber-500 transition-colors" onClick={() => handleArchiveInvoice(invoice.id, invoice.invoice_number)} title="Archive">
-                                <Archive className="h-4 w-4" /><span className="sr-only">Archive</span>
-                              </button>
-                            )}
-                            {isSuperAdmin && (
-                              <button className="text-muted-foreground hover:text-destructive transition-colors" onClick={() => handleDeleteInvoice(invoice.id, invoice.invoice_number)} disabled={isDeleting} title="Permanently Delete">
-                                <Trash2 className="h-4 w-4" /><span className="sr-only">Delete</span>
-                              </button>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="pr-6">
-                          <span className={cn('font-medium text-sm', pendingAmount > 0 ? 'text-amber-500' : 'text-muted-foreground')}>
-                            {pendingAmount > 0 ? formatCurrency(pendingAmount, invoice.currency?.code) : '–'}
-                          </span>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
+                  {/* Entries in this group */}
+                  {group.entries.map(renderEntryRow)}
                 </React.Fragment>
               ))
             ) : (
               // Flat view (monthly mode or archived)
-              filteredInvoices.map((invoice) => {
-                // Calculate TDS and pending amounts using invoice's tds_rounded preference
-                const tdsAmount = invoice.tds_applicable && invoice.tds_percentage
-                  ? calculateTdsAmount(invoice.invoice_amount, invoice.tds_percentage, invoice.tds_rounded ?? false)
-                  : 0;
-                const netPayable = invoice.invoice_amount - tdsAmount;
-                const totalPaid = invoice.totalPaid ?? 0;
-                const pendingAmount = Math.max(0, netPayable - totalPaid);
-
-                // Permission checks for actions
-                const isPendingApproval = invoice.status === INVOICE_STATUS.PENDING_APPROVAL;
-                // Record Payment: Any logged-in user can record payments for unpaid/partial invoices
-                const canRecordPayment = !isPendingApproval &&
-                  invoice.status !== INVOICE_STATUS.PAID &&
-                  invoice.status !== INVOICE_STATUS.REJECTED &&
-                  invoice.status !== INVOICE_STATUS.ON_HOLD;
-                // Approve/Reject: Admin only for pending_approval invoices
-                const canApproveReject = isAdmin && isPendingApproval;
-
-                return (
-                  <TableRow
-                    key={invoice.id}
-                    data-state={selectedInvoices.has(invoice.id) ? 'selected' : undefined}
-                    className="border-b border-border/50 cursor-pointer hover:bg-muted/50 transition-colors"
-                    onClick={() => handleViewInvoice(invoice.id)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        handleViewInvoice(invoice.id);
-                      }
-                    }}
-                  >
-                    {/* Checkbox */}
-                    <TableCell className="pl-4" onClick={(e) => e.stopPropagation()}>
-                      <Checkbox
-                        checked={selectedInvoices.has(invoice.id)}
-                        onCheckedChange={() => toggleSelect(invoice.id)}
-                        aria-label={`Select ${invoice.invoice_number}`}
-                      />
-                    </TableCell>
-
-                    {/* Invoice Details: Profile/Invoice Name + Invoice Number + Recurring Badge */}
-                    <TableCell>
-                      <div className="space-y-0.5">
-                        <div className="font-medium text-sm">
-                          {getInvoiceDetails(invoice)}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground">
-                            {invoice.invoice_number}
-                          </span>
-                          {invoice.is_recurring && (
-                            <Badge
-                              variant="outline"
-                              className="text-[10px] px-1.5 py-0 h-4 border-orange-500/50 text-orange-500"
-                            >
-                              Recurring
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    </TableCell>
-
-                    {/* Invoice Date */}
-                    <TableCell className="text-muted-foreground text-sm">
-                      {formatDate(invoice.invoice_date)}
-                    </TableCell>
-
-                    {/* Invoice Amount + TDS info */}
-                    <TableCell>
-                      <div className="space-y-0.5">
-                        <div className="font-medium text-sm">
-                          {formatCurrency(invoice.invoice_amount, invoice.currency?.code)}
-                        </div>
-                        {invoice.tds_applicable && invoice.tds_percentage && tdsAmount > 0 && (
-                          <div className="text-[10px] text-muted-foreground">
-                            TDS {formatCurrency(tdsAmount, invoice.currency?.code)} ({invoice.tds_percentage}%)
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-
-                    {/* Status */}
-                    <TableCell>
-                      <StatusBadge status={invoice.status as InvoiceStatus} hasPendingPayment={invoice.has_pending_payment} />
-                    </TableCell>
-
-                    {/* Actions */}
-                    <TableCell className="pl-4" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center gap-2">
-                        {/* Edit - hide when archived */}
-                        {!filters.showArchived && (
-                          <button
-                            className="text-muted-foreground hover:text-foreground transition-colors"
-                            onClick={() => handleEditInvoice(invoice.id, invoice.is_recurring)}
-                            title="Edit"
-                          >
-                            <Pencil className="h-4 w-4" />
-                            <span className="sr-only">Edit</span>
-                          </button>
-                        )}
-
-                        {/* Record Payment - show for unpaid/partial/overdue invoices (any user) */}
-                        {canRecordPayment && (
-                          <button
-                            className="text-muted-foreground hover:text-primary transition-colors"
-                            onClick={() => handleRecordPayment(invoice)}
-                            title="Record Payment"
-                          >
-                            <CreditCard className="h-4 w-4" />
-                            <span className="sr-only">Record Payment</span>
-                          </button>
-                        )}
-
-                        {/* Approve - show for pending_approval invoices (admin only) */}
-                        {canApproveReject && (
-                          <button
-                            className="text-muted-foreground hover:text-green-500 transition-colors"
-                            onClick={() => handleViewInvoice(invoice.id)}
-                            title="Review & Approve"
-                          >
-                            <Check className="h-4 w-4" />
-                            <span className="sr-only">Review & Approve</span>
-                          </button>
-                        )}
-
-                        {/* Reject - show for pending_approval invoices (admin only) */}
-                        {canApproveReject && (
-                          <button
-                            className="text-muted-foreground hover:text-destructive transition-colors"
-                            onClick={() => handleRejectInvoice(invoice.id, invoice.invoice_number)}
-                            title="Reject"
-                          >
-                            <X className="h-4 w-4" />
-                            <span className="sr-only">Reject</span>
-                          </button>
-                        )}
-
-                        {/* Archive - hide when archived */}
-                        {!filters.showArchived && (
-                          <button
-                            className="text-muted-foreground hover:text-amber-500 transition-colors"
-                            onClick={() => handleArchiveInvoice(invoice.id, invoice.invoice_number)}
-                            title="Archive"
-                          >
-                            <Archive className="h-4 w-4" />
-                            <span className="sr-only">Archive</span>
-                          </button>
-                        )}
-
-                        {/* Delete - super admin only */}
-                        {isSuperAdmin && (
-                          <button
-                            className="text-muted-foreground hover:text-destructive transition-colors"
-                            onClick={() => handleDeleteInvoice(invoice.id, invoice.invoice_number)}
-                            disabled={isDeleting}
-                            title="Permanently Delete"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            <span className="sr-only">Delete</span>
-                          </button>
-                        )}
-                      </div>
-                    </TableCell>
-
-                    {/* Pending Amount */}
-                    <TableCell className="pr-6">
-                      <span className={cn(
-                        'font-medium text-sm',
-                        pendingAmount > 0 ? 'text-amber-500' : 'text-muted-foreground'
-                      )}>
-                        {pendingAmount > 0 ? formatCurrency(pendingAmount, invoice.currency?.code) : '–'}
-                      </span>
-                    </TableCell>
-                  </TableRow>
-                );
-              })
+              entries.map(renderEntryRow)
             )}
           </TableBody>
         </Table>
@@ -1892,8 +2020,9 @@ export function AllInvoicesTab() {
       <InputDialog
         open={!!rejectReasonDialog}
         onOpenChange={(open) => !open && setRejectReasonDialog(null)}
-        title="Reject Invoice"
-        description={`Enter a reason for rejecting invoice ${rejectReasonDialog?.invoiceNumber || ''}.`}
+        title={`Reject ${rejectReasonDialog?.entryType === 'invoice' ? 'Invoice' :
+          rejectReasonDialog?.entryType === 'credit_note' ? 'Credit Note' : 'Advance Payment'}`}
+        description={`Enter a reason for rejecting ${rejectReasonDialog?.referenceNumber || ''}.`}
         inputLabel="Rejection Reason"
         inputPlaceholder="Enter reason for rejection..."
         required
@@ -1909,8 +2038,8 @@ export function AllInvoicesTab() {
       <InputDialog
         open={bulkArchiveDialog}
         onOpenChange={(open) => !open && setBulkArchiveDialog(false)}
-        title="Archive Selected Invoices"
-        description={`Enter a reason for archiving ${selectedInvoices.size} invoice(s).`}
+        title="Archive Selected Entries"
+        description={`Enter a reason for archiving ${selectedEntries.size} entr${selectedEntries.size !== 1 ? 'ies' : 'y'}.`}
         inputLabel="Archive Reason"
         inputPlaceholder="Enter reason for archiving..."
         required
@@ -1926,8 +2055,8 @@ export function AllInvoicesTab() {
       <InputDialog
         open={bulkDeleteDialog}
         onOpenChange={(open) => !open && setBulkDeleteDialog(false)}
-        title="Delete Selected Invoices"
-        description={`Enter a reason for deleting ${selectedInvoices.size} invoice(s). They will be recoverable for 30 days.`}
+        title="Delete Selected Entries"
+        description={`Enter a reason for deleting ${selectedEntries.size} entr${selectedEntries.size !== 1 ? 'ies' : 'y'}. They will be recoverable for 30 days.`}
         inputLabel="Deletion Reason"
         inputPlaceholder="Enter reason for deletion..."
         required
@@ -1941,13 +2070,17 @@ export function AllInvoicesTab() {
 
       {/* Floating Action Bar for Bulk Operations */}
       <FloatingActionBar
-        selectedCount={selectedInvoices.size}
-        selectedInvoices={selectedInvoices}
+        selectedCount={selectedEntries.size}
+        selectedInvoices={new Set(
+          Array.from(selectedEntries)
+            .filter(key => key.startsWith('invoice-'))
+            .map(key => parseInt(key.split('-')[1]))
+        )}
         userRole={userRole as string}
         onExport={handleBulkExport}
         onArchive={handleBulkArchive}
         onDelete={isSuperAdmin ? handleBulkDelete : undefined}
-        onClearSelection={() => setSelectedInvoices(new Set())}
+        onClearSelection={() => setSelectedEntries(new Set())}
         isLoading={isBulkOperationLoading}
       />
     </div>

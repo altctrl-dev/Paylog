@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-01-11 10:57:04 IST",
+  "timestamp": "2026-01-28 22:11:09 IST",
   "agents_seen": [
     "Main Agent (Direct Work)"
   ],
@@ -9,14 +9,25 @@
   "open_questions": [],
   "owned_artifacts": [
     "OMPACTION.md",
-    "app/(dashboard)/reports/page.tsx",
+    "app/actions/advance-payments.ts",
+    "app/actions/credit-notes.ts",
+    "app/actions/monthly-reports.ts",
+    "app/actions/notifications.ts",
     "compaction-summary.json",
-    "components/v3/invoices/invoice-tabs.tsx",
-    "components/v3/invoices/invoices-page.tsx",
-    "lib/utils/invoice-filters.ts",
-    "logs/context-metrics.jsonl",
-    "components/ui/period-selector.tsx",
-    "components/v3/reports/"
+    "components/notifications/notification-panel.tsx",
+    "components/v3/invoices/all-invoices-tab.tsx",
+    "components/v3/invoices/tds-tab.tsx",
+    "components/v3/reports/consolidated-report-tab.tsx",
+    "app/actions/unified-entries.ts",
+    "components/v3/invoices/unified-filter-popover.tsx",
+    "hooks/use-unified-entries.ts",
+    "migrations/003_DBM_DELIVERABLES_SUMMARY.md",
+    "migrations/003_MIGRATION_GUIDE.md",
+    "migrations/003_SCHEMA_DIAGRAM.md",
+    "migrations/003_add_approval_workflow_to_credit_notes_and_advance_payments.sql",
+    "migrations/003_add_approval_workflow_to_credit_notes_and_advance_payments_ROLLBACK.sql",
+    "migrations/003_validation.sql",
+    "types/unified-entry.ts"
   ],
   "contracts_touched": [],
   "files_touched": [
@@ -26,7 +37,22 @@
       "anchors": []
     },
     {
-      "path": "app/(dashboard)/reports/page.tsx",
+      "path": "app/actions/advance-payments.ts",
+      "reason": "modified",
+      "anchors": []
+    },
+    {
+      "path": "app/actions/credit-notes.ts",
+      "reason": "modified",
+      "anchors": []
+    },
+    {
+      "path": "app/actions/monthly-reports.ts",
+      "reason": "modified",
+      "anchors": []
+    },
+    {
+      "path": "app/actions/notifications.ts",
       "reason": "modified",
       "anchors": []
     },
@@ -36,32 +62,72 @@
       "anchors": []
     },
     {
-      "path": "components/v3/invoices/invoice-tabs.tsx",
+      "path": "components/notifications/notification-panel.tsx",
       "reason": "modified",
       "anchors": []
     },
     {
-      "path": "components/v3/invoices/invoices-page.tsx",
+      "path": "components/v3/invoices/all-invoices-tab.tsx",
       "reason": "modified",
       "anchors": []
     },
     {
-      "path": "lib/utils/invoice-filters.ts",
+      "path": "components/v3/invoices/tds-tab.tsx",
       "reason": "modified",
       "anchors": []
     },
     {
-      "path": "logs/context-metrics.jsonl",
+      "path": "components/v3/reports/consolidated-report-tab.tsx",
       "reason": "modified",
       "anchors": []
     },
     {
-      "path": "components/ui/period-selector.tsx",
+      "path": "app/actions/unified-entries.ts",
       "reason": "created",
       "anchors": []
     },
     {
-      "path": "components/v3/reports/",
+      "path": "components/v3/invoices/unified-filter-popover.tsx",
+      "reason": "created",
+      "anchors": []
+    },
+    {
+      "path": "hooks/use-unified-entries.ts",
+      "reason": "created",
+      "anchors": []
+    },
+    {
+      "path": "migrations/003_DBM_DELIVERABLES_SUMMARY.md",
+      "reason": "created",
+      "anchors": []
+    },
+    {
+      "path": "migrations/003_MIGRATION_GUIDE.md",
+      "reason": "created",
+      "anchors": []
+    },
+    {
+      "path": "migrations/003_SCHEMA_DIAGRAM.md",
+      "reason": "created",
+      "anchors": []
+    },
+    {
+      "path": "migrations/003_add_approval_workflow_to_credit_notes_and_advance_payments.sql",
+      "reason": "created",
+      "anchors": []
+    },
+    {
+      "path": "migrations/003_add_approval_workflow_to_credit_notes_and_advance_payments_ROLLBACK.sql",
+      "reason": "created",
+      "anchors": []
+    },
+    {
+      "path": "migrations/003_validation.sql",
+      "reason": "created",
+      "anchors": []
+    },
+    {
+      "path": "types/unified-entry.ts",
       "reason": "created",
       "anchors": []
     }

@@ -17,6 +17,7 @@ import {
   Plus,
   ChevronDown,
   ChevronRight,
+  Link2,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Button } from '@/components/ui/button';
@@ -75,6 +76,7 @@ function EntryStatusBadge({ entry }: { entry: ReportEntry }) {
     PARTIALLY_PAID: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
     UNPAID: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
     ADVANCE: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+    CREDIT_NOTE: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
   };
 
   let label: string = status;
@@ -82,6 +84,8 @@ function EntryStatusBadge({ entry }: { entry: ReportEntry }) {
     label = `PAID (${status_percentage}%)`;
   } else if (status === 'PARTIALLY_PAID' && status_percentage) {
     label = `PARTIALLY PAID (${status_percentage}%)`;
+  } else if (status === 'CREDIT_NOTE') {
+    label = 'CREDIT NOTE';
   }
 
   return (
@@ -125,7 +129,10 @@ function ReportSectionView({ section, defaultOpen = true, onViewInvoice }: Repor
         <Badge variant="outline" className="ml-2 text-xs">
           {section.entry_count} {section.entry_count === 1 ? 'entry' : 'entries'}
         </Badge>
-        <span className="ml-auto text-sm font-medium text-muted-foreground">
+        <span className={cn(
+          'ml-auto text-sm font-medium',
+          section.subtotal < 0 ? 'text-cyan-500' : 'text-muted-foreground'
+        )}>
           Subtotal: {formatCurrency(section.subtotal)}
         </span>
       </button>
@@ -147,12 +154,12 @@ function ReportSectionView({ section, defaultOpen = true, onViewInvoice }: Repor
             <TableBody>
               {section.entries.map((entry) => (
                 <TableRow
-                  key={`${entry.invoice_id || entry.advance_payment_id}-${entry.serial}`}
+                  key={`${entry.invoice_id || entry.advance_payment_id || entry.credit_note_id}-${entry.serial}`}
                   className={cn(
                     'border-b border-border/50 hover:bg-muted/30 transition-colors',
-                    entry.invoice_id && 'cursor-pointer'
+                    entry.invoice_id && !entry.is_credit_note && 'cursor-pointer'
                   )}
-                  onClick={() => entry.invoice_id && onViewInvoice?.(entry.invoice_id)}
+                  onClick={() => entry.invoice_id && !entry.is_credit_note && onViewInvoice?.(entry.invoice_id)}
                 >
                   <TableCell className="text-muted-foreground text-sm">{entry.serial}</TableCell>
                   <TableCell>
@@ -163,13 +170,34 @@ function ReportSectionView({ section, defaultOpen = true, onViewInvoice }: Repor
                   </TableCell>
                   <TableCell>
                     <div className="space-y-0.5">
-                      <div className="text-sm">{entry.invoice_number || '-'}</div>
-                      {entry.is_advance_payment && (
+                      <div className="flex items-center gap-1.5 text-sm">
+                        {entry.is_credit_note ? entry.credit_note_number : entry.invoice_number || '-'}
+                        {/* Link icon for invoices with credit notes */}
+                        {!entry.is_credit_note && entry.linked_credit_note_count > 0 && (
+                          <Link2 className="h-3 w-3 text-cyan-500" />
+                        )}
+                        {/* Link icon for credit notes (links to parent invoice) */}
+                        {entry.is_credit_note && entry.parent_invoice_number && (
+                          <Link2 className="h-3 w-3 text-cyan-500" />
+                        )}
+                      </div>
+                      {/* Show parent invoice reference for credit notes */}
+                      {entry.is_credit_note && entry.parent_invoice_number && (
+                        <div className="text-[10px] text-muted-foreground">
+                          Against: {entry.parent_invoice_number}
+                        </div>
+                      )}
+                      {entry.is_credit_note && (
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-cyan-500/50 text-cyan-500">
+                          Credit Note
+                        </Badge>
+                      )}
+                      {entry.is_advance_payment && !entry.is_credit_note && (
                         <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-purple-500/50 text-purple-500">
                           Advance
                         </Badge>
                       )}
-                      {entry.entry_type === 'late_invoice' && (
+                      {entry.entry_type === 'late_invoice' && !entry.is_credit_note && (
                         <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-amber-500/50 text-amber-500">
                           Late Entry
                         </Badge>
@@ -187,12 +215,20 @@ function ReportSectionView({ section, defaultOpen = true, onViewInvoice }: Repor
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="space-y-0.5">
-                      <div className="font-medium text-sm">
+                      <div className={cn(
+                        'font-medium text-sm',
+                        entry.is_credit_note && 'text-cyan-500'
+                      )}>
                         {formatCurrency(entry.payment_amount ?? entry.invoice_amount, entry.currency_code)}
                       </div>
-                      {entry.payment_amount && entry.payment_amount !== entry.invoice_amount && (
+                      {entry.payment_amount && entry.payment_amount !== entry.invoice_amount && !entry.is_credit_note && (
                         <div className="text-[10px] text-muted-foreground">
                           of {formatCurrency(entry.invoice_amount, entry.currency_code)}
+                        </div>
+                      )}
+                      {entry.is_credit_note && entry.tds_reversal_amount && entry.tds_reversal_amount > 0 && (
+                        <div className="text-[10px] text-green-500">
+                          TDS +{formatCurrency(entry.tds_reversal_amount, entry.currency_code)}
                         </div>
                       )}
                     </div>
@@ -312,13 +348,23 @@ export function ConsolidatedReportTab() {
           statusLabel = `PAID (${entry.status_percentage}%)`;
         } else if (entry.status === 'PARTIALLY_PAID' && entry.status_percentage) {
           statusLabel = `PARTIALLY PAID (${entry.status_percentage}%)`;
+        } else if (entry.status === 'CREDIT_NOTE') {
+          statusLabel = 'CREDIT NOTE';
+        }
+
+        // Determine the number to display
+        let displayNumber = entry.invoice_number || '';
+        if (entry.is_credit_note) {
+          displayNumber = entry.credit_note_number || '';
+        } else if (entry.is_advance_payment) {
+          displayNumber = 'Advance Payment';
         }
 
         exportData.push({
           'Payment Type': '',
           '#': entry.serial,
           'Invoice Name': entry.invoice_name,
-          'Invoice Number': entry.invoice_number || (entry.is_advance_payment ? 'Advance Payment' : ''),
+          'Invoice Number': displayNumber,
           'Vendor': entry.vendor_name,
           'Date': entry.invoice_date
             ? new Date(entry.invoice_date).toLocaleDateString('en-IN')

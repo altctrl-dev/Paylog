@@ -135,7 +135,7 @@ export interface ReportEntry {
   invoice_name: string;
   vendor_name: string;
   invoice_date: string | null; // ISO date string
-  invoice_amount: number;
+  invoice_amount: number; // Negative for credit notes
   payment_amount: number | null;
   payment_date: string | null; // ISO date string
   payment_reference: string | null;
@@ -145,6 +145,17 @@ export interface ReportEntry {
   is_advance_payment: boolean;
   advance_payment_id: number | null;
   entry_type: ReportEntryType;
+  // Credit note fields
+  is_credit_note: boolean;
+  credit_note_id: number | null;
+  credit_note_number: string | null;
+  credit_note_date: string | null; // ISO date string
+  /** TDS reversal amount (positive value, represents reduction in TDS liability) */
+  tds_reversal_amount: number | null;
+  /** For credit notes: the parent invoice number this credit note is against */
+  parent_invoice_number: string | null;
+  /** For invoices: count of linked credit notes (for showing link icon) */
+  linked_credit_note_count: number;
 }
 
 /**
@@ -155,7 +166,8 @@ export type ReportEntryStatus =
   | 'PAID_PARTIAL' // Shows as "PAID (40%)" - this payment completed the invoice
   | 'PARTIALLY_PAID' // Shows as "PARTIALLY PAID (30%)" - invoice still has balance
   | 'UNPAID'
-  | 'ADVANCE';
+  | 'ADVANCE'
+  | 'CREDIT_NOTE'; // Credit note entry (negative amount)
 
 /**
  * Entry type for categorization
@@ -164,7 +176,8 @@ export type ReportEntryType =
   | 'standard' // Normal invoice/payment in its expected month
   | 'late_invoice' // Invoice dated in previous month, received this month
   | 'late_payment' // Payment made after report was finalized
-  | 'advance_payment'; // Payment without invoice
+  | 'advance_payment' // Payment without invoice
+  | 'credit_note'; // Credit note against an invoice (negative amount)
 
 /**
  * Section in the report (grouped by payment type)
@@ -337,4 +350,18 @@ export function parseReportingMonth(date: Date): { month: number; year: number }
     month: date.getMonth() + 1,
     year: date.getFullYear(),
   };
+}
+
+/**
+ * Type guard for credit note entries
+ */
+export function isCreditNoteEntry(entry: ReportEntry): boolean {
+  return entry.entry_type === 'credit_note' || entry.is_credit_note === true;
+}
+
+/**
+ * Type guard for advance payment entries
+ */
+export function isAdvancePaymentEntry(entry: ReportEntry): boolean {
+  return entry.entry_type === 'advance_payment' || entry.is_advance_payment === true;
 }

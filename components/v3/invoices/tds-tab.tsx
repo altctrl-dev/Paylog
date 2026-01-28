@@ -22,7 +22,10 @@ import { useState } from 'react';
 import { Search, Filter, ArrowUpDown, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useInvoices } from '@/hooks/use-invoices';
+import { useCreditNotesWithTdsByMonth } from '@/hooks/use-credit-notes';
 import { MonthNavigator } from './month-navigator';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -43,6 +46,29 @@ import {
 } from '@/components/ui/table';
 import { calculateTds } from '@/lib/utils/tds';
 import { formatCurrency } from '@/lib/utils/format';
+
+// ============================================================================
+// Types
+// ============================================================================
+
+/**
+ * Unified TDS entry type that can represent either:
+ * - Invoice with TDS deduction (positive TDS)
+ * - Credit note with TDS reversal (negative TDS)
+ */
+interface TdsEntry {
+  id: string; // Unique key for React (inv_{id} or cn_{id})
+  type: 'invoice' | 'reversal';
+  details: string;
+  invoice_number: string;
+  date: Date | string | null;
+  invoice_amount: number;
+  tds_percentage: number | null;
+  tds_amount: number; // Positive for deductions, negative for reversals
+  currency_code: string;
+  original_id: number; // Original invoice or credit note ID
+  credit_note_number?: string; // Only for reversals
+}
 
 // ============================================================================
 // Format Helpers
@@ -106,7 +132,7 @@ export function TDSTab() {
   const { start, end } = getMonthDateRange(selectedMonth, selectedYear);
 
   // Fetch invoices with TDS applicable for selected month
-  const { data, isLoading } = useInvoices({
+  const { data, isLoading: isLoadingInvoices } = useInvoices({
     page: 1,
     per_page: 100,
     tds_applicable: true,
@@ -116,46 +142,130 @@ export function TDSTab() {
     sort_order: sortOrder,
   });
 
+  // Fetch credit notes with TDS reversals for selected month
+  const { data: creditNotes, isLoading: isLoadingCreditNotes } = useCreditNotesWithTdsByMonth(
+    selectedMonth,
+    selectedYear
+  );
+
+  const isLoading = isLoadingInvoices || isLoadingCreditNotes;
   const invoices = data?.invoices ?? [];
 
+  // Build unified TDS entries list
+  const tdsEntries: TdsEntry[] = React.useMemo(() => {
+    const entries: TdsEntry[] = [];
+
+    // Add invoice TDS deductions
+    invoices.forEach((invoice) => {
+      const inv = invoice as typeof invoice & {
+        tds_rounded?: boolean;
+        invoice_profile?: { name: string } | null;
+        invoice_name?: string | null;
+        description?: string | null;
+      };
+      const tdsAmount = calculateTdsAmountWithRounding(
+        invoice.invoice_amount,
+        invoice.tds_percentage,
+        inv.tds_rounded ?? false
+      );
+
+      entries.push({
+        id: `inv_${invoice.id}`,
+        type: 'invoice',
+        details: inv.is_recurring
+          ? inv.invoice_profile?.name || 'Unknown Profile'
+          : inv.invoice_name || inv.description || invoice.notes || 'Unnamed Invoice',
+        invoice_number: invoice.invoice_number || '',
+        date: invoice.invoice_date,
+        invoice_amount: invoice.invoice_amount,
+        tds_percentage: invoice.tds_percentage,
+        tds_amount: tdsAmount, // Positive for deductions
+        currency_code: invoice.currency?.code || 'INR',
+        original_id: invoice.id,
+      });
+    });
+
+    // Add credit note TDS reversals
+    (creditNotes ?? []).forEach((cn) => {
+      entries.push({
+        id: `cn_${cn.id}`,
+        type: 'reversal',
+        details: cn.invoice.invoice_name || cn.invoice.vendor.name,
+        invoice_number: cn.invoice.invoice_number,
+        date: cn.credit_note_date,
+        invoice_amount: -cn.amount, // Show credit amount as negative
+        tds_percentage: cn.invoice.tds_percentage,
+        tds_amount: -cn.tds_amount, // Negative for reversals
+        currency_code: cn.currency_code,
+        original_id: cn.id,
+        credit_note_number: cn.credit_note_number,
+      });
+    });
+
+    // Sort by date
+    entries.sort((a, b) => {
+      const dateA = a.date ? new Date(a.date).getTime() : 0;
+      const dateB = b.date ? new Date(b.date).getTime() : 0;
+      return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+    });
+
+    return entries;
+  }, [invoices, creditNotes, sortOrder]);
+
   // Filter by search query and TDS percentage
-  const filteredInvoices = invoices.filter((invoice) => {
+  const filteredEntries = tdsEntries.filter((entry) => {
     // Search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      const details = getInvoiceDetails(invoice).toLowerCase();
-      if (!details.includes(query) && !invoice.invoice_number?.toLowerCase().includes(query)) {
+      if (
+        !entry.details.toLowerCase().includes(query) &&
+        !entry.invoice_number?.toLowerCase().includes(query) &&
+        !entry.credit_note_number?.toLowerCase().includes(query)
+      ) {
         return false;
       }
     }
 
-    // TDS percentage filter
-    if (tdsFilter === 'high' && (invoice.tds_percentage || 0) < 10) return false;
-    if (tdsFilter === 'low' && (invoice.tds_percentage || 0) >= 10) return false;
+    // TDS percentage filter (skip reversals for percentage filter)
+    if (entry.type === 'invoice') {
+      if (tdsFilter === 'high' && (entry.tds_percentage || 0) < 10) return false;
+      if (tdsFilter === 'low' && (entry.tds_percentage || 0) >= 10) return false;
+    }
 
     return true;
   });
 
-  // Calculate totals from filtered invoices using invoice's tds_rounded preference (BUG-003)
-  const totals = filteredInvoices.reduce(
-    (acc, invoice) => {
-      // Cast to access tds_rounded field
-      const inv = invoice as typeof invoice & { tds_rounded?: boolean };
-      const tdsAmount = calculateTdsAmountWithRounding(invoice.invoice_amount, invoice.tds_percentage, inv.tds_rounded ?? false);
-      return {
-        invoiceAmount: acc.invoiceAmount + invoice.invoice_amount,
-        tdsAmount: acc.tdsAmount + tdsAmount,
-      };
+  // Calculate totals
+  const totals = filteredEntries.reduce(
+    (acc, entry) => {
+      if (entry.type === 'invoice') {
+        return {
+          tdsDeducted: acc.tdsDeducted + entry.tds_amount,
+          tdsReversed: acc.tdsReversed,
+        };
+      } else {
+        // Reversal - tds_amount is already negative
+        return {
+          tdsDeducted: acc.tdsDeducted,
+          tdsReversed: acc.tdsReversed + Math.abs(entry.tds_amount),
+        };
+      }
     },
-    { invoiceAmount: 0, tdsAmount: 0 }
+    { tdsDeducted: 0, tdsReversed: 0 }
   );
 
-  // Selection handlers
+  const netTds = totals.tdsDeducted - totals.tdsReversed;
+
+  // Selection handlers - now using string IDs (inv_{id} or cn_{id})
   const toggleSelectAll = () => {
-    if (selectedInvoices.size === filteredInvoices.length) {
+    if (selectedInvoices.size === filteredEntries.length) {
       setSelectedInvoices(new Set());
     } else {
-      setSelectedInvoices(new Set(filteredInvoices.map((inv) => inv.id)));
+      // For selection, we only select invoices (not reversals) by their original ID
+      const invoiceIds = filteredEntries
+        .filter((e) => e.type === 'invoice')
+        .map((e) => e.original_id);
+      setSelectedInvoices(new Set(invoiceIds));
     }
   };
 
@@ -170,7 +280,8 @@ export function TDSTab() {
   };
 
   const isAllSelected =
-    filteredInvoices.length > 0 && selectedInvoices.size === filteredInvoices.length;
+    filteredEntries.filter((e) => e.type === 'invoice').length > 0 &&
+    selectedInvoices.size === filteredEntries.filter((e) => e.type === 'invoice').length;
 
   const handleMonthChange = (month: number, year: number) => {
     setSelectedMonth(month);
@@ -178,34 +289,63 @@ export function TDSTab() {
   };
 
   const handleExport = () => {
-    if (filteredInvoices.length === 0) {
-      alert('No TDS invoices to export');
+    if (filteredEntries.length === 0) {
+      alert('No TDS entries to export');
       return;
     }
 
-    // Prepare data for export using invoice's tds_rounded preference (BUG-003)
-    const exportData = filteredInvoices.map((invoice) => {
-      // Cast to access tds_rounded field
-      const inv = invoice as typeof invoice & { tds_rounded?: boolean };
-      const tdsAmount = calculateTdsAmountWithRounding(invoice.invoice_amount, invoice.tds_percentage, inv.tds_rounded ?? false);
-      return {
-        'Invoice Details': getInvoiceDetails(invoice),
-        'Invoice Number': invoice.invoice_number || '',
-        'Invoice Date': formatDate(invoice.invoice_date),
-        'Invoice Amount': invoice.invoice_amount,
-        'TDS %': invoice.tds_percentage || 0,
-        'TDS Amount': tdsAmount,
-      };
-    });
+    // Prepare data for export
+    const exportData = filteredEntries.map((entry) => ({
+      Type: entry.type === 'invoice' ? 'Deduction' : 'Reversal',
+      Details: entry.details,
+      'Invoice Number': entry.invoice_number,
+      'Credit Note': entry.credit_note_number || '',
+      Date: formatDate(entry.date),
+      Amount: entry.invoice_amount,
+      'TDS %': entry.tds_percentage || 0,
+      'TDS Amount': entry.tds_amount,
+    }));
 
-    // Add totals row
+    // Add summary rows
     exportData.push({
-      'Invoice Details': 'TOTAL',
+      Type: '',
+      Details: '',
       'Invoice Number': '',
-      'Invoice Date': '',
-      'Invoice Amount': totals.invoiceAmount,
+      'Credit Note': '',
+      Date: '',
+      Amount: 0,
       'TDS %': 0,
-      'TDS Amount': totals.tdsAmount,
+      'TDS Amount': 0,
+    });
+    exportData.push({
+      Type: 'SUMMARY',
+      Details: 'TDS Deducted',
+      'Invoice Number': '',
+      'Credit Note': '',
+      Date: '',
+      Amount: 0,
+      'TDS %': 0,
+      'TDS Amount': totals.tdsDeducted,
+    });
+    exportData.push({
+      Type: '',
+      Details: 'TDS Reversed',
+      'Invoice Number': '',
+      'Credit Note': '',
+      Date: '',
+      Amount: 0,
+      'TDS %': 0,
+      'TDS Amount': -totals.tdsReversed,
+    });
+    exportData.push({
+      Type: '',
+      Details: 'NET TDS',
+      'Invoice Number': '',
+      'Credit Note': '',
+      Date: '',
+      Amount: 0,
+      'TDS %': 0,
+      'TDS Amount': netTds,
     });
 
     // Create workbook and worksheet
@@ -228,26 +368,6 @@ export function TDSTab() {
       setSortOrder('desc');
     }
   };
-
-  /**
-   * Get invoice details text:
-   * - For recurring: invoice profile name
-   * - For non-recurring: invoice name field
-   */
-  function getInvoiceDetails(invoice: (typeof invoices)[0]): string {
-    // Cast to access additional fields that may exist from API
-    const inv = invoice as typeof invoice & {
-      invoice_profile?: { name: string } | null;
-      invoice_name?: string | null;
-      description?: string | null;
-    };
-
-    if (inv.is_recurring) {
-      return inv.invoice_profile?.name || 'Unknown Profile';
-    }
-    // Non-recurring: use invoice_name field (fallback to description for backwards compatibility)
-    return inv.invoice_name || inv.description || inv.notes || 'Unnamed Invoice';
-  }
 
   // Format month name for title
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -373,52 +493,68 @@ export function TDSTab() {
                   <TableCell className="pl-4"><Skeleton className="h-4 w-20" /></TableCell>
                 </TableRow>
               ))
-            ) : filteredInvoices.length === 0 ? (
+            ) : filteredEntries.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
-                  No TDS invoices found for this month
+                  No TDS entries found for this month
                 </TableCell>
               </TableRow>
             ) : (
-              filteredInvoices.map((invoice) => {
-                // Cast to access tds_rounded field (BUG-003)
-                const inv = invoice as typeof invoice & { tds_rounded?: boolean };
-                const tdsAmount = calculateTdsAmountWithRounding(
-                  invoice.invoice_amount,
-                  invoice.tds_percentage,
-                  inv.tds_rounded ?? false
-                );
+              filteredEntries.map((entry) => {
+                const isReversal = entry.type === 'reversal';
 
                 return (
                   <TableRow
-                    key={invoice.id}
-                    data-state={selectedInvoices.has(invoice.id) ? 'selected' : undefined}
-                    className="border-b border-border/50"
+                    key={entry.id}
+                    data-state={!isReversal && selectedInvoices.has(entry.original_id) ? 'selected' : undefined}
+                    className={cn(
+                      'border-b border-border/50',
+                      isReversal && 'bg-cyan-500/5'
+                    )}
                   >
                     <TableCell className="pl-4">
-                      <Checkbox
-                        checked={selectedInvoices.has(invoice.id)}
-                        onCheckedChange={() => toggleSelect(invoice.id)}
-                        aria-label={`Select ${invoice.invoice_number}`}
-                      />
+                      {!isReversal ? (
+                        <Checkbox
+                          checked={selectedInvoices.has(entry.original_id)}
+                          onCheckedChange={() => toggleSelect(entry.original_id)}
+                          aria-label={`Select ${entry.invoice_number}`}
+                        />
+                      ) : (
+                        <span className="text-cyan-500/50">—</span>
+                      )}
                     </TableCell>
                     <TableCell className="font-medium">
-                      {getInvoiceDetails(invoice)}
+                      <div className="flex items-center gap-2">
+                        {entry.details}
+                        {isReversal && (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] px-1.5 py-0 h-4 border-cyan-500/50 text-cyan-500"
+                          >
+                            Reversal
+                          </Badge>
+                        )}
+                      </div>
+                      {isReversal && entry.credit_note_number && (
+                        <div className="text-[10px] text-muted-foreground">
+                          CN: {entry.credit_note_number}
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {invoice.invoice_number}
+                      {entry.invoice_number}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {formatDate(invoice.invoice_date)}
+                      {formatDate(entry.date)}
                     </TableCell>
-                    <TableCell className="font-medium">
-                      {formatCurrency(invoice.invoice_amount, invoice.currency?.code)}
+                    <TableCell className={cn('font-medium', isReversal && 'text-cyan-500')}>
+                      {formatCurrency(entry.invoice_amount, entry.currency_code)}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {formatTdsPercentage(invoice.tds_percentage)}
+                      {formatTdsPercentage(entry.tds_percentage)}
                     </TableCell>
-                    <TableCell className="font-medium pl-4">
-                      {formatCurrency(tdsAmount, invoice.currency?.code)}
+                    <TableCell className={cn('font-medium pl-4', isReversal && 'text-cyan-500')}>
+                      {formatCurrency(entry.tds_amount, entry.currency_code)}
                     </TableCell>
                   </TableRow>
                 );
@@ -428,12 +564,48 @@ export function TDSTab() {
         </Table>
 
         {/* Summary Footer - Inside Table Border */}
-        {!isLoading && filteredInvoices.length > 0 && (
-          <div className="flex justify-center items-center px-4 py-4 border-t bg-muted/30">
+        {!isLoading && filteredEntries.length > 0 && (
+          <div className="flex justify-center items-center gap-8 px-4 py-4 border-t bg-muted/30">
+            {/* TDS Deducted */}
             <div className="text-center">
-              <div className="text-xs text-muted-foreground uppercase tracking-wider">Total TDS Amount</div>
-              <div className="text-xl font-semibold">{formatCurrency(totals.tdsAmount, filteredInvoices[0]?.currency?.code)}</div>
+              <div className="text-xs text-muted-foreground uppercase tracking-wider">TDS Deducted</div>
+              <div className="text-lg font-semibold">
+                {formatCurrency(totals.tdsDeducted, filteredEntries[0]?.currency_code)}
+              </div>
             </div>
+
+            {/* TDS Reversed (only show if there are reversals) */}
+            {totals.tdsReversed > 0 && (
+              <>
+                <div className="text-center">
+                  <div className="text-xs text-muted-foreground uppercase tracking-wider">TDS Reversed</div>
+                  <div className="text-lg font-semibold text-cyan-500">
+                    -{formatCurrency(totals.tdsReversed, filteredEntries[0]?.currency_code)}
+                  </div>
+                </div>
+
+                {/* Divider */}
+                <div className="h-10 w-px bg-border" />
+
+                {/* Net TDS */}
+                <div className="text-center">
+                  <div className="text-xs text-muted-foreground uppercase tracking-wider">Net TDS</div>
+                  <div className="text-xl font-semibold">
+                    {formatCurrency(netTds, filteredEntries[0]?.currency_code)}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Just show Total TDS if no reversals */}
+            {totals.tdsReversed === 0 && (
+              <div className="text-center">
+                <div className="text-xs text-muted-foreground uppercase tracking-wider">Total</div>
+                <div className="text-xl font-semibold">
+                  {formatCurrency(totals.tdsDeducted, filteredEntries[0]?.currency_code)}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

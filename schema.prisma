@@ -8,55 +8,58 @@ datasource db {
 }
 
 model User {
-  id                       Int                     @id @default(autoincrement())
-  email                    String                  @unique
-  full_name                String
-  password_hash            String? // Optional - OAuth users don't have passwords
-  role                     String                  @default("standard_user")
-  status                   String                  @default("active") // 'pending' | 'active' | 'deactivated' | 'deleted'
-  is_active                Boolean                 @default(true) // DEPRECATED: Use status instead. Kept for migration compatibility.
-  created_at               DateTime                @default(now())
-  updated_at               DateTime                @updatedAt
-  deleted_at               DateTime? // Timestamp for soft deletes
-  display_name             String?
-  display_picture_url      String?
-  initials                 String?
-  last_password_change     DateTime? // Track for password expiry policy
+  id                        Int                     @id @default(autoincrement())
+  email                     String                  @unique
+  full_name                 String
+  password_hash             String? // Optional - OAuth users don't have passwords
+  role                      String                  @default("standard_user")
+  status                    String                  @default("active") // 'pending' | 'active' | 'deactivated' | 'deleted'
+  is_active                 Boolean                 @default(true) // DEPRECATED: Use status instead. Kept for migration compatibility.
+  created_at                DateTime                @default(now())
+  updated_at                DateTime                @updatedAt
+  deleted_at                DateTime? // Timestamp for soft deletes
+  display_name              String?
+  display_picture_url       String?
+  initials                  String?
+  last_password_change      DateTime? // Track for password expiry policy
   // Invite fields (for status='pending' users)
-  invite_token             String?                 @unique // Token for invite link
-  invite_expires_at        DateTime? // When the invite expires
-  invited_by_id            Int? // User ID who sent the invite
-  invited_by               User?                   @relation("UserInviter", fields: [invited_by_id], references: [id])
-  invitees                 User[]                  @relation("UserInviter")
+  invite_token              String?                 @unique // Token for invite link
+  invite_expires_at         DateTime? // When the invite expires
+  invited_by_id             Int? // User ID who sent the invite
+  invited_by                User?                   @relation("UserInviter", fields: [invited_by_id], references: [id])
+  invitees                  User[]                  @relation("UserInviter")
   // OAuth accounts
-  accounts                 Account[] // OAuth accounts (Microsoft, etc.)
-  activity_logs            ActivityLog[]           @relation("ActivityLogger")
-  deleted_attachments      InvoiceAttachment[]     @relation("AttachmentDeleter")
-  uploaded_attachments     InvoiceAttachment[]     @relation("AttachmentUploader")
-  deleted_comments         InvoiceComment[]        @relation("CommentDeleter")
-  comments                 InvoiceComment[]        @relation("CommentAuthor")
-  created_invoices         Invoice[]               @relation("InvoiceCreator")
-  held_invoices            Invoice[]               @relation("InvoiceHolder")
-  archived_invoices        Invoice[]               @relation("InvoiceArchiver")
-  deleted_invoices         Invoice[]               @relation("InvoiceDeleter")
-  rejected_invoices        Invoice[]               @relation("InvoiceRejector")
-  created_requests         MasterDataRequest[]     @relation("RequestRequester")
-  reviewed_master_requests MasterDataRequest[]     @relation("RequestReviewer")
-  audit_actions            UserAuditLog[]          @relation("AuditActor")
-  audit_history            UserAuditLog[]          @relation("AuditTarget")
-  granted_visibilities     UserProfileVisibility[] @relation("VisibilityGranter")
-  profile_visibilities     UserProfileVisibility[] @relation("UserProfileAccess")
-  created_vendors          Vendor[]                @relation("VendorCreatedBy")
-  approved_vendors         Vendor[]                @relation("VendorApprovedBy")
-  notifications            Notification[]          @relation("UserNotifications")
-  created_payments         Payment[]               @relation("PaymentCreator")
-  approved_payments        Payment[]               @relation("PaymentApprover")
-  sent_invites             UserInvite[]            @relation("UserInvites") // Legacy - will be deprecated
+  accounts                  Account[] // OAuth accounts (Microsoft, etc.)
+  activity_logs             ActivityLog[]           @relation("ActivityLogger")
+  deleted_attachments       InvoiceAttachment[]     @relation("AttachmentDeleter")
+  uploaded_attachments      InvoiceAttachment[]     @relation("AttachmentUploader")
+  deleted_comments          InvoiceComment[]        @relation("CommentDeleter")
+  comments                  InvoiceComment[]        @relation("CommentAuthor")
+  created_invoices          Invoice[]               @relation("InvoiceCreator")
+  held_invoices             Invoice[]               @relation("InvoiceHolder")
+  archived_invoices         Invoice[]               @relation("InvoiceArchiver")
+  deleted_invoices          Invoice[]               @relation("InvoiceDeleter")
+  rejected_invoices         Invoice[]               @relation("InvoiceRejector")
+  created_requests          MasterDataRequest[]     @relation("RequestRequester")
+  reviewed_master_requests  MasterDataRequest[]     @relation("RequestReviewer")
+  audit_actions             UserAuditLog[]          @relation("AuditActor")
+  audit_history             UserAuditLog[]          @relation("AuditTarget")
+  granted_visibilities      UserProfileVisibility[] @relation("VisibilityGranter")
+  profile_visibilities      UserProfileVisibility[] @relation("UserProfileAccess")
+  created_vendors           Vendor[]                @relation("VendorCreatedBy")
+  approved_vendors          Vendor[]                @relation("VendorApprovedBy")
+  notifications             Notification[]          @relation("UserNotifications")
+  created_payments          Payment[]               @relation("PaymentCreator")
+  approved_payments         Payment[]               @relation("PaymentApprover")
+  sent_invites              UserInvite[]            @relation("UserInvites") // Legacy - will be deprecated
   // Monthly Report System relations
-  finalized_reports        ReportPeriod[]          @relation("ReportFinalizer")
-  created_advance_payments AdvancePayment[]        @relation("AdvancePaymentCreator")
-  created_credit_notes     CreditNote[]            @relation("CreditNoteCreator")
-  deleted_credit_notes     CreditNote[]            @relation("CreditNoteDeleter")
+  finalized_reports         ReportPeriod[]          @relation("ReportFinalizer")
+  created_advance_payments  AdvancePayment[]        @relation("AdvancePaymentCreator")
+  created_credit_notes      CreditNote[]            @relation("CreditNoteCreator")
+  deleted_credit_notes      CreditNote[]            @relation("CreditNoteDeleter")
+  approved_credit_notes     CreditNote[]            @relation("CreditNoteApprover")
+  approved_advance_payments AdvancePayment[]        @relation("AdvancePaymentApprover")
+  deleted_advance_payments  AdvancePayment[]        @relation("AdvancePaymentDeleter")
 
   @@index([role, status], map: "idx_users_role_status")
   @@index([status], map: "idx_users_status")
@@ -177,75 +180,75 @@ model PaymentType {
 }
 
 model Invoice {
-  id                    Int                 @id @default(autoincrement())
-  invoice_number        String
-  vendor_id             Int
-  category_id           Int?
-  invoice_amount        Float
-  invoice_date          DateTime?
-  invoice_received_date DateTime?
-  due_date              DateTime?
+  id                     Int                 @id @default(autoincrement())
+  invoice_number         String
+  vendor_id              Int
+  category_id            Int?
+  invoice_amount         Float
+  invoice_date           DateTime?
+  invoice_received_date  DateTime?
+  due_date               DateTime?
   // Monthly Report System: Which month's report this invoice belongs to
   // Defaults to invoice_received_date month; can differ for late entries
-  reporting_month       DateTime?
-  period_start          DateTime?
-  period_end            DateTime?
-  tds_applicable        Boolean             @default(false)
-  tds_percentage        Float?
-  tds_rounded           Boolean             @default(false)
-  notes                 String?
-  status                String              @default("pending_approval")
-  hold_reason           String?
-  hold_by               Int?
-  hold_at               DateTime?
-  submission_count      Int                 @default(1)
-  last_submission_at    DateTime            @default(now())
-  rejection_reason      String?
-  rejected_by           Int?
-  rejected_at           DateTime?
+  reporting_month        DateTime?
+  period_start           DateTime?
+  period_end             DateTime?
+  tds_applicable         Boolean             @default(false)
+  tds_percentage         Float?
+  tds_rounded            Boolean             @default(false)
+  notes                  String?
+  status                 String              @default("pending_approval")
+  hold_reason            String?
+  hold_by                Int?
+  hold_at                DateTime?
+  submission_count       Int                 @default(1)
+  last_submission_at     DateTime            @default(now())
+  rejection_reason       String?
+  rejected_by            Int?
+  rejected_at            DateTime?
   // Archive fields (soft archive with file move)
-  is_archived           Boolean             @default(false)
-  archived_by           Int?
-  archived_at           DateTime?
-  archived_reason       String?
+  is_archived            Boolean             @default(false)
+  archived_by            Int?
+  archived_at            DateTime?
+  archived_reason        String?
   // Soft delete fields (for recovery before permanent deletion)
-  deleted_at            DateTime?
-  deleted_by            Int?
-  deleted_reason        String?
-  recovery_deadline     DateTime? // Auto-permanent-delete after this date
-  created_by            Int
-  created_at            DateTime            @default(now())
-  updated_at            DateTime            @updatedAt
-  currency_id           Int?
-  entity_id             Int?
-  description           String?
-  invoice_name          String? // For non-recurring: user-entered name; For recurring: auto-populated from invoice_profile.name
+  deleted_at             DateTime?
+  deleted_by             Int?
+  deleted_reason         String?
+  recovery_deadline      DateTime? // Auto-permanent-delete after this date
+  created_by             Int
+  created_at             DateTime            @default(now())
+  updated_at             DateTime            @updatedAt
+  currency_id            Int?
+  entity_id              Int?
+  description            String?
+  invoice_name           String? // For non-recurring: user-entered name; For recurring: auto-populated from invoice_profile.name
   // Invoice Type
-  is_recurring          Boolean             @default(false)
-  invoice_profile_id    Int?
+  is_recurring           Boolean             @default(false)
+  invoice_profile_id     Int?
   // Invoice Pending: Payment recorded but invoice details not yet received
   // When true: invoice_number is placeholder (e.g., "PENDING-xxx"), invoice_date/due_date may be null
-  invoice_pending       Boolean             @default(false)
-  invoice_completed_at  DateTime?           // When invoice details were added (invoice_pending set to false)
+  invoice_pending        Boolean             @default(false)
+  invoice_completed_at   DateTime? // When invoice details were added (invoice_pending set to false)
   // Pending payment data (JSON) - stores payment details submitted during invoice creation
   // Will be processed when invoice is approved (for standard users)
-  pending_payment_data  Json?
+  pending_payment_data   Json?
   // Relations
-  activity_logs         ActivityLog[]
-  attachments           InvoiceAttachment[]
-  comments              InvoiceComment[]
-  category              Category?           @relation(fields: [category_id], references: [id])
-  creator               User                @relation("InvoiceCreator", fields: [created_by], references: [id])
-  currency              Currency?           @relation(fields: [currency_id], references: [id], onUpdate: NoAction)
-  entity                Entity?             @relation(fields: [entity_id], references: [id], onUpdate: NoAction)
-  holder                User?               @relation("InvoiceHolder", fields: [hold_by], references: [id], onDelete: Restrict)
-  archiver              User?               @relation("InvoiceArchiver", fields: [archived_by], references: [id], onDelete: Restrict)
-  deleter               User?               @relation("InvoiceDeleter", fields: [deleted_by], references: [id], onDelete: Restrict)
-  invoice_profile       InvoiceProfile?     @relation("InvoiceProfileToInvoice", fields: [invoice_profile_id], references: [id], onDelete: SetNull)
-  rejector              User?               @relation("InvoiceRejector", fields: [rejected_by], references: [id], onDelete: Restrict)
-  vendor                Vendor              @relation(fields: [vendor_id], references: [id])
-  payments              Payment[]
-  credit_notes          CreditNote[]
+  activity_logs          ActivityLog[]
+  attachments            InvoiceAttachment[]
+  comments               InvoiceComment[]
+  category               Category?           @relation(fields: [category_id], references: [id])
+  creator                User                @relation("InvoiceCreator", fields: [created_by], references: [id])
+  currency               Currency?           @relation(fields: [currency_id], references: [id], onUpdate: NoAction)
+  entity                 Entity?             @relation(fields: [entity_id], references: [id], onUpdate: NoAction)
+  holder                 User?               @relation("InvoiceHolder", fields: [hold_by], references: [id], onDelete: Restrict)
+  archiver               User?               @relation("InvoiceArchiver", fields: [archived_by], references: [id], onDelete: Restrict)
+  deleter                User?               @relation("InvoiceDeleter", fields: [deleted_by], references: [id], onDelete: Restrict)
+  invoice_profile        InvoiceProfile?     @relation("InvoiceProfileToInvoice", fields: [invoice_profile_id], references: [id], onDelete: SetNull)
+  rejector               User?               @relation("InvoiceRejector", fields: [rejected_by], references: [id], onDelete: Restrict)
+  vendor                 Vendor              @relation(fields: [vendor_id], references: [id])
+  payments               Payment[]
+  credit_notes           CreditNote[]
   // Monthly Report System: Advance payment that was linked to this invoice
   linked_advance_payment AdvancePayment?
 
@@ -528,15 +531,15 @@ model VerificationToken {
 /// User Invite model
 /// Stores pending invitations for new users
 model UserInvite {
-  id          String    @id @default(cuid())
-  token       String    @unique // Unique token for invite link
-  email       String // Email address of invited user
-  role        String    @default("standard_user") // Role to assign on accept
-  expires_at  DateTime // When the invite expires (48 hours from creation)
-  used_at     DateTime? // When the invite was used (null if not used)
-  invited_by  Int // User ID who created the invite
-  created_at  DateTime  @default(now())
-  inviter     User      @relation("UserInvites", fields: [invited_by], references: [id])
+  id         String    @id @default(cuid())
+  token      String    @unique // Unique token for invite link
+  email      String // Email address of invited user
+  role       String    @default("standard_user") // Role to assign on accept
+  expires_at DateTime // When the invite expires (48 hours from creation)
+  used_at    DateTime? // When the invite was used (null if not used)
+  invited_by Int // User ID who created the invite
+  created_at DateTime  @default(now())
+  inviter    User      @relation("UserInvites", fields: [invited_by], references: [id])
 
   @@index([token], map: "idx_user_invites_token")
   @@index([email], map: "idx_user_invites_email")
@@ -552,13 +555,13 @@ model UserInvite {
 /// Stores frozen snapshot JSON when finalized for historical accuracy
 model ReportPeriod {
   id              Int       @id @default(autoincrement())
-  month           Int       // 1-12
-  year            Int       // 2025, 2026, etc.
+  month           Int // 1-12
+  year            Int // 2025, 2026, etc.
   status          String    @default("draft") // "draft" | "finalized" | "submitted"
   finalized_at    DateTime?
   finalized_by_id Int?
   submitted_at    DateTime?
-  submitted_to    String?   // Email or name of accountant
+  submitted_to    String? // Email or name of accountant
   // Frozen snapshot of the report at finalization time
   // Contains all invoices and payments grouped by payment type
   snapshot_data   Json?
@@ -566,7 +569,7 @@ model ReportPeriod {
   created_at      DateTime  @default(now())
   updated_at      DateTime  @updatedAt
 
-  finalized_by    User?     @relation("ReportFinalizer", fields: [finalized_by_id], references: [id])
+  finalized_by User? @relation("ReportFinalizer", fields: [finalized_by_id], references: [id])
 
   @@unique([month, year], name: "unique_report_period")
   @@index([status], map: "idx_report_periods_status")
@@ -578,41 +581,49 @@ model ReportPeriod {
 /// Credit notes issued by vendors to reduce invoice amounts
 /// Linked to specific invoice, supports TDS reversal
 model CreditNote {
-  id                  Int       @id @default(autoincrement())
-  invoice_id          Int       // Required link to parent invoice
-  credit_note_number  String    // Vendor's credit note reference number
-  credit_note_date    DateTime  // Date on the credit note
-  amount              Float     // Credit note amount
-  reason              String    // Reason for the credit note
-  notes               String?   // Additional notes
+  id                 Int       @id @default(autoincrement())
+  invoice_id         Int // Required link to parent invoice
+  credit_note_number String // Vendor's credit note reference number
+  credit_note_date   DateTime // Date on the credit note
+  amount             Float // Credit note amount
+  reason             String // Reason for the credit note
+  notes              String? // Additional notes
   // TDS reversal support
-  tds_applicable      Boolean   @default(false)
-  tds_amount          Float?    // TDS amount to be reversed
+  tds_applicable     Boolean   @default(false)
+  tds_amount         Float? // TDS amount to be reversed
   // File attachment (optional)
-  file_name           String?
-  file_path           String?
-  file_size           Int?
-  file_mime_type      String?
+  file_name          String?
+  file_path          String?
+  file_size          Int?
+  file_mime_type     String?
   // Reporting
-  reporting_month     DateTime? // Which month's report this belongs to
+  reporting_month    DateTime? // Which month's report this belongs to
   // Audit fields
-  created_by_id       Int
-  created_at          DateTime  @default(now())
-  updated_at          DateTime  @updatedAt
+  created_by_id      Int
+  created_at         DateTime  @default(now())
+  updated_at         DateTime  @updatedAt
   // Soft delete
-  deleted_at          DateTime?
-  deleted_by_id       Int?
-  deleted_reason      String?
+  deleted_at         DateTime?
+  deleted_by_id      Int?
+  deleted_reason     String?
+  // Approval workflow
+  status             String    @default("pending_approval") // "pending_approval" | "approved" | "rejected"
+  approved_by_id     Int?
+  approved_at        DateTime?
+  rejection_reason   String?
 
   // Relations
-  invoice             Invoice   @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
-  created_by          User      @relation("CreditNoteCreator", fields: [created_by_id], references: [id])
-  deleted_by          User?     @relation("CreditNoteDeleter", fields: [deleted_by_id], references: [id])
+  invoice     Invoice @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
+  created_by  User    @relation("CreditNoteCreator", fields: [created_by_id], references: [id])
+  deleted_by  User?   @relation("CreditNoteDeleter", fields: [deleted_by_id], references: [id])
+  approved_by User?   @relation("CreditNoteApprover", fields: [approved_by_id], references: [id])
 
   @@index([invoice_id], map: "idx_credit_notes_invoice")
   @@index([credit_note_date], map: "idx_credit_notes_date")
   @@index([reporting_month], map: "idx_credit_notes_reporting_month")
   @@index([deleted_at], map: "idx_credit_notes_deleted")
+  @@index([status], map: "idx_credit_notes_status")
+  @@index([approved_by_id], map: "idx_credit_notes_approved_by")
   @@map("credit_notes")
 }
 
@@ -622,11 +633,11 @@ model CreditNote {
 model AdvancePayment {
   id                Int       @id @default(autoincrement())
   vendor_id         Int
-  description       String    // What the payment was for
+  description       String // What the payment was for
   amount            Float
   payment_type_id   Int
   payment_date      DateTime
-  payment_reference String?   // Transaction reference number
+  payment_reference String? // Transaction reference number
   // Which month's report this belongs to (first of the month)
   reporting_month   DateTime
   // When invoice arrives, link it here
@@ -636,15 +647,29 @@ model AdvancePayment {
   created_by_id     Int?
   created_at        DateTime  @default(now())
   updated_at        DateTime  @updatedAt
+  // Approval workflow
+  status            String    @default("pending_approval") // "pending_approval" | "approved" | "rejected"
+  approved_by_id    Int?
+  approved_at       DateTime?
+  rejection_reason  String?
+  // Soft delete fields
+  deleted_at        DateTime?
+  deleted_by_id     Int?
+  deleted_reason    String?
 
-  vendor          Vendor       @relation(fields: [vendor_id], references: [id])
-  payment_type    PaymentType  @relation(fields: [payment_type_id], references: [id])
-  linked_invoice  Invoice?     @relation(fields: [linked_invoice_id], references: [id])
-  created_by      User?        @relation("AdvancePaymentCreator", fields: [created_by_id], references: [id])
+  vendor         Vendor      @relation(fields: [vendor_id], references: [id])
+  payment_type   PaymentType @relation(fields: [payment_type_id], references: [id])
+  linked_invoice Invoice?    @relation(fields: [linked_invoice_id], references: [id])
+  created_by     User?       @relation("AdvancePaymentCreator", fields: [created_by_id], references: [id])
+  approved_by    User?       @relation("AdvancePaymentApprover", fields: [approved_by_id], references: [id])
+  deleted_by     User?       @relation("AdvancePaymentDeleter", fields: [deleted_by_id], references: [id])
 
   @@index([vendor_id], map: "idx_advance_payments_vendor")
   @@index([reporting_month], map: "idx_advance_payments_reporting_month")
   @@index([linked_invoice_id], map: "idx_advance_payments_linked_invoice")
   @@index([payment_type_id], map: "idx_advance_payments_payment_type")
+  @@index([status], map: "idx_advance_payments_status")
+  @@index([approved_by_id], map: "idx_advance_payments_approved_by")
+  @@index([deleted_at], map: "idx_advance_payments_deleted")
   @@map("advance_payments")
 }

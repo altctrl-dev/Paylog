@@ -605,3 +605,164 @@ export async function notifyVendorRejected(
     referenceId: vendorId,
   });
 }
+
+// ============================================================================
+// CREDIT NOTE NOTIFICATION HELPERS
+// ============================================================================
+
+/**
+ * Notify admins about a new credit note pending approval
+ */
+export async function notifyCreditNotePendingApproval(
+  creditNoteId: number,
+  creditNoteNumber: string,
+  invoiceNumber: string,
+  amount: number,
+  requesterName: string
+): Promise<void> {
+  const formattedAmount = new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(amount);
+
+  await notifyAdmins({
+    type: NOTIFICATION_TYPE.CREDIT_NOTE_PENDING_APPROVAL,
+    title: 'Credit Note Pending Approval',
+    message: `${requesterName} submitted credit note ${creditNoteNumber} (${formattedAmount}) for invoice ${invoiceNumber}`,
+    link: `/admin?tab=approvals&subtab=credit-notes&highlight=${creditNoteId}`,
+    referenceType: NOTIFICATION_REFERENCE_TYPE.CREDIT_NOTE,
+    referenceId: creditNoteId,
+  });
+}
+
+/**
+ * Notify user about credit note approval
+ */
+export async function notifyCreditNoteApproved(
+  userId: number,
+  creditNoteId: number,
+  creditNoteNumber: string,
+  invoiceNumber: string
+): Promise<void> {
+  await createNotification({
+    userId,
+    type: NOTIFICATION_TYPE.CREDIT_NOTE_APPROVED,
+    title: 'Credit Note Approved',
+    message: `Your credit note ${creditNoteNumber} for invoice ${invoiceNumber} has been approved`,
+    link: `/invoices?highlight=${creditNoteId}`,
+    referenceType: NOTIFICATION_REFERENCE_TYPE.CREDIT_NOTE,
+    referenceId: creditNoteId,
+  });
+}
+
+/**
+ * Notify user about credit note rejection
+ */
+export async function notifyCreditNoteRejected(
+  userId: number,
+  creditNoteId: number,
+  creditNoteNumber: string,
+  invoiceNumber: string,
+  reason?: string
+): Promise<void> {
+  await createNotification({
+    userId,
+    type: NOTIFICATION_TYPE.CREDIT_NOTE_REJECTED,
+    title: 'Credit Note Rejected',
+    message: reason
+      ? `Your credit note ${creditNoteNumber} for invoice ${invoiceNumber} was rejected: ${reason}`
+      : `Your credit note ${creditNoteNumber} for invoice ${invoiceNumber} was rejected`,
+    link: `/invoices?highlight=${creditNoteId}`,
+    referenceType: NOTIFICATION_REFERENCE_TYPE.CREDIT_NOTE,
+    referenceId: creditNoteId,
+  });
+}
+
+// ============================================================================
+// ADVANCE PAYMENT NOTIFICATION HELPERS
+// ============================================================================
+
+/**
+ * Notify admins about a new advance payment pending approval
+ */
+export async function notifyAdvancePaymentPendingApproval(
+  advancePaymentId: number,
+  vendorName: string,
+  amount: number,
+  requesterName: string
+): Promise<void> {
+  const formattedAmount = new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(amount);
+
+  await notifyAdmins({
+    type: NOTIFICATION_TYPE.ADVANCE_PAYMENT_PENDING_APPROVAL,
+    title: 'Advance Payment Pending Approval',
+    message: `${requesterName} submitted a ${formattedAmount} advance payment to ${vendorName}`,
+    link: `/admin?tab=approvals&subtab=advance-payments&highlight=${advancePaymentId}`,
+    referenceType: NOTIFICATION_REFERENCE_TYPE.ADVANCE_PAYMENT,
+    referenceId: advancePaymentId,
+  });
+}
+
+/**
+ * Notify user about advance payment approval
+ */
+export async function notifyAdvancePaymentApproved(
+  userId: number,
+  advancePaymentId: number,
+  vendorName: string,
+  amount: number
+): Promise<void> {
+  const formattedAmount = new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(amount);
+
+  await createNotification({
+    userId,
+    type: NOTIFICATION_TYPE.ADVANCE_PAYMENT_APPROVED,
+    title: 'Advance Payment Approved',
+    message: `Your ${formattedAmount} advance payment to ${vendorName} has been approved`,
+    link: `/reports?highlight=${advancePaymentId}`,
+    referenceType: NOTIFICATION_REFERENCE_TYPE.ADVANCE_PAYMENT,
+    referenceId: advancePaymentId,
+  });
+}
+
+/**
+ * Notify user about advance payment rejection
+ */
+export async function notifyAdvancePaymentRejected(
+  userId: number,
+  advancePaymentId: number,
+  vendorName: string,
+  amount: number,
+  reason?: string
+): Promise<void> {
+  const formattedAmount = new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(amount);
+
+  await createNotification({
+    userId,
+    type: NOTIFICATION_TYPE.ADVANCE_PAYMENT_REJECTED,
+    title: 'Advance Payment Rejected',
+    message: reason
+      ? `Your ${formattedAmount} advance payment to ${vendorName} was rejected: ${reason}`
+      : `Your ${formattedAmount} advance payment to ${vendorName} was rejected`,
+    link: `/reports?highlight=${advancePaymentId}`,
+    referenceType: NOTIFICATION_REFERENCE_TYPE.ADVANCE_PAYMENT,
+    referenceId: advancePaymentId,
+  });
+}

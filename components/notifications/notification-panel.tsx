@@ -22,6 +22,8 @@ import {
   Loader2,
   IndianRupee,
   Building2,
+  ReceiptText,
+  Wallet,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -144,6 +146,38 @@ const notificationConfig: Record<
     icon: Building2,
     colorClass: 'text-red-500',
     label: 'Vendor Rejected',
+  },
+  // Credit Note notifications
+  [NOTIFICATION_TYPE.CREDIT_NOTE_PENDING_APPROVAL]: {
+    icon: ReceiptText,
+    colorClass: 'text-amber-500',
+    label: 'Credit Note Approval',
+  },
+  [NOTIFICATION_TYPE.CREDIT_NOTE_APPROVED]: {
+    icon: ReceiptText,
+    colorClass: 'text-green-500',
+    label: 'Credit Note Approved',
+  },
+  [NOTIFICATION_TYPE.CREDIT_NOTE_REJECTED]: {
+    icon: ReceiptText,
+    colorClass: 'text-red-500',
+    label: 'Credit Note Rejected',
+  },
+  // Advance Payment notifications
+  [NOTIFICATION_TYPE.ADVANCE_PAYMENT_PENDING_APPROVAL]: {
+    icon: Wallet,
+    colorClass: 'text-amber-500',
+    label: 'Advance Payment Approval',
+  },
+  [NOTIFICATION_TYPE.ADVANCE_PAYMENT_APPROVED]: {
+    icon: Wallet,
+    colorClass: 'text-green-500',
+    label: 'Advance Payment Approved',
+  },
+  [NOTIFICATION_TYPE.ADVANCE_PAYMENT_REJECTED]: {
+    icon: Wallet,
+    colorClass: 'text-red-500',
+    label: 'Advance Payment Rejected',
   },
 };
 

@@ -35,6 +35,16 @@ export const NOTIFICATION_TYPE = {
   VENDOR_PENDING_APPROVAL: 'vendor_pending_approval',    // To admins: new vendor needs approval
   VENDOR_APPROVED: 'vendor_approved',                    // To requester: vendor was approved
   VENDOR_REJECTED: 'vendor_rejected',                    // To requester: vendor was rejected
+
+  // Credit Note notifications
+  CREDIT_NOTE_PENDING_APPROVAL: 'credit_note_pending_approval',  // To admins: new credit note needs approval
+  CREDIT_NOTE_APPROVED: 'credit_note_approved',                  // To requester: credit note was approved
+  CREDIT_NOTE_REJECTED: 'credit_note_rejected',                  // To requester: credit note was rejected
+
+  // Advance Payment notifications
+  ADVANCE_PAYMENT_PENDING_APPROVAL: 'advance_payment_pending_approval',  // To admins: new advance payment needs approval
+  ADVANCE_PAYMENT_APPROVED: 'advance_payment_approved',                  // To requester: advance payment was approved
+  ADVANCE_PAYMENT_REJECTED: 'advance_payment_rejected',                  // To requester: advance payment was rejected
 } as const;
 
 export type NotificationType = typeof NOTIFICATION_TYPE[keyof typeof NOTIFICATION_TYPE];
@@ -51,6 +61,8 @@ export const NOTIFICATION_REFERENCE_TYPE = {
   PAYMENT_TYPE: 'payment_type',
   INVOICE_PROFILE: 'invoice_profile',
   PAYMENT: 'payment',
+  CREDIT_NOTE: 'credit_note',
+  ADVANCE_PAYMENT: 'advance_payment',
 } as const;
 
 export type NotificationReferenceType = typeof NOTIFICATION_REFERENCE_TYPE[keyof typeof NOTIFICATION_REFERENCE_TYPE];

@@ -146,6 +146,40 @@ async function generateLiveReport(month: number, year: number): Promise<MonthlyR
     entry_count: 0,
   });
 
+  // Fetch credit notes FIRST to build the counts map (needed for linked_credit_note_count)
+  const creditNotes = await db.creditNote.findMany({
+    where: {
+      credit_note_date: {
+        gte: monthStart,
+        lte: monthEnd,
+      },
+      deleted_at: null,
+    },
+    include: {
+      invoice: {
+        include: {
+          vendor: { select: { id: true, name: true } },
+          currency: { select: { code: true } },
+          invoice_profile: { select: { name: true } },
+          payments: {
+            where: { status: PAYMENT_STATUS.APPROVED },
+            orderBy: { payment_date: 'asc' },
+            take: 1,
+            select: { payment_type_id: true },
+          },
+        },
+      },
+    },
+    orderBy: { credit_note_date: 'asc' },
+  });
+
+  // Build a map of invoice_id -> credit note count for linking
+  const invoiceCreditNoteCounts = new Map<number, number>();
+  for (const cn of creditNotes) {
+    const count = invoiceCreditNoteCounts.get(cn.invoice_id) || 0;
+    invoiceCreditNoteCounts.set(cn.invoice_id, count + 1);
+  }
+
   // Get invoices with reporting_month in this period OR invoice_date in this period (for backwards compatibility)
   const invoices = await db.invoice.findMany({
     where: {
@@ -278,6 +312,15 @@ async function generateLiveReport(month: number, year: number): Promise<MonthlyR
         is_advance_payment: false,
         advance_payment_id: null,
         entry_type: entryType,
+        // Credit note fields (defaults)
+        is_credit_note: false,
+        credit_note_id: null,
+        credit_note_number: null,
+        credit_note_date: null,
+        tds_reversal_amount: null,
+        // Linking fields
+        parent_invoice_number: null,
+        linked_credit_note_count: invoiceCreditNoteCounts?.get(invoice.id) || 0,
       });
       section.subtotal += invoice.invoice_amount;
       section.entry_count++;
@@ -333,11 +376,73 @@ async function generateLiveReport(month: number, year: number): Promise<MonthlyR
             is_advance_payment: isPendingInvoice,
             advance_payment_id: null,
             entry_type: entryType,
+            // Credit note fields (defaults)
+            is_credit_note: false,
+            credit_note_id: null,
+            credit_note_number: null,
+            credit_note_date: null,
+            tds_reversal_amount: null,
+            // Linking fields
+            parent_invoice_number: null,
+            linked_credit_note_count: invoiceCreditNoteCounts?.get(invoice.id) || 0,
           });
           section.subtotal += payment.amount_paid;
           section.entry_count++;
         }
       }
+    }
+  }
+
+  // Process credit notes - add to same section as parent invoice's payment type
+  // (Credit notes were fetched earlier for building invoiceCreditNoteCounts)
+  for (const cn of creditNotes) {
+    const invoice = cn.invoice;
+    const invoiceName = invoice.is_recurring
+      ? invoice.invoice_profile?.name || 'Unknown Profile'
+      : invoice.invoice_name || invoice.description || 'Unnamed Invoice';
+
+    const currencyCode = invoice.currency?.code || 'INR';
+
+    // Determine which section: use parent invoice's first payment type, or Unpaid if no payments
+    const paymentTypeId = invoice.payments.length > 0
+      ? invoice.payments[0].payment_type_id
+      : null;
+
+    const section = sectionsMap.get(paymentTypeId);
+    if (section) {
+      // Credit note amount is negative (reduces totals)
+      const creditAmount = -cn.amount;
+
+      section.entries.push({
+        serial: section.entries.length + 1,
+        invoice_id: cn.invoice_id,
+        invoice_number: cn.credit_note_number, // Show credit note number as primary
+        invoice_name: invoiceName,
+        vendor_name: invoice.vendor.name,
+        invoice_date: cn.credit_note_date.toISOString(), // Use credit note date
+        invoice_amount: creditAmount, // NEGATIVE amount
+        payment_amount: null,
+        payment_date: null,
+        payment_reference: null,
+        status: 'CREDIT_NOTE',
+        status_percentage: null,
+        currency_code: currencyCode,
+        is_advance_payment: false,
+        advance_payment_id: null,
+        entry_type: 'credit_note',
+        // Credit note specific fields
+        is_credit_note: true,
+        credit_note_id: cn.id,
+        credit_note_number: cn.credit_note_number,
+        credit_note_date: cn.credit_note_date.toISOString(),
+        tds_reversal_amount: cn.tds_applicable && cn.tds_amount ? cn.tds_amount : null,
+        // Linking fields
+        parent_invoice_number: invoice.invoice_number,
+        linked_credit_note_count: 0,
+      });
+
+      section.subtotal += creditAmount; // Negative, reduces total
+      section.entry_count++;
     }
   }
 
@@ -377,6 +482,15 @@ async function generateLiveReport(month: number, year: number): Promise<MonthlyR
         is_advance_payment: true,
         advance_payment_id: ap.id,
         entry_type: 'advance_payment',
+        // Credit note fields (defaults)
+        is_credit_note: false,
+        credit_note_id: null,
+        credit_note_number: null,
+        credit_note_date: null,
+        tds_reversal_amount: null,
+        // Linking fields
+        parent_invoice_number: null,
+        linked_credit_note_count: 0,
       });
       section.subtotal += ap.amount;
       section.entry_count++;
@@ -444,6 +558,25 @@ async function generateInvoiceDateReport(month: number, year: number): Promise<M
     entry_count: 0,
   });
 
+  // Fetch credit notes for building counts map (needed for linked_credit_note_count)
+  const creditNotesForCounts = await db.creditNote.findMany({
+    where: {
+      credit_note_date: {
+        gte: monthStart,
+        lte: monthEnd,
+      },
+      deleted_at: null,
+    },
+    select: { invoice_id: true },
+  });
+
+  // Build credit note counts map
+  const invoiceCreditNoteCounts = new Map<number, number>();
+  for (const cn of creditNotesForCounts) {
+    const count = invoiceCreditNoteCounts.get(cn.invoice_id) || 0;
+    invoiceCreditNoteCounts.set(cn.invoice_id, count + 1);
+  }
+
   // Get invoices with invoice_date in this period
   const invoices = await db.invoice.findMany({
     where: {
@@ -503,6 +636,15 @@ async function generateInvoiceDateReport(month: number, year: number): Promise<M
         is_advance_payment: isPendingInvoice,
         advance_payment_id: null,
         entry_type: entryType,
+        // Credit note fields (defaults)
+        is_credit_note: false,
+        credit_note_id: null,
+        credit_note_number: null,
+        credit_note_date: null,
+        tds_reversal_amount: null,
+        // Linking fields
+        parent_invoice_number: null,
+        linked_credit_note_count: invoiceCreditNoteCounts?.get(invoice.id) || 0,
       });
       section.subtotal += invoice.invoice_amount;
       section.entry_count++;
@@ -544,11 +686,96 @@ async function generateInvoiceDateReport(month: number, year: number): Promise<M
             is_advance_payment: isPendingInvoice,
             advance_payment_id: null,
             entry_type: entryType,
+            // Credit note fields (defaults)
+            is_credit_note: false,
+            credit_note_id: null,
+            credit_note_number: null,
+            credit_note_date: null,
+            tds_reversal_amount: null,
+            // Linking fields
+            parent_invoice_number: null,
+            linked_credit_note_count: invoiceCreditNoteCounts?.get(invoice.id) || 0,
           });
           section.subtotal += payment.amount_paid;
           section.entry_count++;
         }
       }
+    }
+  }
+
+  // Fetch credit notes for this period with parent invoice payment info
+  const creditNotesDateView = await db.creditNote.findMany({
+    where: {
+      credit_note_date: {
+        gte: monthStart,
+        lte: monthEnd,
+      },
+      deleted_at: null,
+    },
+    include: {
+      invoice: {
+        include: {
+          vendor: { select: { id: true, name: true } },
+          currency: { select: { code: true } },
+          invoice_profile: { select: { name: true } },
+          payments: {
+            where: { status: PAYMENT_STATUS.APPROVED },
+            orderBy: { payment_date: 'asc' },
+            take: 1,
+            select: { payment_type_id: true },
+          },
+        },
+      },
+    },
+    orderBy: { credit_note_date: 'asc' },
+  });
+
+  // Process credit notes - add to same section as parent invoice's payment type
+  for (const cn of creditNotesDateView) {
+    const invoice = cn.invoice;
+    const invoiceName = invoice.is_recurring
+      ? invoice.invoice_profile?.name || 'Unknown Profile'
+      : invoice.invoice_name || invoice.description || 'Unnamed Invoice';
+
+    const currencyCode = invoice.currency?.code || 'INR';
+
+    // Determine which section: use parent invoice's first payment type, or Unpaid if no payments
+    const paymentTypeId = invoice.payments.length > 0
+      ? invoice.payments[0].payment_type_id
+      : null;
+
+    const section = sectionsMap.get(paymentTypeId);
+    if (section) {
+      const creditAmount = -cn.amount;
+
+      section.entries.push({
+        serial: section.entries.length + 1,
+        invoice_id: cn.invoice_id,
+        invoice_number: cn.credit_note_number,
+        invoice_name: invoiceName,
+        vendor_name: invoice.vendor.name,
+        invoice_date: cn.credit_note_date.toISOString(),
+        invoice_amount: creditAmount,
+        payment_amount: null,
+        payment_date: null,
+        payment_reference: null,
+        status: 'CREDIT_NOTE',
+        status_percentage: null,
+        currency_code: currencyCode,
+        is_advance_payment: false,
+        advance_payment_id: null,
+        entry_type: 'credit_note',
+        is_credit_note: true,
+        credit_note_id: cn.id,
+        credit_note_number: cn.credit_note_number,
+        credit_note_date: cn.credit_note_date.toISOString(),
+        tds_reversal_amount: cn.tds_applicable && cn.tds_amount ? cn.tds_amount : null,
+        parent_invoice_number: invoice.invoice_number,
+        linked_credit_note_count: 0,
+      });
+
+      section.subtotal += creditAmount;
+      section.entry_count++;
     }
   }
 
@@ -616,6 +843,25 @@ async function generateCombinedReport(month: number, year: number): Promise<Mont
     entry_count: 0,
   });
 
+  // Fetch credit notes for building counts map (needed for linked_credit_note_count)
+  const creditNotesForCountsCombined = await db.creditNote.findMany({
+    where: {
+      credit_note_date: {
+        gte: monthStart,
+        lte: monthEnd,
+      },
+      deleted_at: null,
+    },
+    select: { invoice_id: true },
+  });
+
+  // Build credit note counts map
+  const invoiceCreditNoteCounts = new Map<number, number>();
+  for (const cn of creditNotesForCountsCombined) {
+    const count = invoiceCreditNoteCounts.get(cn.invoice_id) || 0;
+    invoiceCreditNoteCounts.set(cn.invoice_id, count + 1);
+  }
+
   // Track which invoice+payment combinations we've already added to avoid duplicates
   const addedEntries = new Set<string>();
 
@@ -680,6 +926,15 @@ async function generateCombinedReport(month: number, year: number): Promise<Mont
         is_advance_payment: isPendingInvoice,
         advance_payment_id: null,
         entry_type: isPendingInvoice ? 'advance_payment' : 'standard',
+        // Credit note fields (defaults)
+        is_credit_note: false,
+        credit_note_id: null,
+        credit_note_number: null,
+        credit_note_date: null,
+        tds_reversal_amount: null,
+        // Linking fields
+        parent_invoice_number: null,
+        linked_credit_note_count: invoiceCreditNoteCounts?.get(invoice.id) || 0,
       });
       section.subtotal += invoice.invoice_amount;
       section.entry_count++;
@@ -736,6 +991,15 @@ async function generateCombinedReport(month: number, year: number): Promise<Mont
             is_advance_payment: isPendingInvoice,
             advance_payment_id: null,
             entry_type: entryType,
+            // Credit note fields (defaults)
+            is_credit_note: false,
+            credit_note_id: null,
+            credit_note_number: null,
+            credit_note_date: null,
+            tds_reversal_amount: null,
+            // Linking fields
+            parent_invoice_number: null,
+            linked_credit_note_count: invoiceCreditNoteCounts?.get(invoice.id) || 0,
           });
           section.subtotal += payment.amount_paid;
           section.entry_count++;
@@ -839,6 +1103,15 @@ async function generateCombinedReport(month: number, year: number): Promise<Mont
         is_advance_payment: isPendingInvoice,
         advance_payment_id: null,
         entry_type: isPendingInvoice ? 'advance_payment' : 'late_invoice', // Invoice from different month
+        // Credit note fields (defaults)
+        is_credit_note: false,
+        credit_note_id: null,
+        credit_note_number: null,
+        credit_note_date: null,
+        tds_reversal_amount: null,
+        // Linking fields
+        parent_invoice_number: null,
+        linked_credit_note_count: invoiceCreditNoteCounts?.get(invoice.id) || 0,
       });
       section.subtotal += payment.amount_paid;
       section.entry_count++;
@@ -883,8 +1156,95 @@ async function generateCombinedReport(month: number, year: number): Promise<Mont
         is_advance_payment: true,
         advance_payment_id: ap.id,
         entry_type: 'advance_payment',
+        // Credit note fields (defaults)
+        is_credit_note: false,
+        credit_note_id: null,
+        credit_note_number: null,
+        credit_note_date: null,
+        tds_reversal_amount: null,
+        // Linking fields
+        parent_invoice_number: null,
+        linked_credit_note_count: 0,
       });
       section.subtotal += ap.amount;
+      section.entry_count++;
+    }
+  }
+
+  // ========================================
+  // PART 4: Credit notes for this month
+  // ========================================
+  const creditNotesCombined = await db.creditNote.findMany({
+    where: {
+      credit_note_date: {
+        gte: monthStart,
+        lte: monthEnd,
+      },
+      deleted_at: null,
+    },
+    include: {
+      invoice: {
+        include: {
+          vendor: { select: { id: true, name: true } },
+          currency: { select: { code: true } },
+          invoice_profile: { select: { name: true } },
+          payments: {
+            where: { status: PAYMENT_STATUS.APPROVED },
+            orderBy: { payment_date: 'asc' },
+            take: 1,
+            select: { payment_type_id: true },
+          },
+        },
+      },
+    },
+    orderBy: { credit_note_date: 'asc' },
+  });
+
+  // Process credit notes - add to same section as parent invoice's payment type
+  for (const cn of creditNotesCombined) {
+    const invoice = cn.invoice;
+    const invoiceName = invoice.is_recurring
+      ? invoice.invoice_profile?.name || 'Unknown Profile'
+      : invoice.invoice_name || invoice.description || 'Unnamed Invoice';
+
+    const currencyCode = invoice.currency?.code || 'INR';
+
+    // Determine which section: use parent invoice's first payment type, or Unpaid if no payments
+    const paymentTypeId = invoice.payments.length > 0
+      ? invoice.payments[0].payment_type_id
+      : null;
+
+    const section = sectionsMap.get(paymentTypeId);
+    if (section) {
+      const creditAmount = -cn.amount;
+
+      section.entries.push({
+        serial: 0,
+        invoice_id: cn.invoice_id,
+        invoice_number: cn.credit_note_number,
+        invoice_name: invoiceName,
+        vendor_name: invoice.vendor.name,
+        invoice_date: cn.credit_note_date.toISOString(),
+        invoice_amount: creditAmount,
+        payment_amount: null,
+        payment_date: null,
+        payment_reference: null,
+        status: 'CREDIT_NOTE',
+        status_percentage: null,
+        currency_code: currencyCode,
+        is_advance_payment: false,
+        advance_payment_id: null,
+        entry_type: 'credit_note',
+        is_credit_note: true,
+        credit_note_id: cn.id,
+        credit_note_number: cn.credit_note_number,
+        credit_note_date: cn.credit_note_date.toISOString(),
+        tds_reversal_amount: cn.tds_applicable && cn.tds_amount ? cn.tds_amount : null,
+        parent_invoice_number: invoice.invoice_number,
+        linked_credit_note_count: 0,
+      });
+
+      section.subtotal += creditAmount;
       section.entry_count++;
     }
   }

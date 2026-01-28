@@ -1,8 +1,8 @@
-# Compaction Summary — 2026-01-11 10:57:04 IST
+# Compaction Summary — 2026-01-28 22:11:09 IST
 
 ## Executive Summary
 - Agents active: Main Agent (Direct Work)
-- Files modified: 9
+- Files modified: 20
 - Contracts affected: 0
 - Open questions: 0
 
@@ -14,14 +14,15 @@
 
 ## Critical Paths (for JIT retrieval)
 - `OMPACTION.md`
-- `app/(dashboard)/reports/page.tsx`
+- `app/actions/advance-payments.ts`
+- `app/actions/credit-notes.ts`
+- `app/actions/monthly-reports.ts`
+- `app/actions/notifications.ts`
 - `compaction-summary.json`
-- `components/v3/invoices/invoice-tabs.tsx`
-- `components/v3/invoices/invoices-page.tsx`
-- `lib/utils/invoice-filters.ts`
-- `logs/context-metrics.jsonl`
-- `components/ui/period-selector.tsx`
-- `components/v3/reports/`
+- `components/notifications/notification-panel.tsx`
+- `components/v3/invoices/all-invoices-tab.tsx`
+- `components/v3/invoices/tds-tab.tsx`
+- `components/v3/reports/consolidated-report-tab.tsx`
 
 ## Contracts Touched (verify stability)
 - n/a

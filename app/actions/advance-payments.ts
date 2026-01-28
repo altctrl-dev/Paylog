@@ -20,6 +20,22 @@ import {
   type AdvancePaymentListResponse,
   type AdvancePaymentFilters,
 } from '@/types/monthly-report';
+import {
+  notifyAdvancePaymentApproved,
+  notifyAdvancePaymentRejected,
+} from '@/app/actions/notifications';
+
+// ============================================================================
+// STATUS CONSTANTS
+// ============================================================================
+
+export const ADVANCE_PAYMENT_STATUS = {
+  PENDING_APPROVAL: 'pending_approval',
+  APPROVED: 'approved',
+  REJECTED: 'rejected',
+} as const;
+
+export type AdvancePaymentStatus = typeof ADVANCE_PAYMENT_STATUS[keyof typeof ADVANCE_PAYMENT_STATUS];
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -59,6 +75,12 @@ const advancePaymentInclude = {
     select: { id: true, invoice_number: true, invoice_amount: true },
   },
   created_by: {
+    select: { id: true, full_name: true },
+  },
+  approved_by: {
+    select: { id: true, full_name: true },
+  },
+  deleted_by: {
     select: { id: true, full_name: true },
   },
 };
@@ -201,7 +223,10 @@ export async function getAdvancePayments(
       payment_type_id?: number;
       reporting_month?: { gte: Date; lte: Date };
       linked_invoice_id?: number | null;
-    } = {};
+      deleted_at?: null;
+    } = {
+      deleted_at: null, // Only return non-deleted advance payments
+    };
 
     if (filters.vendor_id) {
       where.vendor_id = filters.vendor_id;
@@ -277,6 +302,7 @@ export async function getUnlinkedAdvancePayments(
       where: {
         vendor_id: vendorId,
         linked_invoice_id: null,
+        deleted_at: null, // Only return non-deleted advance payments
       },
       include: advancePaymentInclude,
       orderBy: { payment_date: 'desc' },
@@ -537,14 +563,17 @@ export async function unlinkAdvancePayment(
 // ============================================================================
 
 /**
- * Delete an advance payment
+ * Soft delete an advance payment
  *
  * Admin only. Cannot delete if linked to an invoice.
+ * Sets deleted_at timestamp and deleted_by_id for audit trail.
  *
  * @param id - Advance payment ID
+ * @param reason - Optional deletion reason
  */
 export async function deleteAdvancePayment(
-  id: number
+  id: number,
+  reason?: string
 ): Promise<ServerActionResult<{ id: number }>> {
   try {
     const currentUser = await getCurrentUser();
@@ -567,6 +596,13 @@ export async function deleteAdvancePayment(
       };
     }
 
+    if (advancePayment.deleted_at) {
+      return {
+        success: false,
+        error: 'Advance payment is already deleted',
+      };
+    }
+
     if (advancePayment.linked_invoice_id) {
       return {
         success: false,
@@ -574,11 +610,18 @@ export async function deleteAdvancePayment(
       };
     }
 
-    await db.advancePayment.delete({
+    // Soft delete
+    await db.advancePayment.update({
       where: { id },
+      data: {
+        deleted_at: new Date(),
+        deleted_by_id: currentUser.id,
+        deleted_reason: reason || null,
+      },
     });
 
     revalidatePath('/reports');
+    revalidatePath('/admin');
 
     return {
       success: true,
@@ -589,6 +632,237 @@ export async function deleteAdvancePayment(
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to delete advance payment',
+    };
+  }
+}
+
+// ============================================================================
+// APPROVAL OPERATIONS
+// ============================================================================
+
+/**
+ * Approve an advance payment
+ *
+ * Admin only. Sets status to 'approved' and records approver info.
+ *
+ * @param id - Advance payment ID
+ * @returns Approved advance payment
+ */
+export async function approveAdvancePayment(
+  id: number
+): Promise<ServerActionResult<AdvancePaymentWithRelations>> {
+  try {
+    const currentUser = await getCurrentUser();
+
+    // Only admins can approve advance payments
+    if (!currentUser.isAdmin) {
+      return {
+        success: false,
+        error: 'Unauthorized: Only administrators can approve advance payments',
+      };
+    }
+
+    // Get advance payment with vendor for validation and notification
+    const advancePayment = await db.advancePayment.findUnique({
+      where: { id },
+      include: {
+        vendor: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        created_by: {
+          select: {
+            id: true,
+            full_name: true,
+          },
+        },
+      },
+    });
+
+    if (!advancePayment) {
+      return {
+        success: false,
+        error: 'Advance payment not found',
+      };
+    }
+
+    if (advancePayment.deleted_at) {
+      return {
+        success: false,
+        error: 'Cannot approve a deleted advance payment',
+      };
+    }
+
+    if (advancePayment.status === ADVANCE_PAYMENT_STATUS.APPROVED) {
+      return {
+        success: false,
+        error: 'Advance payment is already approved',
+      };
+    }
+
+    if (advancePayment.status === ADVANCE_PAYMENT_STATUS.REJECTED) {
+      return {
+        success: false,
+        error: 'Cannot approve a rejected advance payment',
+      };
+    }
+
+    // Approve the advance payment
+    const approvedAdvancePayment = await db.advancePayment.update({
+      where: { id },
+      data: {
+        status: ADVANCE_PAYMENT_STATUS.APPROVED,
+        approved_by_id: currentUser.id,
+        approved_at: new Date(),
+        rejection_reason: null, // Clear any previous rejection reason
+      },
+      include: advancePaymentInclude,
+    });
+
+    // Notify the creator that their advance payment was approved
+    if (advancePayment.created_by_id) {
+      await notifyAdvancePaymentApproved(
+        advancePayment.created_by_id,
+        id,
+        advancePayment.vendor.name,
+        advancePayment.amount
+      );
+    }
+
+    // Revalidate paths
+    revalidatePath('/reports');
+    revalidatePath('/admin');
+
+    return {
+      success: true,
+      data: approvedAdvancePayment as AdvancePaymentWithRelations,
+    };
+  } catch (error) {
+    console.error('approveAdvancePayment error:', error);
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'Failed to approve advance payment',
+    };
+  }
+}
+
+/**
+ * Reject an advance payment
+ *
+ * Admin only. Sets status to 'rejected' and records rejection reason.
+ *
+ * @param id - Advance payment ID
+ * @param reason - Rejection reason
+ * @returns Rejected advance payment
+ */
+export async function rejectAdvancePayment(
+  id: number,
+  reason: string
+): Promise<ServerActionResult<AdvancePaymentWithRelations>> {
+  try {
+    const currentUser = await getCurrentUser();
+
+    // Only admins can reject advance payments
+    if (!currentUser.isAdmin) {
+      return {
+        success: false,
+        error: 'Unauthorized: Only administrators can reject advance payments',
+      };
+    }
+
+    // Validate reason is provided
+    if (!reason || reason.trim().length === 0) {
+      return {
+        success: false,
+        error: 'Rejection reason is required',
+      };
+    }
+
+    // Get advance payment with vendor for validation and notification
+    const advancePayment = await db.advancePayment.findUnique({
+      where: { id },
+      include: {
+        vendor: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        created_by: {
+          select: {
+            id: true,
+            full_name: true,
+          },
+        },
+      },
+    });
+
+    if (!advancePayment) {
+      return {
+        success: false,
+        error: 'Advance payment not found',
+      };
+    }
+
+    if (advancePayment.deleted_at) {
+      return {
+        success: false,
+        error: 'Cannot reject a deleted advance payment',
+      };
+    }
+
+    if (advancePayment.status === ADVANCE_PAYMENT_STATUS.REJECTED) {
+      return {
+        success: false,
+        error: 'Advance payment is already rejected',
+      };
+    }
+
+    if (advancePayment.status === ADVANCE_PAYMENT_STATUS.APPROVED) {
+      return {
+        success: false,
+        error: 'Cannot reject an approved advance payment',
+      };
+    }
+
+    // Reject the advance payment
+    const rejectedAdvancePayment = await db.advancePayment.update({
+      where: { id },
+      data: {
+        status: ADVANCE_PAYMENT_STATUS.REJECTED,
+        rejection_reason: reason.trim(),
+      },
+      include: advancePaymentInclude,
+    });
+
+    // Notify the creator that their advance payment was rejected
+    if (advancePayment.created_by_id) {
+      await notifyAdvancePaymentRejected(
+        advancePayment.created_by_id,
+        id,
+        advancePayment.vendor.name,
+        advancePayment.amount,
+        reason.trim()
+      );
+    }
+
+    // Revalidate paths
+    revalidatePath('/reports');
+    revalidatePath('/admin');
+
+    return {
+      success: true,
+      data: rejectedAdvancePayment as AdvancePaymentWithRelations,
+    };
+  } catch (error) {
+    console.error('rejectAdvancePayment error:', error);
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'Failed to reject advance payment',
     };
   }
 }
