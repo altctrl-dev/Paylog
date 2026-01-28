@@ -89,11 +89,6 @@ function getInitials(name?: string | null, email?: string | null): string {
   return 'U';
 }
 
-function formatRole(role?: string | null): string {
-  if (!role) return 'User';
-  return role.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
 // ============================================================================
 // Sub-components
 // ============================================================================
@@ -384,24 +379,28 @@ interface UserProfileMenuProps {
 function UserProfileMenu({ user }: UserProfileMenuProps) {
   const displayName = user?.name || user?.email || 'User';
   const initials = getInitials(user?.name, user?.email);
-  const role = formatRole(user?.role);
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-muted transition-colors">
-          <div className="hidden sm:block text-right min-w-[80px] max-w-[150px]">
-            <div className="text-sm font-medium truncate">{displayName}</div>
-            <div className="text-xs text-muted-foreground truncate">{role}</div>
-          </div>
-          <Avatar className="h-8 w-8">
-            <AvatarFallback className="bg-primary/10 text-primary text-xs">
+        <button className="flex items-center rounded-full p-0.5 hover:bg-muted transition-colors focus:outline-none focus:ring-0">
+          <Avatar className="h-9 w-9">
+            <AvatarFallback className="bg-foreground text-background text-xs font-semibold">
               {initials}
             </AvatarFallback>
           </Avatar>
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
+      <DropdownMenuContent
+          align="end"
+          className="w-56 border border-white/10 rounded-lg"
+          style={{
+            background: 'rgba(255, 255, 255, 0.08)',
+            backdropFilter: 'blur(25px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(25px) saturate(180%)',
+            boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.15)',
+          }}
+        >
         <DropdownMenuLabel>
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium">{displayName}</p>
