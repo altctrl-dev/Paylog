@@ -122,6 +122,28 @@ export const ACTIVITY_ACTION = {
   /** Credit note soft-deleted by admin */
   CREDIT_NOTE_DELETED: 'credit_note_deleted',
 
+  /** Credit note approved by admin (status: pending_approval → approved) */
+  CREDIT_NOTE_APPROVED: 'credit_note_approved',
+
+  /** Credit note rejected by admin (status: pending_approval → rejected) */
+  CREDIT_NOTE_REJECTED: 'credit_note_rejected',
+
+  // ============================================================================
+  // ADVANCE PAYMENT ACTIONS
+  // ============================================================================
+
+  /** Advance payment created */
+  ADVANCE_PAYMENT_ADDED: 'advance_payment_added',
+
+  /** Advance payment soft-deleted by admin */
+  ADVANCE_PAYMENT_DELETED: 'advance_payment_deleted',
+
+  /** Advance payment approved by admin (status: pending_approval → approved) */
+  ADVANCE_PAYMENT_APPROVED: 'advance_payment_approved',
+
+  /** Advance payment rejected by admin (status: pending_approval → rejected) */
+  ADVANCE_PAYMENT_REJECTED: 'advance_payment_rejected',
+
 } as const;
 
 // ============================================================================
@@ -166,6 +188,12 @@ export const ACTIVITY_ACTION_LABELS: Record<ActivityAction, string> = {
   [ACTIVITY_ACTION.INVOICE_PURGED]: 'Permanently purged invoice',
   [ACTIVITY_ACTION.CREDIT_NOTE_ADDED]: 'Added credit note',
   [ACTIVITY_ACTION.CREDIT_NOTE_DELETED]: 'Deleted credit note',
+  [ACTIVITY_ACTION.CREDIT_NOTE_APPROVED]: 'Approved credit note',
+  [ACTIVITY_ACTION.CREDIT_NOTE_REJECTED]: 'Rejected credit note',
+  [ACTIVITY_ACTION.ADVANCE_PAYMENT_ADDED]: 'Added advance payment',
+  [ACTIVITY_ACTION.ADVANCE_PAYMENT_DELETED]: 'Deleted advance payment',
+  [ACTIVITY_ACTION.ADVANCE_PAYMENT_APPROVED]: 'Approved advance payment',
+  [ACTIVITY_ACTION.ADVANCE_PAYMENT_REJECTED]: 'Rejected advance payment',
 };
 
 /** Icon names for activity actions (for UI display with icon libraries like Lucide) */
@@ -198,6 +226,12 @@ export const ACTIVITY_ACTION_ICONS: Record<ActivityAction, string> = {
   [ACTIVITY_ACTION.INVOICE_PURGED]: 'Trash2',
   [ACTIVITY_ACTION.CREDIT_NOTE_ADDED]: 'ReceiptText',
   [ACTIVITY_ACTION.CREDIT_NOTE_DELETED]: 'ReceiptText',
+  [ACTIVITY_ACTION.CREDIT_NOTE_APPROVED]: 'CheckCircle',
+  [ACTIVITY_ACTION.CREDIT_NOTE_REJECTED]: 'XCircle',
+  [ACTIVITY_ACTION.ADVANCE_PAYMENT_ADDED]: 'Wallet',
+  [ACTIVITY_ACTION.ADVANCE_PAYMENT_DELETED]: 'Wallet',
+  [ACTIVITY_ACTION.ADVANCE_PAYMENT_APPROVED]: 'CheckCircle',
+  [ACTIVITY_ACTION.ADVANCE_PAYMENT_REJECTED]: 'XCircle',
 };
 
 // ============================================================================
